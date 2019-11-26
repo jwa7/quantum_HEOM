@@ -180,9 +180,9 @@ def evolve_rho_many_steps(N, rho_0: np.array, H: np.array, dt: float,
     for step in range(1, timesteps):
 
         time += dt
-        rho_evo = evolve_dens_matrix(N, rho_evo, H, dt, Gamma=Gamma,
-                                     dephaser=dephaser,
-                                     atomic_units=atomic_units)
+        rho_evo = evolve_density_matrix_once(N, rho_evo, H, dt, Gamma=Gamma,
+                                             dephaser=dephaser,
+                                             atomic_units=atomic_units)
         evolution[step] = (time, rho_evo)
 
     return evolution
