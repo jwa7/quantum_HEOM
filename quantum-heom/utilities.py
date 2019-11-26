@@ -8,11 +8,12 @@ def get_trace_matrix_squared(matrix: np.array) -> complex:
     Parameters
     ----------
     matrix : array of array of complex
-        The input matrix whose square trace will be evaluated.
+        The input square matrix whose square trace will be
+        evaluated.
 
     Returns
     -------
-    trace_sq : complex
+    complex
         The trace of the square of the input matrix.
     """
 
