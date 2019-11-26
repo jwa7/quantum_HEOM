@@ -66,19 +66,18 @@ def complex_space_time(evolution: np.array,
     ax = plt.axes(projection='3d')
 
     # Plot the data
-    Z = np.zeros(len(evolution), dtype=float)
+    zeros = np.zeros(len(evolution), dtype=float)
     for element, amplitudes in matrix_data.items():
-        n, m = int(element[0]), int(element[1])
-        if n == m:
+        if int(element[0]) == int(element[1]):
             label = '$Re(p_{' + element + '})$'
-            ax.plot3D(times, Z, amplitudes, ls='-', label=label)
+            ax.plot3D(times, zeros, amplitudes, ls='-', label=label)
         else:
             label = '$Im(p_{' + element + '})$'
-            ax.plot3D(times, amplitudes, Z, ls='-', label=label)
+            ax.plot3D(times, amplitudes, zeros, ls='-', label=label)
 
     # Plot trace of rho^2 and asymptote at 1 / N
-    ax.plot3D(times, Z, tr_rho_sq, dashes=[1, 1], label='$tr(p^2)$')
-    ax.plot3D(times, Z, 1/N, c='gray', ls='--', label='z = 1/N')
+    ax.plot3D(times, zeros, tr_rho_sq, dashes=[1, 1], label='$tr(p^2)$')
+    ax.plot3D(times, zeros, 1/N, c='gray', ls='--', label='z = 1/N')
 
     # Set formatting parameters
     label_size = '15'
