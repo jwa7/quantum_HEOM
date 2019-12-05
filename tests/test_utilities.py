@@ -6,7 +6,8 @@ import pytest
 import quantum_heom.utilities as util
 
 
-@pytest.mark.parametrize('mat, ans', [(np.array([[0.5, 0.5], [0.5, 0.5]]), 1.0),
+@pytest.mark.parametrize('mat, ans', [(np.array([[0.5, 0.5], [0.5, 0.5]]),
+                                       1.0),
                                       (np.array([[2**(-1/2), 0],
                                                  [0, 2**(-1/2)]]), 1.0)])
 def test_trace_matrix_squared_pure(mat, ans):

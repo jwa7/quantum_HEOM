@@ -44,10 +44,10 @@ def complex_space_time(evolution: np.array, N: int, cyclic: bool,
         plotted with the default value ['11', '12', '21', '22'].
     """
 
-    assert 0 < len(elements) <= N ** 2, ('The number of elements that should be'
-                                         ' plotted must be a positive integer'
-                                         ' less than or equal to the number of'
-                                         ' elements in the density matrix.')
+    assert 0 < len(elements) <= N ** 2, ('The number of elements plotted must'
+                                         ' be a positive integer less than or'
+                                         ' equal to the number of elements in'
+                                         ' the density matrix.')
     for element in elements:
         try:
             int(element)
@@ -72,7 +72,7 @@ def complex_space_time(evolution: np.array, N: int, cyclic: bool,
                 matrix_data[element][t_idx] = value.imag
 
     # 3D PLOT
-    fig = plt.figure(figsize=(15, 10))
+    plt.figure(figsize=(15, 10))
     ax = plt.axes(projection='3d')
 
     # Plot the data
