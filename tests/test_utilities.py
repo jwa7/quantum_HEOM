@@ -1,7 +1,8 @@
 """Tests the functions contained within utilities.py"""
 
 import numpy as np
-from quantum_system import utilities as util
+
+import quantum_system.utilities as util
 
 
 @pytest.fixture
