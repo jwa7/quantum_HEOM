@@ -10,6 +10,7 @@ import utilities as util
 
 DEPHASING_METHODS = ['simple', 'lindbladian']
 
+
 def build_init_dens_matrix(N: int, au: bool = True) -> np.array:
 
     """
@@ -42,8 +43,9 @@ def build_init_dens_matrix(N: int, au: bool = True) -> np.array:
     return rho_0 * hbar
 
 
-def evolve_density_matrix_once(N: int, rho_t: np.array, H: np.array, dt: float,
-                               Gamma: float = 0., dephaser: str = 'lindbladian',
+def evolve_density_matrix_once(N: int, rho_t: np.array, H: np.array,
+                               dt: float, Gamma: float = 0.,
+                               dephaser: str = 'lindbladian',
                                au: bool = True) -> np.array:
 
     """
@@ -114,7 +116,7 @@ def evolve_density_matrix_once(N: int, rho_t: np.array, H: np.array, dt: float,
 
     if dephaser == 'simple':
         rho_evo = rho_t - (1.0j * dt / hbar) * util.get_commutator(H, rho_t)
-        dephasing_matrix = rho_t * Gamma * dt  # Build a simple dephasing matrix
+        dephasing_matrix = rho_t * Gamma * dt  # Build simple dephasing matrix
         np.fill_diagonal(dephasing_matrix, complex(0))
 
         return rho_evo - dephasing_matrix

@@ -4,6 +4,7 @@
 from scipy import constants
 import numpy as np
 
+
 def build_H_nearest_neighbour(N: int, cyclic: bool = True,
                               au: bool = True) -> np.array:
 
@@ -135,10 +136,10 @@ def build_lindbladian_superop(N: int, Gamma: float) -> np.array:
 
     for j in range(1, N + 1):
         P_j = build_lindblad_operator(N, j)
-        I = np.identity(N, dtype=complex)
+        iden = np.identity(N, dtype=complex)
         L_j = (np.kron(P_j, P_j)
-               - 0.5 * (np.kron(I, np.matmul(np.transpose(P_j), P_j))
-                        + np.kron(np.matmul(np.transpose(P_j), P_j), I)))
+               - 0.5 * (np.kron(iden, np.matmul(np.transpose(P_j), P_j))
+                        + np.kron(np.matmul(np.transpose(P_j), P_j), iden)))
         lindbladian += L_j
 
     return lindbladian * Gamma
