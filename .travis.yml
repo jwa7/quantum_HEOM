@@ -1,0 +1,33 @@
+language: python
+sudo: no
+
+python:
+  - "3.6"
+
+branches:
+  only:
+  - master
+
+before_install:
+
+install:
+  - conda install -r requirements.txt
+
+before_script:
+  - export PYTHONPATH=$PYTHONPATH:$(pwd)
+
+script:
+  - flake8
+    - pytest -v tests/
+    # - python -m pytest
+    #- py.test -s --pyargs expressyeaself --cov-report term-missing --cov=expressyeaself --cov-config .coveragerc
+  # - ./run_tests.sh
+
+# calculate and report code coverage
+after_success:
+  - coveralls
+  - coverage report
+
+# Email notifications
+notifications:
+    email: true
