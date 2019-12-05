@@ -1,13 +1,22 @@
 """Tests the functions contained within utilities.py"""
 
-import utilities as util
+import numpy as np
+from quantum_system import utilities as util
 
 
 @pytest.fixture
-def array_2d():
+def identity():
 
     """
-    Returns a 2D numpy array.
+    Returns a 3 x 3 identity matrix.
+    """
+
+    return np.identity(3)
+
+def pure_2x2():
+
+    """
+    Returns a trace with
     """
 
 
@@ -19,11 +28,14 @@ def init_rho():
     system, with N=2.
     """
 
-    raise NotImplementedError
 
 
 
-def test_trace_matrix_squared():
+@pytest.parametrize('matrix, ans', [(np.array([[0.5, 0.5], [0.5, 0.5]]), 1.0),
+                                    (np.array([[2**(-1/2), 0],
+                                               [0, 2**(-1/2)]]), 1.0),
+                                    (np.array([[0.5, 0], [0, 0.5]]), 0.5)])
+def test_trace_matrix_squared(matrix, ans):
 
     """
     Tests that the correct value for the matrix squared is returned.
