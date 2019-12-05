@@ -11,7 +11,8 @@ branches:
 before_install:
 
 install:
-  - conda install -r requirements.txt
+    #- conda install -r requirements.txt
+  - conda install --yes --file requirements.txt
 
 before_script:
   - export PYTHONPATH=$PYTHONPATH:$(pwd)
