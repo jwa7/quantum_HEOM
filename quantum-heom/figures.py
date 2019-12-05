@@ -5,12 +5,12 @@ import numpy as np
 import utilities as util
 
 
-def complex_space_time(evolution: np.array,
-                       elements: np.array = ['11', '12', '21', '22'],
-                       N: int = 2, cyclic: bool = True):
+def complex_space_time(evolution: np.array, N: int, cyclic: bool,
+                       dt: float, dephaser: str, Gamma: float,
+                       elements: np.array = ['11', '12', '21', '22']):
 
     """
-    Creates a 3D plot of time vs imaginary-amplitude vs real-amplitude.
+    Creates a 3D plot of time vs imaginary vs real-amplitude.
     Used to plot the time-evolution of the diagonal and off-diagonal
     elements of the density matrix for a quantum system.
 
@@ -18,20 +18,28 @@ def complex_space_time(evolution: np.array,
     ----------
     evolution : array of tuple
         An array containing (t, rho_t) tuples, where t is the time
-        at which the density matrix that describes a quantum system,
-        rho_t, is evaluated.
+        at which the density matrix that describes a quantum
+        system, rho_t, is evaluated.
+    N : int
+        The number of sites in the quantum system that is described
+        by the density matrix whose elements are to be plotted.
+    cyclic : bool
+        Whether or not the quantum system is a cyclic or linear
+        joining of the N sites.
+    dt : float
+        The step forward in time the density matrix is evolved at
+        each timestep. Default is
+    dephaser : str
+        The method by which dephasing occurs. The default is
+        'lindbladian' but 'simple' dephasing is also an option.
+    Gamma : float
+        The rate at which dephasing occurs. Default is 0.2.
     elements : array of str
         The elements of the density matrix whose time-evolution
         should be plotted. Each string element in is of the form
         'nm', where n is the row index and m the column. For
         example, for a 2-site quantum system, all elements may be
         plotted with the default value ['11', '12', '21', '22'].
-    N : int
-        The number of sites in the quantum system that is described
-        by the density matrix whose elements are to be plotted.
-    cyclic : bool
-        Whether or not the quantum system is a cyclic or linear joining
-        of the N sites.
     """
 
     assert 0 < len(elements) <= N ** 2, ('The number of elements that should be'
@@ -89,6 +97,10 @@ def complex_space_time(evolution: np.array,
     ax.set_xlabel('time', size=label_size, labelpad=30)
     ax.set_ylabel('Imaginary Amplitude', size=label_size, labelpad=30)
     ax.set_zlabel('Real Amplitude', size=label_size, labelpad=10)
-    ax.set_title('Time evolution of the density matrix for a ' + sys_type + ' '
-                 + str(N) + '-site open quantum system', size=title_size, pad=20)
+    ax.set_title('Time evolution of the elements of the density matrix for a '
+                 + sys_type + ' ' + str(N) + '-site system with ' + dephaser
+                 + ' dephasing (dt = ' + str(dt) + ', $\\Gamma$ = '
+                 + str(Gamma) + ').', size=title_size, pad=20)
     ax.view_init(20, -50)
+
+    return tr_rho_sq
