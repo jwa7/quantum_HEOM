@@ -1,3 +1,5 @@
+"""Contains functions to build and evolve the density matrix. """
+
 from typing import Optional
 from scipy import constants
 from scipy import linalg
@@ -8,7 +10,7 @@ import utilities as util
 
 DEPHASING_METHODS = ['simple', 'lindbladian']
 
-def build_init_dens_matrix(N: int, atomic_units: bool = True) -> np.array:
+def build_init_dens_matrix(N: int, au: bool = True) -> np.array:
 
     """
     Returns the N x N density matrix at time t=0
@@ -17,7 +19,7 @@ def build_init_dens_matrix(N: int, atomic_units: bool = True) -> np.array:
     ----------
     N : int
         The dimension of the density matrix.
-    atomic_units : bool
+    au : bool
         If True sets hbar = 1 so that tr(rho_0) = 1. If False, doesn't set
         hbar = 1 so that tr(rho_0) = hbar. Default value is True.
 
@@ -32,7 +34,7 @@ def build_init_dens_matrix(N: int, atomic_units: bool = True) -> np.array:
     assert N > 0, 'Must pass N as a positive integer.'
 
     # Change into atomic units if appropriate
-    hbar = 1 if atomic_units else constants.hbar
+    hbar = 1 if au else constants.hbar
     # Initialise initial density matrix
     rho_0 = np.zeros((N, N), dtype=complex)
     rho_0[0][0] = 1
@@ -42,7 +44,7 @@ def build_init_dens_matrix(N: int, atomic_units: bool = True) -> np.array:
 
 def evolve_density_matrix_once(N: int, rho_t: np.array, H: np.array, dt: float,
                                Gamma: float = 0., dephaser: str = 'lindbladian',
-                               atomic_units: bool = True) -> np.array:
+                               au: bool = True) -> np.array:
 
     """
     Takes the density matrix at time t (rho(t)) and evolves it in time
@@ -90,7 +92,7 @@ def evolve_density_matrix_once(N: int, rho_t: np.array, H: np.array, dt: float,
         The method used to dephase the off-diagonal elements of the density
         matrix. Default value is 'lindbladian'. Currently only
         'simple' and 'lindbladian' dephasing methods are implemented.
-    atomic_units : bool
+    au : bool
         If True, sets hbar = 1, otherwise sets hbar to its defined exact
         value. Default value is True.
 
@@ -107,7 +109,7 @@ def evolve_density_matrix_once(N: int, rho_t: np.array, H: np.array, dt: float,
         raise NotImplementedError('Currently only ' + str(DEPHASING_METHODS)
                                   + ' dephasing methods are implemented.')
 
-    hbar = 1 if atomic_units else constants.hbar  # Change into atomic units
+    hbar = 1 if au else constants.hbar  # Change into atomic units
     rho_evo = np.zeros((N, N), dtype=complex)
 
     if dephaser == 'simple':
@@ -129,7 +131,7 @@ def evolve_density_matrix_once(N: int, rho_t: np.array, H: np.array, dt: float,
 def evolve_rho_many_steps(N, rho_0: np.array, H: np.array, dt: float,
                           timesteps: int, Gamma: Optional[float] = None,
                           dephaser: str = 'lindbladian',
-                          atomic_units: bool = True) -> np.array:
+                          au: bool = True) -> np.array:
 
     """
     Takes an initial density matrix, and evolves it in time over the
@@ -153,7 +155,7 @@ def evolve_rho_many_steps(N, rho_0: np.array, H: np.array, dt: float,
     dephaser : str
         The method used to dephase the off-diagonal elements of the density
         matrix. Default value is 'lindbladian'. Other option is 'simple'.
-    atomic_units : bool
+    au : bool
         If True, sets hbar = 1, otherwise sets hbar to its defined exact
         value.
 
@@ -178,8 +180,7 @@ def evolve_rho_many_steps(N, rho_0: np.array, H: np.array, dt: float,
 
         time += dt
         rho_evo = evolve_density_matrix_once(N, rho_evo, H, dt, Gamma=Gamma,
-                                             dephaser=dephaser,
-                                             atomic_units=atomic_units)
+                                             dephaser=dephaser, au=au)
         evolution[step] = (time, rho_evo)
 
     return evolution
