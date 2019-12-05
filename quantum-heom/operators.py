@@ -1,7 +1,6 @@
 from scipy import constants
 import numpy as np
 
-
 def build_H(N: int, cyclic: bool, atomic_units: bool = True) -> np.array:
 
     """
@@ -43,13 +42,13 @@ def build_H(N: int, cyclic: bool, atomic_units: bool = True) -> np.array:
     H = np.eye(N, k=-1, dtype=complex) + np.eye(N, k=1, dtype=complex)
     # Encorporate interaction (between 1st and Nth sites) for cyclic systems
     if cyclic:
-        H[0][N - 1] = 1
-        H[N - 1][0] = 1
+        H[0][N-1] = 1
+        H[N-1][0] = 1
 
     return H * hbar
 
 
-def build_H_superoperator(H: np.array) -> np.array:
+def build_H_superop(H: np.array) -> np.array:
 
     """
     Builds an (N^2 x N^2) commutation superoperator from the (N x N)
@@ -72,8 +71,8 @@ def build_H_superoperator(H: np.array) -> np.array:
         Hamiltonian.
     """
 
-    return (1.0j * (np.kron(H, np.identity(H.shape[0]))
-                    - np.kron(np.identity(H.shape[0]), np.transpose(H))))
+    return (-1.0j * (np.kron(H, np.identity(H.shape[0]))
+                     - np.kron(np.identity(H.shape[0]), H.T.conjugate())))
 
 
 def build_lindblad_operator(N: int, j: int) -> np.array:
@@ -101,12 +100,12 @@ def build_lindblad_operator(N: int, j: int) -> np.array:
                     ' number of sites')
 
     lindblad_operator = np.zeros((N, N), dtype=complex)
-    lindblad_operator[N-1][N-1] = 1
+    lindblad_operator[j-1][j-1] = 1+0j
 
     return lindblad_operator
 
 
-def build_lindbladian_superoperator(N: int, Gamma: float) -> np.array:
+def build_lindbladian_superop(N: int, Gamma: float) -> np.array:
 
     """
     Builds an N x N lindbladian dephasing matrix for dephasing of
