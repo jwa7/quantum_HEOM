@@ -1,63 +1,62 @@
 """Tests the functions contained within utilities.py"""
 
 import numpy as np
+import pytest
 
-import quantum_system.utilities as util
+import quantum_heom.utilities as util
 
 
-@pytest.fixture
-def identity():
-
-    """
-    Returns a 3 x 3 identity matrix.
-    """
-
-    return np.identity(3)
-
-def pure_2x2():
+@pytest.mark.parametrize('mat, ans', [(np.array([[0.5, 0.5], [0.5, 0.5]]), 1.0),
+                                      (np.array([[2**(-1/2), 0],
+                                                 [0, 2**(-1/2)]]), 1.0)])
+def test_trace_matrix_squared_pure(mat, ans):
 
     """
-    Returns a trace with
+    Tests that the correct value of 1 is returned for the
+    trace of matrix squared for matrices that mimic a pure
+    density matrix (i.e. tr(rho^2) = 1).
     """
 
-
-@pytest.fixture
-def init_rho():
-
-    """
-    Returns an initial density matrix for a simple open quantum
-    system, with N=2.
-    """
+    assert np.isclose(util.get_trace_matrix_squared(mat), ans)
 
 
-
-
-@pytest.parametrize('matrix, ans', [(np.array([[0.5, 0.5], [0.5, 0.5]]), 1.0),
-                                    (np.array([[2**(-1/2), 0],
-                                               [0, 2**(-1/2)]]), 1.0),
-                                    (np.array([[0.5, 0], [0, 0.5]]), 0.5)])
-def test_trace_matrix_squared(matrix, ans):
+@pytest.mark.parametrize('mat, ans', [(np.array([[0.5, 0], [0, 0.5]]), 0.5)])
+def test_trace_matrix_squared_not_pure(mat, ans):
 
     """
-    Tests that the correct value for the matrix squared is returned.
+    Tests that the correct value of 1 is returned for the
+    trace of matrix squared for matrices that mimic an
+    impure density matrix (i.e. tr(rho^2) < 1).
     """
 
-    raise NotImplementedError
+    assert np.isclose(util.get_trace_matrix_squared(mat), ans)
 
 
-def test_commutator():
+@pytest.mark.parametrize('A, B, ans', [(np.array([[0, 0], [0, 0]]),
+                                        np.array([[0, 0], [0, 0]]),
+                                        np.array([[0, 0], [0, 0]])),
+                                       (np.array([[1, 0.3], [0.3, 1]]),
+                                        np.array([[1, 0.3], [0.3, 1]]),
+                                        np.array([[0, 0], [0, 0]]))])
+def test_commutator_zero(A, B, ans):
 
     """
     Tests that the correct commutator of A and B is returned.
     """
 
-    raise NotImplementedError
+    assert np.all(util.get_commutator(A, B) == ans)
 
 
-def test_anti_commutator():
+@pytest.mark.parametrize('A, B, ans', [(np.array([[0, 0], [0, 0]]),
+                                        np.array([[0, 0], [0, 0]]),
+                                        np.array([[0, 0], [0, 0]])),
+                                       (np.array([[1, 0], [0, 1]]),
+                                        np.array([[1, 0], [0, 1]]),
+                                        np.array([[2, 0], [0, 2]]))])
+def test_anti_commutator(A, B, ans):
 
     """
     Tests that the correct anti-commutator of A and B is returned.
     """
 
-    raise NotImplementedError
+    assert np.all(util.get_commutator(A, B, anti=True) == ans)
