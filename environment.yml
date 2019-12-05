@@ -7,8 +7,8 @@ dependencies:
   - backcall=0.1.0=py37_0
   - blas=1.0=mkl
   - bleach=3.1.0=py37_0
-  - ca-certificates=2019.10.16=0
-  - certifi=2019.9.11=py37_0
+  - ca-certificates=2019.11.27=0
+  - certifi=2019.11.28=py37_0
   - dbus=1.13.12=h90a0687_0
   - decorator=4.4.1=py_0
   - defusedxml=0.6.0=py_0
@@ -53,6 +53,7 @@ dependencies:
   - numpy=1.17.2=py37h99e6662_0
   - numpy-base=1.17.2=py37h6575580_0
   - openssl=1.1.1d=h1de35cc_3
+  - packaging=19.2=py_0
   - pandoc=2.2.3.2=0
   - pandocfilters=1.4.2=py37_1
   - parso=0.5.1=py_0
@@ -60,12 +61,16 @@ dependencies:
   - pexpect=4.7.0=py37_0
   - pickleshare=0.7.5=py37_0
   - pip=19.3.1=py37_0
+  - pluggy=0.13.1=py37_0
   - prometheus_client=0.7.1=py_0
   - prompt_toolkit=2.0.10=py_0
   - ptyprocess=0.6.0=py37_0
+  - py=1.8.0=py37_0
   - pygments=2.4.2=py_0
+  - pyparsing=2.4.5=py_0
   - pyqt=5.9.2=py37h655552a_2
   - pyrsistent=0.15.6=py37h1de35cc_0
+  - pytest=5.3.1=py37_0
   - python=3.7.4=h359304d_1
   - python-dateutil=2.8.1=py_0
   - pyzmq=18.1.0=py37h0a44026_0
