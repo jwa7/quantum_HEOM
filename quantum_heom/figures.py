@@ -1,3 +1,5 @@
+"""Contains functions to plot the time evolution of the quantum system."""
+
 from mpl_toolkits import mplot3d
 import matplotlib.pyplot as plt
 import numpy as np
