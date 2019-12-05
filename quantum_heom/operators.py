@@ -1,7 +1,11 @@
+"""Contains functions to build Hamiltonian and Lindbladian
+(super)operators."""
+
 from scipy import constants
 import numpy as np
 
-def build_H(N: int, cyclic: bool, atomic_units: bool = True) -> np.array:
+def build_H_nearest_neighbour(N: int, cyclic: bool = True,
+                              au: bool = True) -> np.array:
 
     """
     Builds an N x N square Hamiltonian matrix that represents
@@ -16,8 +20,8 @@ def build_H(N: int, cyclic: bool, atomic_units: bool = True) -> np.array:
     cyclic : bool
         True if the system has site connections closed into a
         cyclic loop. False if system is linear; i.e. termini
-        at sites 1 and N.
-    atomic_units : bool
+        at sites 1 and N. Default: True.
+    au : bool
         If True sets hbar = 1 so that elements of H are 0 or 1.
         If False, elements are scaled by a factor of hbar.
         Default value is True.
@@ -32,7 +36,7 @@ def build_H(N: int, cyclic: bool, atomic_units: bool = True) -> np.array:
     assert N > 0, 'Must pass N as a positive integer.'
 
     # Change into atomic units if appropriate
-    hbar = 1 if atomic_units else constants.hbar
+    hbar = 1 if au else constants.hbar
     # Deal with easy special cases
     if N == 1:
         return np.array([1])
@@ -124,6 +128,8 @@ def build_lindbladian_superop(N: int, Gamma: float) -> np.array:
         The (N^2 x N^2) lindbladian matrix that will dephase the off-
         diagonals of a vectorised N x N density matrix.
     """
+
+    assert N > 0, 'Must pass N as a positive integer.'
 
     lindbladian = np.zeros((N ** 2, N ** 2), dtype=complex)
 
