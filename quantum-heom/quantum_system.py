@@ -4,6 +4,7 @@ from scipy import linalg
 import numpy as np
 
 import operators as op
+import utilities as util
 
 DEPHASING_METHODS = ['simple', 'lindbladian']
 
@@ -110,19 +111,15 @@ def evolve_density_matrix_once(N: int, rho_t: np.array, H: np.array, dt: float,
     rho_evo = np.zeros((N, N), dtype=complex)
 
     if dephaser == 'simple':
-        # Evaluate the commutator [H, rho(t)]
-        comm = np.matmul(H, rho_t) - np.matmul(rho_t, H)
-        # Evaluate evolution for closed case (i.e. diagonals only)
-        rho_evo = rho_t - (1.0j * dt / hbar) * comm
-        # Build a simple dephasing matrix
-        dephasing_matrix = rho_t * Gamma * dt
+        rho_evo = rho_t - (1.0j * dt / hbar) * util.get_commutator(H, rho_t)
+        dephasing_matrix = rho_t * Gamma * dt  # Build a simple dephasing matrix
         np.fill_diagonal(dephasing_matrix, complex(0))
 
         return rho_evo - dephasing_matrix
 
-    # Use lindbladian dephasing if not using simple dephasing.
-    exp_superop = linalg.expm((op.build_lindbladian_superoperator(N, Gamma)
-                               + op.build_H_superoperator(H)) * dt)
+    # Use lindbladian dephasing
+    exp_superop = linalg.expm((op.build_lindbladian_superop(N, Gamma)
+                               + op.build_H_superop(H)) * dt)
     vectorised_rho_t = rho_t.flatten('C')  # row-major style
     rho_evo = np.matmul(exp_superop, vectorised_rho_t)
 
