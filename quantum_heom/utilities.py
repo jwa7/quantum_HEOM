@@ -1,3 +1,5 @@
+"""Contains general use utility functions."""
+
 import numpy as np
 
 def get_trace_matrix_squared(matrix: np.array) -> complex:
