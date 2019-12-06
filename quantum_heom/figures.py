@@ -73,7 +73,7 @@ def complex_space_time(evolution: np.array, N: int, cyclic: bool,
                 matrix_data[element][t_idx] = value.imag
 
     # 3D PLOT
-    plt.figure(figsize=(15, 10))
+    plt.figure(figsize=(20, 15))
     ax = plt.axes(projection='3d')
 
     # Plot the data
@@ -130,3 +130,29 @@ def site_cartesian_coordinates(N: int) -> np.array:
         site_coords[i] = (r * np.sin(phi), r * np.cos(phi))
 
     return site_coords
+
+
+# Create figure
+# fig = plt.figure(figsize=(20, 10))
+# ax = fig.subplots((1, 1, 1))
+
+# Plot diagonals
+# ax.plot(t, rho_11, c='red', ls='-', label='$p_{11}$')
+# ax.plot(t, rho_22, c='green', ls='-', label='$p_{22}$')
+# ax.plot(t, rho_33, c='blue', ls='-', label='$p_{33}$')
+# Plot off-diagonals
+# ax.plot(t, rho_12, c='black', ls='-', label='$p_{12}$')
+# ax.plot(t, rho_21, c='yellow', ls='--', label='$p_{21}$')
+# ax.plot(t, rho_13, c='black', ls='-', label='$p_{13}$')
+# ax.plot(t, rho_31, c='yellow', ls='--', label='$p_{31}$')
+# ax.plot(t, rho_23, c='black', ls='-', label='$p_{23}$')
+# ax.plot(t, rho_32, c='yellow', ls='--', label='$p_{32}$')
+# Plot square trace
+# ax.plot(t, tr_rho_sq, c='purple', ls='-', label='$tr(p^2)$')
+
+# Format plot
+# plt.legend(loc='best', fontsize='x-large')
+# plt.xlabel('time', size='20')
+# plt.ylabel('Probability Amplitude', size='20')
+# plt.hlines(1/N, t[0], t[-1], color='gray', linestyle='--')
+# plt.show()
