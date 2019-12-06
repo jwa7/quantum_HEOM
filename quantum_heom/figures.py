@@ -9,7 +9,8 @@ import utilities as util
 
 def complex_space_time(evolution: np.array, N: int, cyclic: bool,
                        dt: float, dephaser: str, Gamma: float,
-                       elements: np.array = ['11', '12', '21', '22']):
+                       elements:
+                       np.array = ['11', '12', '21', '22']) -> np.array:
 
     """
     Creates a 3D plot of time vs imaginary vs real-amplitude.
@@ -106,3 +107,26 @@ def complex_space_time(evolution: np.array, N: int, cyclic: bool,
     ax.view_init(20, -50)
 
     return tr_rho_sq
+
+
+def site_cartesian_coordinates(N: int) -> np.array:
+
+    """
+    Returns an array of site coordinates on an xy plane
+    for an N-site system, where the coordinates represent
+    the vertices of an N-sided regular polygon with its
+    centre at the origin.
+    """
+
+    assert N > 1
+
+    r = 5  # distance of each site from the origin
+
+    site_coords = np.empty(N, dtype=tuple)
+    site_coords[0] = (0, r)
+    for i in range(1, N):
+
+        phi = i * 2 * np.pi / N  # internal angle of the N-sided polygon
+        site_coords[i] = (r * np.sin(phi), r * np.cos(phi))
+
+    return site_coords
