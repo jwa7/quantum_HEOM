@@ -143,3 +143,14 @@ def build_lindbladian_superop(N: int, Gamma: float) -> np.array:
         lindbladian += L_j
 
     return lindbladian * Gamma
+
+def build_thermalising_lindbladian_superop(N: int, Gamma: float,
+                                           T: float) -> np.array:
+
+    """
+    Builds the thermalising lindbladian operator.
+    """
+
+    beta = 1. / (constants.k * T)
+
+    
