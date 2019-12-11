@@ -54,8 +54,9 @@ def get_commutator(A: np.array, B: np.array, anti: bool = False) -> complex:
     array of array of complex
         The (anti) commutator of A and B.
     """
-    assert A.shape[0] == A.shape[1], 'Input matrix must be square.'
-    assert B.shape[0] == B.shape[1], 'Input matrix must be square.'
+
+    assert (A.shape[0] == A.shape[1]
+            and B.shape[0] == B.shape[1]), 'Input matrices must be square.'
 
     if anti:
         return np.matmul(A, B) + np.matmul(B, A)
