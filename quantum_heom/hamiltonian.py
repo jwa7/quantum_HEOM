@@ -1,12 +1,9 @@
-"""Contains functions to build and manipulate the Hamiltonian"""
+"""Contains functions to manipulate the Hamiltonian"""
 
-from scipy import constants
 import numpy as np
 
-import QuantumSystem
 
-
-def pad_H_zero_exciton_gs(H: np.array) -> np.array:
+def pad_hamiltonian_zero_exciton_gs(H: np.array) -> np.array:
 
     """
     Takes an input Hamiltonian H of shape N x N ands pads it
