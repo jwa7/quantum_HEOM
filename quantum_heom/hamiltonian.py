@@ -3,7 +3,7 @@
 import numpy as np
 
 
-def pad_hamiltonian_zero_exciton_gs(H: np.array) -> np.array:
+def pad_hamiltonian_zero_exciton_gs(hamiltonian: np.array) -> np.array:
 
     """
     Takes an input Hamiltonian H of shape N x N ands pads it
@@ -22,9 +22,10 @@ def pad_hamiltonian_zero_exciton_gs(H: np.array) -> np.array:
         first column and first row have value zero.
     """
 
-    dim = H.shape[0]
+    dim = hamiltonian.shape[0]
 
     for axis in [0, 1]:
-        H = np.insert(H, 0, np.zeros(dim, dtype=complex), axis=axis)
+        hamiltonian = np.insert(hamiltonian, 0,
+                                np.zeros(dim, dtype=complex), axis=axis)
 
-    return H
+    return hamiltonian
