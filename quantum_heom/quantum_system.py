@@ -1,188 +1,167 @@
-"""Contains functions to build and evolve the density matrix. """
+"""Module for setting up a quantum system.
 
-from typing import Optional
+Contains the QuantumSystem class."""
+
 from scipy import constants
-from scipy import linalg
+
 import numpy as np
 
-import operators as op
-import utilities as util
-
-DEPHASING_METHODS = ['simple', 'lindbladian']
+INT_MODELS = ['nearest_neighbour_linear', 'nearest_neighbour_cyclic']
 
 
-def build_init_dens_matrix(N: int, au: bool = True) -> np.array:
+class QuantumSystem:
 
     """
-    Returns the N x N density matrix at time t=0
+    Class where the parameters and topology of the quantum system
+    are defined.
 
     Parameters
     ----------
-    N : int
-        The dimension of the density matrix.
-    au : bool
-        If True sets hbar = 1 so that tr(rho_0) = 1. If False, doesn't set
-        hbar = 1 so that tr(rho_0) = hbar. Default value is True.
+    *kwargs
+        sites : int
+            The number of sites in the system.
+    **settings
+        au : bool
+            If True, uses atomic units (i.e. hbar=1)
+        interaction_model : str
+            How to model the interactions between sites. Must be
+            one of ['nearest_neighbour_linear',
+            'nearest_neighbour_cyclic'] .
 
-    Returns
-    -------
-    rho_0 : array of array of complex
-        The initial density matrix for the quantum system, with all
-        elements filled in with zeros except the (1, 1) element
-        which has value 1.
-    """
-
-    assert N > 0, 'Must pass N as a positive integer.'
-
-    # Change into atomic units if appropriate
-    hbar = 1 if au else constants.hbar
-    # Initialise initial density matrix
-    rho_0 = np.zeros((N, N), dtype=complex)
-    rho_0[0][0] = 1
-
-    return rho_0 * hbar
-
-
-def evolve_density_matrix_once(N: int, rho_t: np.array, H: np.array,
-                               dt: float, Gamma: float = 0.,
-                               dephaser: str = 'lindbladian',
-                               au: bool = True) -> np.array:
-
-    """
-    Takes the density matrix at time t (rho(t)) and evolves it in time
-    by one timestep, returning the evolved density matrix rho(t + dt).
-    For 'simple' dephasing, the Liouville von Neumann equation is:
-
-    .. math::
-        \frac{d\rho(t)}{dt} = -(\frac{i}{\hbar})[H, rho(t)]
-
-    and its first-order integration can be given by applying the Euler
-    Method, which evaluates the evolved density matrix at time (t + dt):
-
-        \rho(t + dt) = \rho(t) - (\frac{idt}{\hbar})[H, rho(t)]
-
-    Whereas the master equation of motion for 'lindbladian' dephasing is:
-
-    .. math::
-        \frac{d\rho(t)}{dt} = -(\frac{i}{\hbar})[H, rho(t)] + Lrho(t)
-
-    Which gives the equation for the evolved density matrix as:
-
-    .. math::
-        \rho(t + dt) = e^{(H + L)dt}\rho(t)
-
-    where L is the Lindbladian:
-
-    .. math::
-        L = \Gamma\sum_{j}^{N}(P_j P_j - \frac{1}{2}({P_j^TP_j, I}))
-
-    Parameters
+    Attributes
     ----------
-    N : int
+    sites : int
         The number of sites in the quantum system.
-    rho_t : array of array of complex
-        The density matrix at time t to be evolved forward in time.
-    H : array of array of int/float
-        The Hamiltonian that describes the interactions between
-        sites in the closed quantum system.
-    dt : float
-        The step forward in time to evolve the density matrix to.
-    Gamma : float
-        The dephasing rate at which to decay the off-diagonal elements by.
-        Default value is 0.0
-    dephaser : str
-        The method used to dephase the off-diagonal elements of the density
-        matrix. Default value is 'lindbladian'. Currently only
-        'simple' and 'lindbladian' dephasing methods are implemented.
-    au : bool
-        If True, sets hbar = 1, otherwise sets hbar to its defined exact
-        value. Default value is True.
-
-    Returns
-    -------
-    rho_evo : array of array of float
-        The density matrix evolved from time t to time (t + dt).
     """
 
-    assert rho_t.shape == H.shape, ('Density matrix and Hamiltonian must have'
-                                    ' the same N x N shape.')
-    assert dt > 0, 'Timestep must be positive.'
-    if dephaser not in DEPHASING_METHODS:
-        raise NotImplementedError('Currently only ' + str(DEPHASING_METHODS)
-                                  + ' dephasing methods are implemented.')
+    def __init__(self, sites, **settings):
 
-    hbar = 1 if au else constants.hbar  # Change into atomic units
-    rho_evo = np.zeros((N, N), dtype=complex)
+        # Properties
+        self.sites = sites
 
-    if dephaser == 'simple':
-        rho_evo = rho_t - (1.0j * dt / hbar) * util.get_commutator(H, rho_t)
-        dephasing_matrix = rho_t * Gamma * dt  # Build simple dephasing matrix
-        np.fill_diagonal(dephasing_matrix, complex(0))
+        # Settings
+        self.atomic_units = settings.get('atomic_units')
+        self.interaction_model = settings.get('interaction_model')
 
-        return rho_evo - dephasing_matrix
+    @property
+    def atomic_units(self) -> bool:
 
-    # Use lindbladian dephasing
-    exp_superop = linalg.expm((op.build_lindbladian_superop(N, Gamma)
-                               + op.build_H_superop(H)) * dt)
-    vectorised_rho_t = rho_t.flatten('C')  # row-major style
-    rho_evo = np.matmul(exp_superop, vectorised_rho_t)
+        """
+        Gets or sets whether or not atomic units are used in
+        calculations.
 
-    return rho_evo.reshape((N, N), order='C')
+        Returns
+        -------
+        bool
+            True if atomic units are to be used, false if not.
+        """
 
+        return self._atomic_units
 
-def evolve_rho_many_steps(N, rho_0: np.array, H: np.array, dt: float,
-                          timesteps: int, Gamma: Optional[float] = None,
-                          dephaser: str = 'lindbladian',
-                          au: bool = True) -> np.array:
+    @atomic_units.setter
+    def atomic_units(self, atomic_units):
 
-    """
-    Takes an initial density matrix, and evolves it in time over the
-    specified number of time steps, storing each evolution of the
-    density matrix at each time.
+        self._atomic_units = atomic_units
 
-    Parameters
-    ----------
-    rho_0 : array of array of complex
-        The starting density matrix to be evolved in time.
-    H : array of array of int/float
-        The Hamiltonian that describes the interactions between
-        sites in the closed quantum system.
-    dt : float
-        The value of each timestep to evolve the density matrix by.
-    timesteps : int
-        The number of timesteps to evolve the density matrix by.
-    Gamma : float
-        The dephasing rate at which to decay the off-diagonal elements
-        each time the density matrix is evolved.
-    dephaser : str
-        The method used to dephase the off-diagonal elements of the density
-        matrix. Default value is 'lindbladian'. Other option is 'simple'.
-    au : bool
-        If True, sets hbar = 1, otherwise sets hbar to its defined exact
-        value.
+    @property
+    def sites(self) -> int:
 
-    Returns
-    -------
-    evolution : array of tuple of (float, array of complex)
-        Contains (t, rho(t)) pairs density matrices at various times. Is
-        of timesteps length.
-    """
+        """
+        Gets or sets the number of sites in the QuantumSystem
 
-    assert rho_0.shape == H.shape, ('Density matrix and Hamiltonian must have'
-                                    ' the same N x N shape.')
-    assert dt > 0, 'Timestep value must be positive.'
-    assert timesteps > 0, 'Number of timesteps must be a positive integer.'
+        Raises
+        ------
+        ValueError
+            If the number of sites set to a non-positive integer.
 
-    time, rho_evo = 0., rho_0
+        Returns
+        -------
+        int
+            The number of sites in the QuantumSystem
 
-    evolution = np.empty(timesteps, dtype=tuple)
-    evolution[0] = (time, rho_0)
+        """
 
-    for step in range(1, timesteps):
+        return self._sites
 
-        time += dt
-        rho_evo = evolve_density_matrix_once(N, rho_evo, H, dt, Gamma=Gamma,
-                                             dephaser=dephaser, au=au)
-        evolution[step] = (time, rho_evo)
+    @sites.setter
+    def sites(self, sites: int):
 
-    return evolution
+        if sites < 1:
+            raise ValueError('Number of sites must be a positive integer')
+
+        self._sites = sites
+
+    @property
+    def interaction_model(self) -> str:
+
+        """
+        Gets or sets the model used for interaction between sites.
+
+        Raises
+        ------
+        ValueError
+            If attempting to set to an invalid model.
+
+        Returns
+        -------
+        str
+            The interaction model being used.
+        """
+
+        return self._interaction_model
+
+    @interaction_model.setter
+    def interaction_model(self, model: str):
+
+        if model not in INT_MODELS:
+            raise ValueError('Must choose an interaction model from '
+                             + str(INT_MODELS))
+
+        self._interaction_model = model
+
+    @property
+    def hamiltonian(self) -> np.array:
+
+        """
+        Builds an interaction Hamiltonian for the QuantumSystem
+
+        Returns
+        -------
+        np.array
+            An N x N 2D array that represents the interactions
+            between sites in the quantum system, where N is the
+            number of sites.
+        """
+
+        # Change into atomic units if appropriate
+        hbar = 1 if self.atomic_units else constants.hbar
+        # Build base Hamiltonian for linear system
+        ham = (np.eye(self.sites, k=-1, dtype=complex)
+               + np.eye(self.sites, k=1, dtype=complex))
+        # Encorporate interaction (between 1st and Nth sites) for cyclic systems
+        if self.interaction_model == 'nearest_neighbour_cyclic':
+            ham[0][self.sites - 1] = 1
+            ham[self.sites - 1][0] = 1
+
+        return ham * hbar
+
+    @property
+    def hamiltonian_superop(self) -> np.array:
+
+        """
+        Builds the Hamiltonian superoperator, given by:
+
+        .. math::
+            H_{sup} = -i(H \\otimes I - I \\otimes H^{\dagger})
+
+        Returns
+        -------
+        np.array
+            The (N^2) x (N^2) 2D array representing the Hamiltonian
+            superoperator.
+        """
+
+        ham = self.hamiltonian
+        iden = np.identity(self.sites)
+
+        return - 1.0j * (np.kron(ham, iden) - np.kron(iden, ham.T.conjugate()))
