@@ -3,7 +3,7 @@
 import numpy as np
 import pytest
 
-import quantum_heom.lindbladian as lin
+import quantum_heom.lindbladian as lind
 
 GAMMA = 0.15
 
@@ -29,7 +29,7 @@ def test_build_lindblad_operator(N, j, expected):
     j in {1, ... , N} is constructed correctly.
     """
 
-    assert np.all(lin.build_lindblad_operator(N, j) == expected)
+    assert np.all(lind.build_lindblad_operator(N, j) == expected)
 
 
 @pytest.mark.parametrize('N, j', [(5, 0), (0, 3)])
@@ -42,7 +42,7 @@ def test_build_lindblad_operator_errors(N, j):
     """
 
     with pytest.raises(AssertionError):
-        lin.build_lindblad_operator(N, j)
+        lind.build_lindblad_operator(N, j)
 
 
 @pytest.mark.parametrize('N, exp', [(2, np.array([[0, 0, 0, 0],
@@ -66,4 +66,4 @@ def test_build_lindbladian_superop(N, exp):
     is constructed for the number of sites N.
     """
 
-    assert np.all(lin.build_lindbladian_superop(N, GAMMA) == exp)
+    assert np.all(lind.build_lindbladian_superop(N, GAMMA) == exp)
