@@ -6,7 +6,7 @@ import pytest
 import quantum_heom.hamiltonian as ham
 
 
-@pytest.mark.parametrize('input, exp', [(np.array([[0, 1],
+@pytest.mark.parametrize('inp_h, exp', [(np.array([[0, 1],
                                                    [1, 0]]),
                                          np.array([[0, 0, 0],
                                                    [0, 0, 1],
@@ -18,11 +18,11 @@ import quantum_heom.hamiltonian as ham
                                                    [0, 1, 2, 3],
                                                    [0, 4, 5, 6],
                                                    [0, 7, 8, 9]]))])
-def test_pad_hamiltonian_zero_exciton_gs(input, exp):
+def test_pad_hamiltonian_zero_exciton_gs(inp_h, exp):
 
     """
     Tests that input N x N Hamiltonians are padded correctly
     with the elements in the first row and column equal to zero.
     """
 
-    assert np.all(ham.pad_hamiltonian_zero_exciton_gs(input) == exp)
+    assert np.all(ham.pad_hamiltonian_zero_exciton_gs(inp_h) == exp)
