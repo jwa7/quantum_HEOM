@@ -1,5 +1,7 @@
 """Tests the functions that build the lindbladian operators."""
 
+from scipy import constants
+
 import numpy as np
 import pytest
 
@@ -37,6 +39,19 @@ def test_quantum_system_atomic_units_setter(qsys):
     old = qsys.atomic_units
     qsys.atomic_units = not old
     assert qsys.atomic_units != old
+
+
+@pytest.mark.parametrize('atomic_units, exp', [(True, 1.),
+                                               (False, constants.hbar)])
+def test_quantum_system_hbar_getter(atomic_units, exp, qsys):
+
+    """
+    Tests that the correct value for hbar is returned when
+    working either in or out of atomic units.
+    """
+
+    qsys.atomic_units = atomic_units
+    assert qsys._hbar == exp
 
 
 def test_quantum_system_sites_getter(qsys):
@@ -125,7 +140,7 @@ def test_hamiltonian_nearest_neighbour_cyclic(sites, expected):
                                                            [1, 0, 1, 0],
                                                            [0, 1, 0, 1],
                                                            [0, 0, 1, 0]]))])
-def test_build_H_nearest_neighbour_linear(sites, expected):
+def test_hamiltonian_nearest_neighbour_linear(sites, expected):
 
     """
     Tests that the correct Hamiltonian for a linear system
@@ -141,7 +156,7 @@ def test_build_H_nearest_neighbour_linear(sites, expected):
                                                       [-1, 0, 0, 1],
                                                       [1, 0, 0, -1],
                                                       [0, 1, -1, 0]]) * -1.0j)])
-def test_build_H_superop(sites, exp):
+def test_hamiltonian_superop(sites, exp):
 
     """
     Tests, given an input N x N Hamiltonian, that the correct
@@ -149,3 +164,33 @@ def test_build_H_superop(sites, exp):
     """
 
     assert np.all(QuantumSystem(sites, **SETTINGS).hamiltonian_superop == exp)
+
+
+@pytest.mark.parametrize('sites', [2, 4, 6])
+def test_hamiltonian_superop_shape(sites, qsys):
+
+    """
+    Tests that the correct shape Hamiltonian superoperator is
+    returned. Should be N^2 N^2, where N is the number of sites
+    of the quantum system.
+    """
+
+    qsys.sites = sites
+    assert qsys.hamiltonian_superop.shape == (sites**2, sites**2)
+
+
+@pytest.mark.parametrize('sites, exp', [(2, np.array([[1, 0],
+                                                      [0, 0]])),
+                                        (4, np.array([[1, 0, 0, 0],
+                                                      [0, 0, 0, 0],
+                                                      [0, 0, 0, 0],
+                                                      [0, 0, 0, 0]]))])
+def test_initial_density_matrix(sites, exp, qsys):
+
+    """
+    Tests that the correct initial density matrix for the system
+    is constructed, for a various number of sites.
+    """
+
+    qsys.sites = sites
+    assert np.all(qsys.initial_density_matrix == exp)
