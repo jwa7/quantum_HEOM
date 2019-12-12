@@ -26,6 +26,6 @@ def pad_hamiltonian_zero_exciton_gs(hamiltonian: np.array) -> np.array:
 
     for axis in [0, 1]:
         hamiltonian = np.insert(hamiltonian, 0,
-                                np.zeros(dim, dtype=complex), axis=axis)
+                                np.zeros(dim + axis, dtype=complex), axis=axis)
 
     return hamiltonian
