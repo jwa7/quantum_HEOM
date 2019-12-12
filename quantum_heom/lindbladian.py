@@ -4,10 +4,10 @@ thermalising (super)operators."""
 from scipy import constants
 import numpy as np
 
-MODELS = ['dephasing', 'thermalising']
+MODELS = ['dephasing lindblad', 'thermalising lindblad']
 
 
-def build_dephasing_lindblad_op(N: int, j: int) -> np.array:
+def dephasing_lindblad_op(N: int, j: int) -> np.array:
 
     """
     Builds an N x N matrix that contains a single non-zero element
@@ -32,12 +32,12 @@ def build_dephasing_lindblad_op(N: int, j: int) -> np.array:
                     ' number of sites')
 
     lindblad_operator = np.zeros((N, N), dtype=complex)
-    lindblad_operator[j-1][j-1] = 1+0j
+    lindblad_operator[j-1][j-1] = 1 + 0j
 
     return lindblad_operator
 
 
-def build_thermalising_lindblad_op(N: int):
+def thermalising_lindblad_op(N: int):
 
     """
     Builds the lindblad operator for construction of the
@@ -55,7 +55,7 @@ def build_thermalising_lindblad_op(N: int):
         pass
 
 
-def build_lindbladian_superop(N: int, Gamma: float, type: str) -> np.array:
+def lindbladian_superop(N: int, Gamma: float, model: str) -> np.array:
 
     """
     Builds an N x N lindbladian dephasing matrix for dephasing of
@@ -67,8 +67,8 @@ def build_lindbladian_superop(N: int, Gamma: float, type: str) -> np.array:
         The number of sites in the quantum system.
     Gamma : float
         The rate of dephasing of the system density matrix.
-    type : str
-        The type of lindbladian method to use; either 'dephasing'
+    model : str
+        The type of lindblad model to use; either 'dephasing'
         or 'thermalising'.
 
     Returns
@@ -79,20 +79,21 @@ def build_lindbladian_superop(N: int, Gamma: float, type: str) -> np.array:
     """
 
     assert N > 0, 'Must pass N as a positive integer.'
-    assert type in MODELS, ('Must choose a lindblad model from ' + str(MODELS))
+    assert model in MODELS, ('Must choose a lindblad model from ' + str(MODELS))
 
     lindbladian = np.zeros((N ** 2, N ** 2), dtype=complex)
 
-    if type == 'dephasing':
+    if model == MODELS[0]:
         for j in range(1, N + 1):
-            P_j = build_lindblad_operator(N, j)
+            P_j = dephasing_lindblad_op(N, j)
             iden = np.identity(N, dtype=complex)
             L_j = (np.kron(P_j, P_j)
-                   - 0.5 * (np.kron(iden, np.matmul(np.transpose(P_j), P_j))
-                            + np.kron(np.matmul(np.transpose(P_j), P_j), iden)))
+                   - 0.5 * (np.kron(iden, np.matmul(P_j.T, P_j))
+                            + np.kron(np.matmul(P_j.T, P_j), iden)))
             lindbladian += L_j
 
             return lindbladian * Gamma
 
     else:  # build thermalising lindblad
-        pass
+        raise NotImplementedError('Other lindblad dynamics models not yet'
+                                  ' implemented in quantum_HEOM.')
