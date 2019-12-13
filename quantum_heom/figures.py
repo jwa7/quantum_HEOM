@@ -5,7 +5,6 @@ from mpl_toolkits import mplot3d
 import matplotlib.pyplot as plt
 import numpy as np
 
-import utilities as util
 
 def complex_space_time(qsys,
                        elements: [np.array, str] = 'diagonals') -> np.array:
@@ -79,15 +78,16 @@ def complex_space_time(qsys,
     zeros = np.zeros(len(qsys.time_evolution), dtype=float)
     for element, amplitudes in matrix_data.items():
         if int(element[0]) == int(element[1]):
-            label = '$Re(p_{' + element + '})$'
+            label = '$Re(\\rho_{' + element + '})$'
             ax.plot3D(times, zeros, amplitudes, ls='-', label=label)
         else:
-            label = '$Im(p_{' + element + '})$'
+            label = '$Im(\\rho_{' + element + '})$'
             ax.plot3D(times, amplitudes, zeros, ls='-', label=label)
 
     # Plot trace of rho^2 and asymptote at 1 / N
     ax.plot3D(times, zeros, tr_rho_sq, dashes=[1, 1], label='$tr(\\rho^2)$')
-    ax.plot3D(times, zeros, 1/qsys.sites, c='gray', ls='--', label='z = 1/N')
+    ax.plot3D(times, zeros, 1/qsys.sites, c='gray', ls='--',
+              label='$z = \\frac{1}{N}$')
     # Set formatting parameters
     label_size = '15'
     title_size = '20'
