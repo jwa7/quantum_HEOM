@@ -1,7 +1,6 @@
 # *quantum_HEOM*
----
 
-##### Author: Joseph W. Abbott 
+#### Author: Joseph W. Abbott 
 
 ![](doc/example_plot.png?raw=true)
 
