@@ -32,7 +32,7 @@ class QuantumSystem:
             'nearest_neighbour_cyclic'].
         dynamics_model : str
             The model used to describe the system dynamics. Must
-            be one of ['simple', 'dephasing_lindblad'].
+            be one of ['simple', 'dephasing lindblad'].
 
     Attributes
     ----------
@@ -46,7 +46,7 @@ class QuantumSystem:
         'nearest_neighbour_cyclic'].
     dynamics_model : str
         The model used to describe the system dynamics. Must
-        be one of ['simple', 'dephasing_lindblad'].
+        be one of ['simple', 'dephasing lindblad'].
     """
 
     def __init__(self, sites, **settings):
@@ -155,7 +155,7 @@ class QuantumSystem:
         """
         Gets or sets the type of model used to describe the
         dynamics of the quantum system. Currently only 'simple' and
-        'dephasing_lindblad' are implemented in quantum_HEOM. The
+        'dephasing lindblad' are implemented in quantum_HEOM. The
         equations for the available models are:
 
         'simple':
@@ -163,7 +163,7 @@ class QuantumSystem:
             \\rho (t + dt) ~= \\rho (t)
                             - (\\frac{i dt}{\\hbar })[H, \\rho (t)]
                             - \\rho (t) \\Gamma dt
-        'dephasing_lindblad':
+        'dephasing lindblad':
         .. math::
             \\rho (t + dt) = e^{\\mathcal{L_{deph}}
                                 + \\hat{\\hat{H}}} \\rho (t)
@@ -240,9 +240,11 @@ class QuantumSystem:
     @timesteps.setter
     def timesteps(self, timesteps: Optional[int]):
 
-        if timesteps <= 0:
-            raise ValueError('Number of timesteps must be a positive integer')
-        self._timesteps = timesteps
+        if timesteps:
+            if timesteps <= 0:
+                raise ValueError('Number of timesteps must be a positive'
+                                 ' integer')
+            self._timesteps = timesteps
 
 
     @property
@@ -299,7 +301,7 @@ class QuantumSystem:
         Builds the Hamiltonian superoperator, given by:
 
         .. math::
-            H_{sup} = -i(H \\otimes I - I \\otimes H^{\dagger})
+            H_{sup} = -i(H \\otimes I - I \\otimes H^{\\dagger})
 
         Returns
         -------
@@ -333,9 +335,7 @@ class QuantumSystem:
 
         return rho_0 * self._hbar
 
-    def evolve_density_matrix_one_step(self, dens_mat: np.array,
-                                       time_interval: float,
-                                       decay_rate: float) -> np.array:
+    def evolve_density_matrix_one_step(self, dens_mat: np.array) -> np.array:
 
         """
         Evolves a density matrix at time t to time (t+time_interval) using
@@ -356,27 +356,28 @@ class QuantumSystem:
             density matrix.
         """
 
-        assert time_interval > 0., 'Timestep must be positive.'
-        assert decay_rate >= 0., 'Decay rate must be non-zero.'
+        # assert time_interval > 0., 'Timestep must be positive.'
+        # assert decay_rate >= 0., 'Decay rate must be non-zero.'
 
         evolved = np.zeros((self.sites, self.sites), dtype=complex)
 
         if self.dynamics_model == DYNAMICS_MODELS[0]:
             # Build matrix for simple dephasing of the off-diagonals
-            dephaser = dens_mat * decay_rate * time_interval
+            dephaser = dens_mat * self.decay_rate * self.time_interval
             np.fill_diagonal(dephaser, complex(0))
             # Evolve the density matrix
             evolved = (dens_mat
-                       - (1.0j * time_interval / self._hbar)
+                       - (1.0j * self.time_interval / self._hbar)
                        * util.get_commutator(self.hamiltonian, dens_mat)
                        - dephaser)
 
         elif self.dynamics_model == DYNAMICS_MODELS[1]:
             # Build the N^2 x N^2 propagator
             propa = linalg.expm((lind.lindbladian_superop(self.sites,
-                                                          decay_rate,
+                                                          self.decay_rate,
                                                           self.dynamics_model)
-                                 + self.hamiltonian_superop) * time_interval)
+                                 + self.hamiltonian_superop)
+                                 * self.time_interval)
             # Flatten to shape (N^2, 1) to allow multiplication w/ propagator
             evolved = np.matmul(propa, dens_mat.flatten('C'))
             # Reshape back to square
@@ -418,9 +419,7 @@ class QuantumSystem:
                             util.get_trace_matrix_squared(evolved))
             for step in range(1, self.timesteps):
                 time += self.time_interval
-                evolved = self.evolve_density_matrix_one_step(evolved,
-                                                              self.time_interval,
-                                                              self.decay_rate)
+                evolved = self.evolve_density_matrix_one_step(evolved)
                 trace_matrix_sq = util.get_trace_matrix_squared(evolved)
                 evolution[step] = (time, evolved, trace_matrix_sq)
 
