@@ -113,11 +113,11 @@ def complex_space_time(qsys, view_3d: bool = True,
              + str(qsys.time_interval) + ', $\\Gamma$ = '
              + str(qsys.decay_rate) + ')')
     if view_3d:
-        # plt.legend(loc='center left', fontsize='large')
+        plt.legend(loc='center left', fontsize='large')
         ax.set_xlabel('time', size=label_size, labelpad=30)
         ax.set_ylabel('Imaginary Amplitude', size=label_size, labelpad=30)
         ax.set_zlabel('Real Amplitude', size=label_size, labelpad=10)
-        # ax.set_title(title, size=title_size, pad=20)
+        ax.set_title(title, size=title_size, pad=20)
         ax.view_init(20, -50)
     else:
         plt.legend(loc='center right', fontsize='large', borderaxespad=-10.)
