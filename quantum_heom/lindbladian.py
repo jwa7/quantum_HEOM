@@ -32,7 +32,7 @@ def dephasing_lindblad_op(N: int, j: int) -> np.array:
                     ' number of sites')
 
     lindblad_operator = np.zeros((N, N), dtype=complex)
-    lindblad_operator[j-1][j-1] = 1 + 0j
+    lindblad_operator[j-1][j-1] = complex(1.)
 
     return lindblad_operator
 
@@ -88,12 +88,11 @@ def lindbladian_superop(N: int, Gamma: float, model: str) -> np.array:
             P_j = dephasing_lindblad_op(N, j)
             iden = np.identity(N, dtype=complex)
             L_j = (np.kron(P_j, P_j)
-                   - 0.5 * (np.kron(iden, np.matmul(P_j.T, P_j))
-                            + np.kron(np.matmul(P_j.T, P_j), iden)))
+                   - 0.5 * (np.kron(iden, np.matmul(np.transpose(P_j), P_j))
+                            + np.kron(np.matmul(np.transpose(P_j), P_j), iden)))
             lindbladian += L_j
 
-            return lindbladian * Gamma
+        return lindbladian * Gamma
 
-    else:  # build thermalising lindblad
-        raise NotImplementedError('Other lindblad dynamics models not yet'
-                                  ' implemented in quantum_HEOM.')
+    raise NotImplementedError('Other lindblad dynamics models not yet'
+                              ' implemented in quantum_HEOM.')
