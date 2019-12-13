@@ -1,6 +1,7 @@
 """Contains functions to plot the time evolution of the quantum system."""
 
 from itertools import permutations, product
+
 from mpl_toolkits import mplot3d
 import matplotlib.pyplot as plt
 import numpy as np
@@ -66,17 +67,17 @@ def complex_space_time(qsys, view_3d: bool = True,
                    for element in elements}
     for t_idx, (t, rho_t, trace) in enumerate(qsys.time_evolution, start=0):
         times[t_idx] = t
-        tr_rho_sq[t_idx] = trace
+        tr_rho_sq[t_idx] = np.real(trace)
         for element in elements:
             n, m = int(element[0]), int(element[1])
             value = rho_t[n - 1][m - 1]
             if n == m:  # diagonal element; retrieve real part of amplitude
-                matrix_data[element][t_idx] = value.real
+                matrix_data[element][t_idx] = np.real(value)
             else:  # off-diagonal; retrieve imaginary part of amplitude
-                matrix_data[element][t_idx] = value.imag
+                matrix_data[element][t_idx] = np.imag(value)
     # Initialize plots
     if view_3d:
-        ax = plt.figure(figsize=(20, 15))
+        ax = plt.figure(figsize=(25, 15))
         ax = plt.axes(projection='3d')
     else:
         ax = plt.figure(figsize=(15, 10))
@@ -112,17 +113,19 @@ def complex_space_time(qsys, view_3d: bool = True,
              + str(qsys.time_interval) + ', $\\Gamma$ = '
              + str(qsys.decay_rate) + ')')
     if view_3d:
-        plt.legend(loc='center left', fontsize='large')
+        # plt.legend(loc='center left', fontsize='large')
         ax.set_xlabel('time', size=label_size, labelpad=30)
         ax.set_ylabel('Imaginary Amplitude', size=label_size, labelpad=30)
         ax.set_zlabel('Real Amplitude', size=label_size, labelpad=10)
-        ax.set_title(title, size=title_size, pad=20)
+        # ax.set_title(title, size=title_size, pad=20)
         ax.view_init(20, -50)
     else:
         plt.legend(loc='center right', fontsize='large', borderaxespad=-10.)
         ax.xlabel('time', size=label_size, labelpad=20)
         ax.ylabel('Real Amplitude', size=label_size, labelpad=20)
         ax.title(title, size=title_size, pad=20)
+
+    # plt.savefig('example_plot.png')
 
 
 def site_cartesian_coordinates(N: int) -> np.array:
