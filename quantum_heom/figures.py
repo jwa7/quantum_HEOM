@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 
-def complex_space_time(qsys,
+def complex_space_time(qsys, view_3d: bool = True,
                        elements: [np.array, str] = 'diagonals') -> np.array:
 
     """
@@ -19,6 +19,10 @@ def complex_space_time(qsys,
     qsys : QuantumSystem
         The QuantumSystem object that defines the system and
         its dynamics.
+    view_3d : bool
+        If true, views the plot in 3d, showing real and imaginary
+        amplitude axes as well as time. If false, only shows the
+        real amplitude axis with time as a 2d plot.
     elements : str, or list of str
         The elements of the density matrix whose time-evolution
         should be plotted. Can be passed as a string, choosing
@@ -30,6 +34,7 @@ def complex_space_time(qsys,
         or elements=['11', '12', '21', '22'].
     """
 
+    # Check elements input
     if isinstance(elements, list):
         assert len(elements) <= qsys.sites ** 2, (
             'The number of elements plotted must be a positive integer less'
@@ -51,10 +56,10 @@ def complex_space_time(qsys,
         else:  # off-diagonals
             elements = [str(i) + str(j)
                         for i, j in permutations(range(1, qsys.sites + 1), 2)]
-
     else:
         raise ValueError('elements argument passed as invalid value.')
 
+    # Process time evolution data
     times = np.empty(len(qsys.time_evolution), dtype=float)
     tr_rho_sq = np.empty(len(qsys.time_evolution), dtype=float)
     matrix_data = {element: np.empty(len(qsys.time_evolution), dtype=float)
@@ -69,39 +74,56 @@ def complex_space_time(qsys,
                 matrix_data[element][t_idx] = value.real
             else:  # off-diagonal; retrieve imaginary part of amplitude
                 matrix_data[element][t_idx] = value.imag
-
-    # 3D PLOT
-    plt.figure(figsize=(20, 15))
-    ax = plt.axes(projection='3d')
-
+    # Initialize plots
+    if view_3d:
+        ax = plt.figure(figsize=(20, 15))
+        ax = plt.axes(projection='3d')
+    else:
+        ax = plt.figure(figsize=(15, 10))
+        ax = plt
     # Plot the data
     zeros = np.zeros(len(qsys.time_evolution), dtype=float)
     for element, amplitudes in matrix_data.items():
         if int(element[0]) == int(element[1]):
             label = '$Re(\\rho_{' + element + '})$'
-            ax.plot3D(times, zeros, amplitudes, ls='-', label=label)
+            if view_3d:
+                ax.plot3D(times, zeros, amplitudes, ls='-', label=label)
+            else:
+                ax.plot(times, amplitudes, ls='-', label=label)
         else:
             label = '$Im(\\rho_{' + element + '})$'
-            ax.plot3D(times, amplitudes, zeros, ls='-', label=label)
-
-    # Plot trace of rho^2 and asymptote at 1 / N
-    ax.plot3D(times, zeros, tr_rho_sq, dashes=[1, 1], label='$tr(\\rho^2)$')
-    ax.plot3D(times, zeros, 1/qsys.sites, c='gray', ls='--',
-              label='$z = \\frac{1}{N}$')
-    # Set formatting parameters
+            if view_3d:
+                ax.plot3D(times, amplitudes, zeros, ls='-', label=label)
+    # Plot tr(rho^2) and asymptote at 1 / N
+    if view_3d:
+        ax.plot3D(times, zeros, tr_rho_sq, dashes=[1, 1], label='$tr(\\rho^2)$')
+        ax.plot3D(times, zeros, 1/qsys.sites, c='gray', ls='--',
+                  label='$z = \\frac{1}{N}$')
+    else:
+        ax.plot(times, tr_rho_sq, dashes=[1, 1], label='$tr(\\rho^2)$')
+        ax.plot(times, [1/qsys.sites] * len(times), c='gray', ls='--',
+                label='$y = \\frac{1}{N}$')
+    # Format plot
     label_size = '15'
     title_size = '20'
-    # Format plot
-    plt.legend(loc='center left', fontsize='large')
-    ax.set_xlabel('time', size=label_size, labelpad=30)
-    ax.set_ylabel('Imaginary Amplitude', size=label_size, labelpad=30)
-    ax.set_zlabel('Real Amplitude', size=label_size, labelpad=10)
-    ax.set_title('Time evolution of a ' + qsys.interaction_model + ' '
-                 + str(qsys.sites) + '-site system modelled with '
-                 + qsys.dynamics_model + ' dynamics. \n(dt = '
-                 + str(qsys.time_interval) + ', $\\Gamma$ = '
-                 + str(qsys.decay_rate) + ').', size=title_size, pad=20)
-    ax.view_init(20, -50)
+    title = ('Time evolution of a ' + qsys.interaction_model + ' '
+             + str(qsys.sites) + '-site system modelled with '
+             + qsys.dynamics_model + ' dynamics. \n(dt = '
+             + str(qsys.time_interval) + ', $\\Gamma$ = '
+             + str(qsys.decay_rate) + ')')
+    if view_3d:
+        plt.legend(loc='center left', fontsize='large')
+        ax.set_xlabel('time', size=label_size, labelpad=30)
+        ax.set_ylabel('Imaginary Amplitude', size=label_size, labelpad=30)
+        ax.set_zlabel('Real Amplitude', size=label_size, labelpad=10)
+        ax.set_title(title, size=title_size, pad=20)
+        ax.view_init(20, -50)
+    else:
+        plt.legend(loc='center right', fontsize='large', borderaxespad=-10.)
+        ax.xlabel('time', size=label_size, labelpad=20)
+        ax.ylabel('Real Amplitude', size=label_size, labelpad=20)
+        ax.title(title, size=title_size, pad=20)
+
 
 def site_cartesian_coordinates(N: int) -> np.array:
 
