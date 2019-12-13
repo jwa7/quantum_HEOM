@@ -5,11 +5,12 @@ from scipy import constants
 import numpy as np
 import pytest
 
-from quantum_heom.quantum_system import QuantumSystem, INT_MODELS
+from quantum_heom.quantum_system import QuantumSystem, INTERACTION_MODELS
 
 N_SITES = 3
 SETTINGS = {'atomic_units': True,
-            'interaction_model': 'nearest_neighbour_cyclic'}
+            'interaction_model': 'nearest neighbour cyclic',
+            'dynamics_model': 'dephasing lindblad'}
 
 @pytest.fixture
 def qsys():
@@ -98,7 +99,7 @@ def test_quantum_system_interaction_model_getter(qsys):
     assert qsys.interaction_model == SETTINGS['interaction_model']
 
 
-@pytest.mark.parametrize('model', INT_MODELS)
+@pytest.mark.parametrize('model', INTERACTION_MODELS)
 def test_quantum_system_interaction_model_setter(model, qsys):
 
     """
@@ -126,7 +127,8 @@ def test_hamiltonian_nearest_neighbour_cyclic(sites, expected):
     in the nearest neighbour model is constructed.
     """
     settings = {'atomic_units': True,
-                'interaction_model': 'nearest_neighbour_cyclic'}
+                'interaction_model': 'nearest neighbour cyclic',
+                'dynamics_model': 'dephasing lindblad'}
 
     assert np.all(QuantumSystem(sites, **settings).hamiltonian == expected)
 
@@ -148,7 +150,8 @@ def test_hamiltonian_nearest_neighbour_linear(sites, expected):
     """
 
     settings = {'atomic_units': True,
-                'interaction_model': 'nearest_neighbour_linear'}
+                'interaction_model': 'nearest neighbour linear',
+                'dynamics_model': 'dephasing lindblad'}
     assert np.all(QuantumSystem(sites, **settings).hamiltonian == expected)
 
 
