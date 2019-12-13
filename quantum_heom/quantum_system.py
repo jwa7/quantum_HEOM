@@ -412,7 +412,7 @@ class QuantumSystem:
             well as the trace of the matrix squared.
         """
 
-        if self.time_interval and self.timesteps and self.decay_rate:
+        if self.time_interval and self.timesteps and self.decay_rate is not None:
             evolution = np.empty(self.timesteps, dtype=tuple)
             time, evolved = 0., self.initial_density_matrix
             evolution[0] = (time, evolved,
@@ -429,7 +429,8 @@ class QuantumSystem:
                              ' decay_rate attributes of QuantumSystem before'
                              ' its time evolution can be calculated.')
 
-    def plot_time_evolution(self, elements: [np.array, str] = 'diagonals'):
+    def plot_time_evolution(self, view_3d: bool = True,
+                            elements: [np.array, str] = 'diagonals'):
 
         """
         Plots the time evolution of the density matrix elements
@@ -437,6 +438,10 @@ class QuantumSystem:
 
         Parameters
         ----------
+        view_3d : bool
+            If true, views the plot in 3d, showing real and imaginary
+            amplitude axes as well as time. If false, only shows the
+            real amplitude axis with time as a 2d plot.
         elements : str, or list of str
             The elements of the density matrix whose time-evolution
             should be plotted. Can be passed as a string, choosing
@@ -448,4 +453,4 @@ class QuantumSystem:
             or elements=['11', '12', '21', '22'].
         """
 
-        figs.complex_space_time(self, elements)
+        figs.complex_space_time(self, view_3d, elements)
