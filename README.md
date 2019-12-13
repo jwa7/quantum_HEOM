@@ -29,10 +29,12 @@ A tool to benchmark existing models for describing the dynamics of open quantum 
 
 
 ## Current Features
-You can run the dynamics and plot the time evolution of an open quantum system using the lindblad dephasing model. Follow the setup instructions, then run the following commands to access the tutorial: 
+You can run the dynamics and plot the time evolution of an open quantum system using the lindblad dephasing model. Follow the setup instructions, then run the following commands to access the interactive tutorial: 
 
 1. ``cd quantum_HEOM/quantum_heom``
 2. ``jupyter notebook tutorial_define_system_plot_evolution.ipynb &``
+
+Alternatively an non-interactive version of the tutorial can be viewed [here](https://github.com/jwa7/quantum_HEOM/blob/master/quantum_heom/tutorial_define_system_plot_evolution.ipynb).
 
 ## Incoming Features
 * Implementation of the thermalising lindblad description of the system dynamics.
