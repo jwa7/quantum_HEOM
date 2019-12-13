@@ -2,8 +2,8 @@
 the QuantumSystem class."""
 
 from typing import Optional
-from scipy import constants, linalg
 
+from scipy import constants, linalg
 import numpy as np
 
 import figures as figs
@@ -420,7 +420,7 @@ class QuantumSystem:
             for step in range(1, self.timesteps):
                 time += self.time_interval
                 evolved = self.evolve_density_matrix_one_step(evolved)
-                trace_matrix_sq = util.get_trace_matrix_squared(evolved)
+                trace_matrix_sq = np.real(util.get_trace_matrix_squared(evolved))
                 evolution[step] = (time, evolved, trace_matrix_sq)
 
             return evolution
