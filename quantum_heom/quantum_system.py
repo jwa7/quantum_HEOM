@@ -7,11 +7,13 @@ from scipy import constants, linalg
 import numpy as np
 
 import figures as figs
+import hamiltonian as ham
 import lindbladian as lind
 import utilities as util
 
-INTERACTION_MODELS = ['nearest neighbour linear', 'nearest neighbour cyclic']
-DYNAMICS_MODELS = ['simple', 'dephasing lindblad']
+INTERACTION_MODELS = ['nearest neighbour linear', 'nearest neighbour cyclic',
+                      'FMO']
+DYNAMICS_MODELS = ['simple', 'dephasing lindblad', 'thermalising lindblad']
 
 
 class QuantumSystem:
@@ -25,7 +27,7 @@ class QuantumSystem:
         The number of sites in the system.
     **settings
         atomic_units : bool
-            If True, uses atomic units (i.e. hbar=1)
+            If True, uses atomic units (i.e. hbar=1). Default True.
         interaction_model : str
             How to model the interactions between sites. Must be
             one of ['nearest_neighbour_linear',
@@ -453,17 +455,28 @@ class QuantumSystem:
 
         if self.interaction_model.startswith('nearest'):
             # Build base Hamiltonian for linear system
-            ham = (np.eye(self.sites, k=-1, dtype=complex)
-                   + np.eye(self.sites, k=1, dtype=complex))
+            hamil = (np.eye(self.sites, k=-1, dtype=complex)
+                     + np.eye(self.sites, k=1, dtype=complex))
             # Build in interaction between 1st and Nth sites for cyclic systems
             if self.interaction_model.endswith('cyclic'):
-                ham[0][self.sites - 1] = 1
-                ham[self.sites - 1][0] = 1
+                hamil[0][self.sites - 1] = 1
+                hamil[self.sites - 1][0] = 1
+
+        elif self.interaction_model == 'FMO':
+            assert self.sites == 7, 'FMO Hamiltonian only built for 7-sites'
+            # Units of cm^-1
+            hamil = np.array([[12410, -87.7, 5.5, -5.9, 6.7, -13.7, -9.9],
+                              [-87.7, 12530, 30.8, 8.2, 0.7, 11.8, 4.3],
+                              [5.5, 30.8, 12210, -53.5, -2.2, -9.6, 6.0],
+                              [-5.9, 8.2, -53.5, 12320, -70.7, -17.0, -63.3],
+                              [6.7, 0.7, -2.2, -70.7, 12480, 81.1, -1.3],
+                              [-13.7, 11.8, -9.6, -17.0, 81.1, 12630, 39.7],
+                              [-9.9, 4.3, 6.0, -63.3, -1.3, 39.7, 12440]])
         else:
             raise NotImplementedError('Other interaction models have not yet'
                                       ' been implemented in quantum_HEOM')
 
-        return ham * self._hbar
+        return hamil * self._hbar
 
     @property
     def hamiltonian_superop(self) -> np.array:
