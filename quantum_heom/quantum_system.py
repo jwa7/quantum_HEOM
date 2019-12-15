@@ -33,13 +33,35 @@ class QuantumSystem:
         dynamics_model : str
             The model used to describe the system dynamics. Must
             be one of ['simple', 'dephasing lindblad'].
+        time_interval : float
+            The time_interval between timesteps at which the
+            system's density matrix is evaluated.
+        timesteps : int
+            The number of timesteps for which the time evolution
+            of the system is evaluated.
+        decay_rate : float
+            The rate of dephasing of the system.
+        temperature : float
+            The temperature of the thermal bath, in Kelvin.
+            Default is 300 K.
+        therm_sf : float
+            The scale factor used to match thermalisation rates
+            between dynamics models in units of rad ps^-1.
+            Default value is 11.87 rad ps^-1.
+        cutoff_freq : float
+            The cutoff frequency used in calculating the spectral
+            density, in rad ps^-1.
+            Default value is (1. / 0.166) rad ps^-1.
+        # spectral_freq : float
+        #     The frequency at which to evaluate the spectral density
+        #     for the system, in unit of
 
     Attributes
     ----------
     sites : int
         The number of sites in the quantum system.
     atomic_units : bool
-        If True, uses atomic units (i.e. hbar=1)
+        If True, uses atomic units (i.e. hbar=1). Default True.
     interaction_model : str
         How to model the interactions between sites. Must be
         one of ['nearest_neighbour_linear',
@@ -47,17 +69,51 @@ class QuantumSystem:
     dynamics_model : str
         The model used to describe the system dynamics. Must
         be one of ['simple', 'dephasing lindblad'].
+    time_interval : float
+        The time_interval between timesteps at which the
+        system's density matrix is evaluated.
+    timesteps : int
+        The number of timesteps for which the time evolution
+        of the system is evaluated.
+    decay_rate : float
+        The rate of dephasing of the system.
+    temperature : float
+        The temperature of the thermal bath, in Kelvin.
+        Default is 300 K.
+    therm_sf : float
+        The scale factor used to match thermalisation rates
+        between dynamics models in units of rad ps^-1.
+        Default value is 11.87 rad ps^-1.
+    cutoff_freq : float
+        The cutoff frequency used in calculating the spectral
+        density, in rad ps^-1.
+        Default value is (1. / 0.166) rad ps^-1.
     """
 
     def __init__(self, sites, **settings):
 
         self.sites = sites
-        self.atomic_units = settings.get('atomic_units')
+        if settings.get('atomic_units'):
+            self.atomic_units = settings.get('atomic_units')
+        else:
+            self.atomic_units = True
         self.interaction_model = settings.get('interaction_model')
         self.dynamics_model = settings.get('dynamics_model')
         self.time_interval = settings.get('time_interval')
         self.timesteps = settings.get('timesteps')
         self.decay_rate = settings.get('decay_rate')
+        if settings.get('temperature'):
+            self.temperature = settings.get('temperature')
+        else:
+            self.temperature = 300.
+        if settings.get('therm_sf'):
+            self.therm_sf = settings.get('therm_sf')
+        else:
+            self.therm_sf = 11.87
+        if settings.get('cutoff_freq'):
+            self.cutoff_freq = settings.get('cutoff_freq')
+        else:
+            self.cutoff_freq = 1. / 0.166
 
     @property
     def atomic_units(self) -> bool:
@@ -267,6 +323,121 @@ class QuantumSystem:
         self._decay_rate = decay_rate
 
     @property
+    def temperature(self) -> float:
+
+        """
+        Get or set the temperature of the thermal bath.
+
+        Raises
+        ------
+        ValueError
+            If the temperature is being set to a negative value
+
+        Returns
+        -------
+        float
+            The temperature of the system, in Kelvin.
+        """
+
+        return self._temperature
+
+    @temperature.setter
+    def temperature(self, temperature):
+
+        if temperature <= 0.:
+            raise ValueError('Temperature must be a positiev float value')
+        self._temperature = temperature
+
+    @property
+    def _kT(self):
+
+        """
+        Returns the thermal energy, kT, of the QuantumSystem, where
+        k is the Boltzmann constant and T is the temperature of the
+        thermal bath. If working in atomic units k=1, otherwise
+        k=1.38064852e-23 J K^-1.
+
+        Returns
+        -------
+        float
+            The thermal energy of the system.
+        """
+
+        # return self.temperature if self.atomic_units else (constants.k *
+        #                                                    self.temperature)
+        return constants.k * self.temperature
+
+    @property
+    def therm_sf(self) -> float:
+
+        """
+        Get or set the scale factor used in matching thermalising
+        timescales between dynamics models.
+
+        Raises
+        ------
+        ValueError
+            If the value being set is non-positive.
+
+        Returns
+        -------
+        float
+            The thermalisation scale factor being used.
+        """
+
+        return self._therm_sf
+
+    @therm_sf.setter
+    def therm_sf(self, therm_sf):
+
+        if therm_sf <= 0.:
+            raise ValueError('Scale factor must be a positive float')
+        self._therm_sf = therm_sf
+
+    # @property
+    # def spectral_freq(self) -> float:
+    #
+    #     """
+    #     Get or set the frequency at which the spectral density for
+    #     the system is evaluated.
+    #
+    #     Returns
+    #     -------
+    #     float
+    #         The frequency at which the spectal density is evaluated.
+    #     """
+    #
+    #     return self._spectral_freq
+
+    @property
+    def cutoff_freq(self) -> float:
+
+        """
+        Get or set the cutoff frequency used in calculating the
+        spectral density.
+
+        Raises
+        ------
+        ValueError
+            If the cutoff frequency is being set to a non-positive
+            value.
+
+        Returns
+        -------
+        float
+            The cutoff frequency being used.
+        """
+
+        return self._cutoff_freq
+
+    @cutoff_freq.setter
+    def cutoff_freq(self, cutoff_freq):
+
+        if cutoff_freq <= 0.:
+            raise ValueError('Cutoff frequency must be a positive float.')
+        self._cutoff_freq = cutoff_freq
+
+    @property
     def hamiltonian(self) -> np.array:
 
         """
@@ -316,6 +487,23 @@ class QuantumSystem:
         return - 1.0j * (np.kron(ham, iden) - np.kron(iden, ham.T.conjugate()))
 
     @property
+    def lindbladian_superop(self) -> np.array:
+
+        """
+        Builds the Lindbladian superoperator for the system, either
+        using the dephasing or thermalising lindblad description of
+        the dynamics.
+
+        Returns
+        -------
+        np.array
+            The (N^2) x (N^2) 2D array representing the Lindbladian
+            superoperator.
+        """
+
+        return lind.lindbladian_superop(self)
+
+    @property
     def initial_density_matrix(self) -> np.array:
 
         """
@@ -356,38 +544,31 @@ class QuantumSystem:
             density matrix.
         """
 
-        # assert time_interval > 0., 'Timestep must be positive.'
-        # assert decay_rate >= 0., 'Decay rate must be non-zero.'
-
         evolved = np.zeros((self.sites, self.sites), dtype=complex)
 
-        if self.dynamics_model == DYNAMICS_MODELS[0]:
+        if self.dynamics_model == DYNAMICS_MODELS[0]:  # simple dynamics
             # Build matrix for simple dephasing of the off-diagonals
             dephaser = dens_mat * self.decay_rate * self.time_interval
             np.fill_diagonal(dephaser, complex(0))
-            # Evolve the density matrix
-            evolved = (dens_mat
-                       - (1.0j * self.time_interval / self._hbar)
-                       * util.get_commutator(self.hamiltonian, dens_mat)
-                       - dephaser)
+            # Evolve the density matrix and return
+            return (dens_mat
+                    - (1.0j * self.time_interval / self._hbar)
+                    * util.get_commutator(self.hamiltonian, dens_mat)
+                    - dephaser)
 
-        elif self.dynamics_model == DYNAMICS_MODELS[1]:
+        elif self.dynamics_model in DYNAMICS_MODELS[1:3]:  # deph/therm lindblad
             # Build the N^2 x N^2 propagator
-            propa = linalg.expm((lind.lindbladian_superop(self.sites,
-                                                          self.decay_rate,
-                                                          self.dynamics_model)
+            propa = linalg.expm((self.lindbladian_superop
                                  + self.hamiltonian_superop)
-                                 * self.time_interval)
+                                * self.time_interval)
             # Flatten to shape (N^2, 1) to allow multiplication w/ propagator
             evolved = np.matmul(propa, dens_mat.flatten('C'))
-            # Reshape back to square
-            evolved = evolved.reshape((self.sites, self.sites), order='C')
+            # Reshape back to square and return
+            return evolved.reshape((self.sites, self.sites), order='C')
 
         else:
             raise NotImplementedError('Other dynamics models not yet'
                                       ' implemented in quantum_HEOM.')
-
-        return evolved
 
     @property
     def time_evolution(self) -> np.array:
