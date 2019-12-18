@@ -9,8 +9,9 @@ import numpy as np
 import utilities as util
 
 
-def complex_space_time(qsys, view_3d: bool = True, save_as: str = None,
-                       elements: [np.array, str] = 'diagonals') -> np.array:
+def complex_space_time(qsys, view_3d: bool = True,
+                       elements: [np.array, str] = 'diagonals',
+                       save_as: str = None,) -> np.array:
 
     """
     Creates a 3D plot of time vs imaginary vs real-amplitude.
