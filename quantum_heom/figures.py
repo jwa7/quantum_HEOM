@@ -6,6 +6,8 @@ from mpl_toolkits import mplot3d
 import matplotlib.pyplot as plt
 import numpy as np
 
+# import quantum_heom.utilities as util
+
 import utilities as util
 
 
@@ -125,8 +127,13 @@ def complex_space_time(qsys, view_3d: bool = True,
     title = ('Time evolution of a ' + qsys.interaction_model + ' '
              + str(qsys.sites) + '-site system modelled with '
              + qsys.dynamics_model + ' dynamics. \n(dt = '
-             + str(qsys.time_interval * 1E15) + ' $fs$, $\\Gamma$ = '
-             + str(qsys.decay_rate * 1E-12) + ' $rad\ ps^{-1})$')
+             + str(qsys.time_interval * 1E15) + ' $fs$ ,')
+    if qsys.dynamics_model in ['simple', 'local dephasing lindblad']:
+        title += ('$\\Gamma$ = ' + str(qsys.decay_rate * 1E-12)
+                  + ' $rad\ ps^{-1})$')
+    elif qsys.dynamics_model in ['local thermalising lindblad',
+                                 'global dephasing lindblad']:
+        title += ('T = ' + str(qsys.temperature) + ' K')
     if view_3d:
         plt.legend(loc='center left', fontsize='large')
         ax.set_xlabel('time / fs', size=label_size, labelpad=30)
