@@ -538,7 +538,27 @@ class QuantumSystem:
         rho_0 = np.zeros((self.sites, self.sites), dtype=complex)
         rho_0[0][0] = 1
 
-        return rho_0 * self._hbar
+        return rho_0
+
+    @property
+    def thermal_eq_state(self) -> float:
+
+        """
+        Get the density matrix for the system's thermal
+        equilibrium state, given by:
+
+        .. math::
+            \\rho^{(eq)}
+                = \\frac{e^{- H / k_B T}}{tr(e^{- H / k_B T})}
+
+        Returns
+        -------
+        np.array
+            A 2D square denisty matrix for the system's thermal
+            equilibrium state.
+        """
+
+        return lind.thermal_equilibrium_state(self)
 
     def evolve_density_matrix_one_step(self, dens_mat: np.array) -> np.array:
 
