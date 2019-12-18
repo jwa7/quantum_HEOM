@@ -5,6 +5,11 @@ from typing import Optional
 
 from scipy import constants, linalg
 import numpy as np
+#
+# import quantum_heom.figures as figs
+# import quantum_heom.hamiltonian as ham
+# import quantum_heom.lindbladian as lind
+# import quantum_heom.utilities as util
 
 import figures as figs
 import hamiltonian as ham
@@ -39,6 +44,10 @@ class QuantumSystem:
             How to model the interactions between sites. Must be
             one of ['nearest_neighbour_linear',
             'nearest_neighbour_cyclic'].
+        dynamics_model : str
+            The model used to describe the system dynamics. Must
+            be one of ['simple', 'local dephasing lindblad',
+            'global thermalising lindblad'].
         init_site_pop : list of int
             The sites in which to place initial population. For
             example, to place equal population in sites 1 and 6
@@ -46,10 +55,6 @@ class QuantumSystem:
             place twice as much initial population in 3 as in 4,
             pass [3, 3, 4]. Default value is [1], which populates
             only site 1.
-        dynamics_model : str
-            The model used to describe the system dynamics. Must
-            be one of ['simple', 'local dephasing lindblad',
-            'global thermalising lindblad'].
         time_interval : float
             The time_interval between timesteps at which the
             system's density matrix is evaluated.
@@ -69,16 +74,13 @@ class QuantumSystem:
             The cutoff frequency used in calculating the spectral
             density, in rad ps^-1.
             Default value is (1. / 0.166) rad ps^-1.
-        # spectral_freq : float
-        #     The frequency at which to evaluate the spectral density
-        #     for the system, in unit of
 
     Attributes
     ----------
     sites : int
         The number of sites in the quantum system.
     atomic_units : bool
-        If True, uses atomic units (i.e. hbar=1). Default True.
+        If True, uses atomic units (i.e. hbar=1). Default False.
     interaction_model : str
         How to model the interactions between sites. Must be
         one of ['nearest_neighbour_linear',
@@ -108,42 +110,50 @@ class QuantumSystem:
         density, in rad ps^-1. Default value is 6.024E12 rad s^-1.
     """
 
-    def __init__(self, sites, **settings):
+    def __init__(self, sites, interaction_model, dynamics_model, **settings):
 
         self.sites = sites
-        if settings.get('atomic_units') is not None:
-            self.atomic_units = settings.get('atomic_units')
+        self.interaction_model = interaction_model
+        self.dynamics_model = dynamics_model
+        # TIME-EVOLUTION SETTINGS
+        if settings.get('time_interval'):
+            self.time_interval = settings.get('time_interval')  # seconds
         else:
-            self.atomic_units = True
-        self.interaction_model = settings.get('interaction_model')
-
+            self.time_interval = 5E-15  # 5 fs
+        if settings.get('timesteps'):
+            self.timesteps = settings.get('timesteps')
+        else:
+            self.timesteps = 500
+        # SETTINGS FOR DEPHASING LINDBLAD MODEL
+        if self.dynamics_model in ['simple', 'local dephasing lindblad']:
+            if settings.get('decay_rate') is not None:
+                self.decay_rate = settings.get('decay_rate')
+            else:
+                self.decay_rate = 6.024 * 1e12  # rad s^-1
+        # SETTINGS FOR THERMALISING LINDBLAD MODELS
+        if self.dynamics_model in ['local thermalising lindblad',
+                                   'global thermalising lindblad']:
+            if settings.get('temperature'):
+                self.temperature = settings.get('temperature')
+            else:
+                self.temperature = 298.  # K
+            if settings.get('therm_sf'):
+                self.therm_sf = settings.get('therm_sf')
+            else:
+                self.therm_sf = 1.391 * 1e12  # rad s^-1
+            if settings.get('cutoff_freq'):
+                self.cutoff_freq = settings.get('cutoff_freq')
+            else:
+                self.cutoff_freq = 6.024 * 1e12  # rad s-1
+        # OTHER SETTINGS
         if settings.get('init_site_pop') is not None:
             self.init_site_pop = settings.get('init_site_pop')
         else:
             self.init_site_pop = [1]
-        self.dynamics_model = settings.get('dynamics_model')
-        self.time_interval = settings.get('time_interval')  # seconds
-        self.timesteps = settings.get('timesteps')
-
-        if settings.get('decay_rate') is not None:
-            self.decay_rate = settings.get('decay_rate')
+        if settings.get('atomic_units') is not None:
+            self.atomic_units = settings.get('atomic_units')
         else:
-            self.decay_rate = 6.024 * 1e12  # rad s^-1
-
-        if settings.get('temperature'):
-            self.temperature = settings.get('temperature')
-        else:
-            self.temperature = 298.  # K
-
-        if settings.get('therm_sf'):
-            self.therm_sf = settings.get('therm_sf')
-        else:
-            self.therm_sf = 1.391 * 1e12  # rad s^-1
-
-        if settings.get('cutoff_freq'):
-            self.cutoff_freq = settings.get('cutoff_freq')
-        else:
-            self.cutoff_freq = 6.024 * 1e12  # rad s-1
+            self.atomic_units = False
 
     @property
     def atomic_units(self) -> bool:
@@ -248,8 +258,8 @@ class QuantumSystem:
         'simple':
         .. math::
             \\rho (t + dt) ~= \\rho (t)
-                            - (\\frac{i dt}{\\hbar })[H, \\rho (t)]
-                            - \\rho (t) \\Gamma dt
+                              - (\\frac{i dt}{\\hbar })[H, \\rho (t)]
+                              - \\rho (t) \\Gamma dt
         lindblad:
         .. math::
             \\rho (t + dt) = e^{\\mathcal{L_{deph}}
@@ -282,37 +292,6 @@ class QuantumSystem:
             raise ValueError('Must choose an dynamics model from '
                              + str(DYNAMICS_MODELS))
         self._dynamics_model = model
-
-    @property
-    def init_site_pop(self) -> list:
-
-        """
-        Get or set the site populations in the initial denisty
-        matrix. Must be passed as a list of integers which indicate
-        the sites of the system that should be equally populated.
-
-        Raises
-        ------
-        ValueError
-            If invalid site numbers (i.e. less than 1 or greater
-            than the number of sites) are passed.
-
-        Returns
-        -------
-        list of int
-            The site numbers that will be initially and equally
-            populated.
-        """
-
-        return self._init_site_pop
-
-    @init_site_pop.setter
-    def init_site_pop(self, init_site_pop: list):
-
-        for site in init_site_pop:
-            if site < 1 or site > self.sites:
-                raise ValueError('Invalid site number.')
-        self._init_site_pop = init_site_pop
 
     @property
     def time_interval(self) -> float:
@@ -379,10 +358,11 @@ class QuantumSystem:
             The decay rate of the density matrix elements.
         """
 
-        return self._decay_rate
+        if self.dynamics_model in ['simple', 'local dephasing lindblad']:
+            return self._decay_rate
 
     @decay_rate.setter
-    def decay_rate(self, decay_rate: Optional[float]):
+    def decay_rate(self, decay_rate: float):
 
         self._decay_rate = decay_rate
 
@@ -403,7 +383,9 @@ class QuantumSystem:
             The temperature of the system, in Kelvin.
         """
 
-        return self._temperature
+        if self.dynamics_model in ['local thermalising lindblad',
+                                   'global thermalising lindblad']:
+            return self._temperature
 
     @temperature.setter
     def temperature(self, temperature):
@@ -427,8 +409,6 @@ class QuantumSystem:
             The thermal energy of the system.
         """
 
-        # return self.temperature if self.atomic_units else (constants.k *
-        #                                                    self.temperature)
         return constants.k * self.temperature
 
     @property
@@ -449,7 +429,9 @@ class QuantumSystem:
             The thermalisation scale factor being used.
         """
 
-        return self._therm_sf
+        if self.dynamics_model in ['local thermalising lindblad',
+                                   'global thermalising lindblad']:
+            return self._therm_sf
 
     @therm_sf.setter
     def therm_sf(self, therm_sf):
@@ -477,7 +459,9 @@ class QuantumSystem:
             The cutoff frequency being used.
         """
 
-        return self._cutoff_freq
+        if self.dynamics_model in ['local thermalising lindblad',
+                                   'global thermalising lindblad']:
+            return self._cutoff_freq
 
     @cutoff_freq.setter
     def cutoff_freq(self, cutoff_freq):
@@ -500,7 +484,8 @@ class QuantumSystem:
             number of sites.
         """
 
-        if self.interaction_model.startswith('nearest'):
+        if self.interaction_model in ['nearest neighbour linear',
+                                      'nearest neighbour cyclic']:
             # Build base Hamiltonian for linear system
             hamil = (np.eye(self.sites, k=-1, dtype=complex)
                      + np.eye(self.sites, k=1, dtype=complex))
@@ -530,6 +515,10 @@ class QuantumSystem:
             hamil = hamil[0:self.sites, 0:self.sites]
 
             return hamil * 2 * np.pi * constants.c * 100.  # cm^-1 -> rad s^-1
+
+        elif self.interaction_model is None:
+            raise ValueError('Hamiltonian cannot be built until interaction'
+                             ' model chosen from ' + str(INTERACTION_MODELS))
 
         else:
             raise NotImplementedError('Other interaction models have not yet'
@@ -571,7 +560,10 @@ class QuantumSystem:
             superoperator.
         """
 
-        return lind.lindbladian_superop(self)
+        if self.dynamics_model in ['local dephasing lindblad',
+                                   'local thermalising lindblad',
+                                   'global thermalising lindblad']:
+            return lind.lindbladian_superop(self)
 
     @property
     def initial_density_matrix(self) -> np.array:
@@ -595,6 +587,37 @@ class QuantumSystem:
             rho_0[site - 1][site - 1] += pop_share
 
         return rho_0
+
+    @property
+    def init_site_pop(self) -> list:
+
+        """
+        Get or set the site populations in the initial denisty
+        matrix. Must be passed as a list of integers which indicate
+        the sites of the system that should be equally populated.
+
+        Raises
+        ------
+        ValueError
+            If invalid site numbers (i.e. less than 1 or greater
+            than the number of sites) are passed.
+
+        Returns
+        -------
+        list of int
+            The site numbers that will be initially and equally
+            populated.
+        """
+
+        return self._init_site_pop
+
+    @init_site_pop.setter
+    def init_site_pop(self, init_site_pop: list):
+
+        for site in init_site_pop:
+            if site < 1 or site > self.sites:
+                raise ValueError('Invalid site number.')
+        self._init_site_pop = init_site_pop
 
     @property
     def thermal_eq_state(self) -> float:
@@ -686,7 +709,7 @@ class QuantumSystem:
             well as the trace of the matrix squared.
         """
 
-        if self.time_interval and self.timesteps and self.decay_rate is not None:
+        if self.time_interval and self.timesteps:
             evolution = np.empty(self.timesteps, dtype=tuple)
             time, evolved = 0., self.initial_density_matrix
             evolution[0] = (time, evolved,
@@ -704,7 +727,8 @@ class QuantumSystem:
                              ' its time evolution can be calculated.')
 
     def plot_time_evolution(self, view_3d: bool = True,
-                            elements: [np.array, str] = 'diagonals'):
+                            elements: [np.array, str] = 'diagonals',
+                            save_as: str = None):
 
         """
         Plots the time evolution of the density matrix elements
@@ -727,4 +751,5 @@ class QuantumSystem:
             or elements=['11', '12', '21', '22'].
         """
 
-        figs.complex_space_time(self, view_3d, elements)
+        figs.complex_space_time(self, view_3d=view_3d,
+                                elements=elements, save_as=None)
