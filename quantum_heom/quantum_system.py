@@ -102,11 +102,16 @@ class QuantumSystem:
         else:
             self.atomic_units = True
         self.interaction_model = settings.get('interaction_model')
+
+        if settings.get('init_site_pop') is not None:
+            self.init_site_pop = settings.get('init_site_pop')
+        else:
+            self.init_site_pop = [1]
         self.dynamics_model = settings.get('dynamics_model')
         self.time_interval = settings.get('time_interval')  # seconds
         self.timesteps = settings.get('timesteps')
 
-        if self.decay_rate is not None:
+        if settings.get('decay_rate') is not None:
             self.decay_rate = settings.get('decay_rate')
         else:
             self.decay_rate = 6.024 * 1e12  # rad s^-1
@@ -260,6 +265,37 @@ class QuantumSystem:
             raise ValueError('Must choose an dynamics model from '
                              + str(DYNAMICS_MODELS))
         self._dynamics_model = model
+
+    @property
+    def init_site_pop(self) -> list:
+
+        """
+        Get or set the site populations in the initial denisty
+        matrix. Must be passed as a list of integers which indicate
+        the sites of the system that should be equally populated.
+
+        Raises
+        ------
+        ValueError
+            If invalid site numbers (i.e. less than 1 or greater
+            than the number of sites) are passed.
+
+        Returns
+        -------
+        list of int
+            The site numbers that will be initially and equally
+            populated.
+        """
+
+        return self._init_site_pop
+
+    @init_site_pop.setter
+    def init_site_pop(self, init_site_pop: list):
+
+        for site in init_site_pop:
+            if site < 1 or site > self.sites:
+                raise ValueError('Invalid site number.')
+        self._init_site_pop = init_site_pop
 
     @property
     def time_interval(self) -> float:
@@ -526,17 +562,20 @@ class QuantumSystem:
         """
         Returns an N x N 2D array corresponding to the density
         matrix of the system at time t=0, where N is the number
-        of sites. All amplitude is localised on site 1.
+        of sites. Site populations are split equally between the
+        sites specified in 'QuantumSystem.init_site_pop' setting.
 
         Returns
         -------
         np.array
             N x N 2D array (where N is the number of sites)
-            initial density matrix
+            for the initial density matrix.
         """
 
         rho_0 = np.zeros((self.sites, self.sites), dtype=complex)
-        rho_0[0][0] = 1
+        pop_share = 1. / len(self.init_site_pop)
+        for site in self.init_site_pop:
+            rho_0[site - 1][site - 1] += pop_share
 
         return rho_0
 
