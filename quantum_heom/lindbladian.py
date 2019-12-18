@@ -121,7 +121,7 @@ def lindbladian_superop(qsys) -> np.array:
         for site_j in range(1, qsys.sites + 1):
             site_j_op = dephasing_lindblad_op(qsys.sites, site_j)
             lind_j_op = (np.kron(site_j_op.T.conjugate(), site_j_op)
-                         - 0.5 * (np.kron(id, np.matmul(site_j_op.T.conjuagte(),
+                         - 0.5 * (np.kron(id, np.matmul(site_j_op.T.conjugate(),
                                                         site_j_op))
                                   + np.kron(np.matmul(site_j_op.T.conjugate(),
                                                       site_j_op),
