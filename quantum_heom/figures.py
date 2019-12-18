@@ -6,6 +6,8 @@ from mpl_toolkits import mplot3d
 import matplotlib.pyplot as plt
 import numpy as np
 
+import utilities as util
+
 
 def complex_space_time(qsys, view_3d: bool = True,
                        elements: [np.array, str] = 'diagonals') -> np.array:
@@ -95,15 +97,25 @@ def complex_space_time(qsys, view_3d: bool = True,
             label = '$Im(\\rho_{' + element + '})$'
             if view_3d:
                 ax.plot3D(times, amplitudes, zeros, ls='-', label=label)
-    # Plot tr(rho^2) and asymptote at 1 / N
+    # Plot tr(rho^2) and asymptote at 1 / N or thermal_eq
     if view_3d:
         ax.plot3D(times, zeros, tr_rho_sq, dashes=[1, 1], label='$tr(\\rho^2)$')
-        ax.plot3D(times, zeros, 1/qsys.sites, c='gray', ls='--',
-                  label='$z = \\frac{1}{N}$')
-    else:
+        if qsys.dynamics_model == 'thermalising lindblad':
+            ax.plot3D(times, zeros,
+                      util.get_trace_matrix_squared(qsys.thermal_eq_state),
+                      c='gray', ls='--', label='$z = tr(\\rho_{eq}^2)$')
+        else:
+            ax.plot3D(times, zeros, 1/qsys.sites, c='gray', ls='--',
+                      label='$z = \\frac{1}{N}$')
+    else:  # 2D plot
         ax.plot(times, tr_rho_sq, dashes=[1, 1], label='$tr(\\rho^2)$')
-        ax.plot(times, [1/qsys.sites] * len(times), c='gray', ls='--',
-                label='$y = \\frac{1}{N}$')
+        if qsys.dynamics_model == 'thermalising lindblad':
+            ax.plot(times, zeros,
+                    util.get_trace_matrix_squared(qsys.thermal_eq_state),
+                    c='gray', ls='--', label='$z = tr(\\rho_{eq}^2)$')
+        else:
+            ax.plot(times, [1/qsys.sites] * len(times), c='gray', ls='--',
+                    label='$y = \\frac{1}{N}$')
     # Format plot
     label_size = '15'
     title_size = '20'
