@@ -7,6 +7,7 @@ import math
 from scipy import constants, linalg
 import numpy as np
 
+
 MODELS = ['dephasing lindblad', 'thermalising lindblad']
 
 
@@ -122,37 +123,28 @@ def lindbladian_superop(qsys) -> np.array:
                                   + np.kron(np.matmul(site_j_op.T, site_j_op),
                                             id)))
             lindbladian += lind_j_op
-        return lindbladian * qsys.decay_rate
+        return lindbladian * qsys.decay_rate  # rad s^-1 to match Hamiltonian.
 
     elif qsys.dynamics_model == MODELS[1]:  # thermalising lindblad
-        eigenvalues = linalg.eig(qsys.hamiltonian_superop)[0].reshape((qsys.sites, qsys.sites), order='C')
+
+        eigenvalues = linalg.eig(qsys.hamiltonian)[0]  # energies in rad s^-1
         for site_a, site_b in permutations(range(1, qsys.sites + 1), 2):
-            # print(site_a, site_b)
-            site_aa_op = thermalising_lindblad_op(qsys.sites, site_a, site_a)
+
             site_ab_op = thermalising_lindblad_op(qsys.sites, site_a, site_b)
-            site_ba_op = thermalising_lindblad_op(qsys.sites, site_b, site_a)
-            site_bb_op = thermalising_lindblad_op(qsys.sites, site_b, site_b)
-
-            # omega_ab = ((eigenvalues[site_a - 1] - eigenvalues[site_b - 1])
-            #             / qsys._hbar)
-            omega_ab = eigenvalues[site_a - 1][site_b - 1] / qsys._hbar
-            k_ab = rate_constant_redfield(qsys, omega_ab)
-            k_ba = k_ab * np.exp(- omega_ab / qsys._kT)
-            # ln_k_ba = (np.log(rate_constant_redfield(qsys, omega_ab))
-            #            - (omega_ab / (constants.k * qsys.temperature)))
-            # import pdb; pdb.set_trace()
-            lind_ab_op = k_ba * (np.kron(site_ab_op, site_ba_op)
+            omega_ab = eigenvalues[site_b-1] - eigenvalues[site_a-1]
+            k_ab = rate_constant_redfield(qsys, omega_ab)  # rad s^-1
+            lind_ab_op = k_ab * (np.kron(site_ab_op.conjugate(), site_ab_op)
                                  - 0.5
-                                 * (np.kron(np.matmul(site_bb_op.T, site_bb_op),
+                                 * (np.kron(np.matmul(site_ab_op.T,
+                                                      site_ab_op).conjugate(),
                                             id)
-                                    + np.kron(id, np.matmul(site_bb_op.T,
-                                                            site_bb_op))))
+                                    + np.kron(id, np.matmul(site_ab_op.T,
+                                                            site_ab_op))))
             lindbladian += lind_ab_op
-        return lindbladian / (2 * np.pi)
+        return lindbladian  # rad s^-1 to match Hamiltonian.
 
-    else:
-        raise NotImplementedError('Other lindblad dynamics models not yet'
-                                  ' implemented in quantum_HEOM.')
+    raise NotImplementedError('Other lindblad dynamics models not yet'
+                              ' implemented in quantum_HEOM.')
 
 def rate_constant_redfield(qsys, omega_ab: float):
 
@@ -177,14 +169,16 @@ def rate_constant_redfield(qsys, omega_ab: float):
         The QuantumSystem object that defines the system and
         its dynamics.
     omega_ab : float
-        The energy frequency gap between eigenstates a and b
+        The energy frequency gap between eigenstates a and b,
+        in units of rad s^-1.
     """
 
-    return (2 * np.pi
-            * (((1 + bose_einstein_distrib(qsys, omega_ab))
-                * spectral_density(qsys, omega_ab))
-               + (bose_einstein_distrib(qsys, -omega_ab)
-                  * spectral_density(qsys, -omega_ab))))
+    # multiply by 2pi (just a nummber, not radians)
+    return (2 * np.pi *
+            (((1 + bose_einstein_distrib(qsys, omega_ab))
+              * spectral_density(qsys, omega_ab))
+             + (bose_einstein_distrib(qsys, -omega_ab)
+                * spectral_density(qsys, -omega_ab))))  # rad s^-1
 
 def spectral_density(qsys, omega: float) -> float:
 
@@ -193,7 +187,7 @@ def spectral_density(qsys, omega: float) -> float:
     $\\omega$, given by:
 
     .. math::
-        J(\\omega_{ab})
+        \\omega^2 J(\\omega_{ab})
             = f \\frac{2\\omega_c\\omega}{(\\omega_c^2
                                            + \\omega^2) \\omega^2}
 
@@ -208,18 +202,17 @@ def spectral_density(qsys, omega: float) -> float:
         its dynamics.
     omega : float
         The frequency at which the spectral density will be
-        evaluated.
+        evaluated, in units of rad s^-1.
 
     Returns
     -------
     float
-        The Debye spectral density at frequency omega.
+        The Debye spectral density at frequency omega, in
+        units of rad s^-1.
     """
 
-    # return ((qsys.therm_sf / omega**2) * (2 * qsys.cutoff_freq * omega)
-    #         / (qsys.cutoff_freq**2 + omega**2))
-    return ((qsys.therm_sf * 2 * qsys.cutoff_freq * omega)
-            / (omega**2 * (qsys.cutoff_freq**2 + omega**2)))
+    return qsys.therm_sf * ((2 * qsys.cutoff_freq * omega)
+                            / (qsys.cutoff_freq**2 + omega**2)) # rad s^-1
 
 
 def bose_einstein_distrib(qsys, omega: float):
@@ -229,7 +222,7 @@ def bose_einstein_distrib(qsys, omega: float):
     separated by a certain frequency omega, given by:
 
     .. math::
-        n( \\omega ) = \\frac{1}{exp( \\omega / k_B T) - 1}
+        n( \\omega ) = \\frac{1}{exp(\\hbar \\omega / k_B T) - 1}
 
     Parameters
     ----------
@@ -237,13 +230,38 @@ def bose_einstein_distrib(qsys, omega: float):
         The QuantumSystem object that defines the system and
         its dynamics.
     omega : float
-        The frequency gap between eigenstate.
+        The frequency gap between eigenstates, in units of
+        rad s^-1.
 
     Returns
     -------
     float
         The Bose-Einstein distribution between the 2 states.
+        Is a dimensionless quantity.
     """
 
-    # return 1. / (np.exp(omega / (constants.k * qsys.temperature)) - 1)
-    return 1. / (np.exp(omega / qsys._kT) - 1)
+    return 1. / (np.exp(constants.hbar * omega / qsys._kT) - 1)
+
+def thermal_equilibrium_state(qsys) -> np.array:
+
+    """
+    Calculates the thermal equilibrium state for a quantum
+    system with a given Hamiltonian and temperature.
+
+    Parameters
+    ----------
+    qsys : QuantumSystem
+        The QuantumSystem object that defines the system and
+        its dynamics, with 'temperature' and 'hamiltonian'
+        attributes.
+
+    Returns
+    -------
+    np.array
+        The thermal equilibrum density matrix for the quantum
+        system.
+    """
+
+    arg = linalg.expm(- qsys.hamiltonian * constants.hbar / qsys._kT)
+
+    return np.divide(arg, np.trace(arg))
