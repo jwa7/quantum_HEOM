@@ -11,9 +11,14 @@ import hamiltonian as ham
 import lindbladian as lind
 import utilities as util
 
-INTERACTION_MODELS = ['nearest neighbour linear', 'nearest neighbour cyclic',
-                      'FMO', 'huckel']
-DYNAMICS_MODELS = ['simple', 'dephasing lindblad', 'thermalising lindblad']
+INTERACTION_MODELS = ['nearest neighbour linear',
+                      'nearest neighbour cyclic',
+                      'FMO',
+                      'Huckel']
+DYNAMICS_MODELS = ['simple',
+                   'local dephasing lindblad',
+                   'local thermalising lindblad',
+                   'global thermalising lindblad']
 ALPHA = 12000.
 BETA = 80.
 
@@ -34,9 +39,17 @@ class QuantumSystem:
             How to model the interactions between sites. Must be
             one of ['nearest_neighbour_linear',
             'nearest_neighbour_cyclic'].
+        init_site_pop : list of int
+            The sites in which to place initial population. For
+            example, to place equal population in sites 1 and 6
+            (in a 7-site system), the user should pass [1, 6]. To
+            place twice as much initial population in 3 as in 4,
+            pass [3, 3, 4]. Default value is [1], which populates
+            only site 1.
         dynamics_model : str
             The model used to describe the system dynamics. Must
-            be one of ['simple', 'dephasing lindblad'].
+            be one of ['simple', 'local dephasing lindblad',
+            'global thermalising lindblad'].
         time_interval : float
             The time_interval between timesteps at which the
             system's density matrix is evaluated.
@@ -72,7 +85,8 @@ class QuantumSystem:
         'nearest_neighbour_cyclic'].
     dynamics_model : str
         The model used to describe the system dynamics. Must
-        be one of ['simple', 'dephasing lindblad'].
+        be one of ['simple', 'local dephasing lindblad',
+        'global thermalising lindblad'].
     time_interval : float
         The time_interval between timesteps at which the
         system's density matrix is evaluated, in units of s.
@@ -226,23 +240,26 @@ class QuantumSystem:
 
         """
         Gets or sets the type of model used to describe the
-        dynamics of the quantum system. Currently only 'simple' and
-        'dephasing lindblad' are implemented in quantum_HEOM. The
-        equations for the available models are:
+        dynamics of the quantum system. Currently only 'simple',
+        'local dephasing lindblad', and 'global thermalising
+        lindblad' are implemented in quantum_HEOM. The equations
+        for the available models are:
 
         'simple':
         .. math::
             \\rho (t + dt) ~= \\rho (t)
                             - (\\frac{i dt}{\\hbar })[H, \\rho (t)]
                             - \\rho (t) \\Gamma dt
-        'dephasing lindblad':
+        lindblad:
         .. math::
             \\rho (t + dt) = e^{\\mathcal{L_{deph}}
                                 + \\hat{\\hat{H}}} \\rho (t)
 
-            where \\mathcal{L_{deph}} is the Lindbladian dephasing
-            operator, and \\hat{\\hat{H}}} is the Hamiltonian
-            commutation superoperator.
+            where \\mathcal{L_{rad}} is the local dephasing
+            lindblad operator \\mathcal{L_{deph}} or the
+            global thermalising lindblad operator
+            \\mathcal{L_{therm}}, and \\hat{\\hat{H}}} is the
+            Hamiltonian commutation superoperator.
 
         Raises
         -----
@@ -494,7 +511,7 @@ class QuantumSystem:
 
             return hamil * 2 * np.pi * constants.c * 100.  # cm^-1 -> rad s^-1
 
-        elif self.interaction_model == 'huckel':
+        elif self.interaction_model == 'Huckel':
             hamil = np.empty((self.sites, self.sites), dtype=complex)
             hamil.fill(BETA)
             np.fill_diagonal(hamil, ALPHA)
@@ -544,8 +561,8 @@ class QuantumSystem:
 
         """
         Builds the Lindbladian superoperator for the system, either
-        using the dephasing or thermalising lindblad description of
-        the dynamics.
+        using the dephasing or global thermalising lindblad
+        description of the dynamics.
 
         Returns
         -------
@@ -632,7 +649,7 @@ class QuantumSystem:
                     * util.get_commutator(self.hamiltonian, dens_mat)
                     - dephaser)
 
-        elif self.dynamics_model in DYNAMICS_MODELS[1:3]:  # deph/therm lindblad
+        elif self.dynamics_model in DYNAMICS_MODELS[1:4]:  # deph/therm lindblad
             # Build the N^2 x N^2 propagator
             propa = linalg.expm((self.lindbladian_superop
                                  + self.hamiltonian_superop)
