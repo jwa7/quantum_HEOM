@@ -12,8 +12,10 @@ import lindbladian as lind
 import utilities as util
 
 INTERACTION_MODELS = ['nearest neighbour linear', 'nearest neighbour cyclic',
-                      'FMO']
+                      'FMO', 'huckel']
 DYNAMICS_MODELS = ['simple', 'dephasing lindblad', 'thermalising lindblad']
+ALPHA = 12000.
+BETA = 80.
 
 
 class QuantumSystem:
@@ -42,7 +44,7 @@ class QuantumSystem:
             The number of timesteps for which the time evolution
             of the system is evaluated.
         decay_rate : float
-            The rate of dephasing of the system.
+            The decay constant of the system, in units of rad s^-1.
         temperature : float
             The temperature of the thermal bath, in Kelvin.
             Default is 300 K.
@@ -73,49 +75,56 @@ class QuantumSystem:
         be one of ['simple', 'dephasing lindblad'].
     time_interval : float
         The time_interval between timesteps at which the
-        system's density matrix is evaluated.
+        system's density matrix is evaluated, in units of s.
     timesteps : int
         The number of timesteps for which the time evolution
         of the system is evaluated.
     decay_rate : float
-        The rate of dephasing of the system.
+        The decay constant for the system, in rad s^-1. Default
+        value is 6.024E12 rad s^-1.
     temperature : float
         The temperature of the thermal bath, in Kelvin.
-        Default is 300 K.
+        Default is 298 K.
     therm_sf : float
         The scale factor used to match thermalisation rates
-        between dynamics models in units of rad ps^-1.
-        Default value is 11.87 rad ps^-1.
+        between dynamics models in units of rad s^-1. Default
+        value is 11.87E12 rad s^-1.
     cutoff_freq : float
         The cutoff frequency used in calculating the spectral
-        density, in rad ps^-1.
-        Default value is (1. / 0.166) rad ps^-1.
+        density, in rad ps^-1. Default value is 6.024E12 rad s^-1.
     """
 
     def __init__(self, sites, **settings):
 
         self.sites = sites
-        if settings.get('atomic_units'):
+        if settings.get('atomic_units') is not None:
             self.atomic_units = settings.get('atomic_units')
         else:
             self.atomic_units = True
         self.interaction_model = settings.get('interaction_model')
         self.dynamics_model = settings.get('dynamics_model')
-        self.time_interval = settings.get('time_interval')
+        self.time_interval = settings.get('time_interval')  # seconds
         self.timesteps = settings.get('timesteps')
-        self.decay_rate = settings.get('decay_rate')
+
+        if self.decay_rate is not None:
+            self.decay_rate = settings.get('decay_rate')
+        else:
+            self.decay_rate = 6.024 * 1e12  # rad s^-1
+
         if settings.get('temperature'):
             self.temperature = settings.get('temperature')
         else:
-            self.temperature = 300.
+            self.temperature = 298.  # K
+
         if settings.get('therm_sf'):
             self.therm_sf = settings.get('therm_sf')
         else:
-            self.therm_sf = 11.87
+            self.therm_sf = 1.391 * 1e12  # rad s^-1
+
         if settings.get('cutoff_freq'):
             self.cutoff_freq = settings.get('cutoff_freq')
         else:
-            self.cutoff_freq = 1. / 0.166
+            self.cutoff_freq = 6.024 * 1e12  # rad s-1
 
     @property
     def atomic_units(self) -> bool:
@@ -347,11 +356,11 @@ class QuantumSystem:
     def temperature(self, temperature):
 
         if temperature <= 0.:
-            raise ValueError('Temperature must be a positiev float value')
+            raise ValueError('Temperature must be a positive float value')
         self._temperature = temperature
 
     @property
-    def _kT(self):
+    def _kT(self) -> float:
 
         """
         Returns the thermal energy, kT, of the QuantumSystem, where
@@ -395,21 +404,6 @@ class QuantumSystem:
         if therm_sf <= 0.:
             raise ValueError('Scale factor must be a positive float')
         self._therm_sf = therm_sf
-
-    # @property
-    # def spectral_freq(self) -> float:
-    #
-    #     """
-    #     Get or set the frequency at which the spectral density for
-    #     the system is evaluated.
-    #
-    #     Returns
-    #     -------
-    #     float
-    #         The frequency at which the spectal density is evaluated.
-    #     """
-    #
-    #     return self._spectral_freq
 
     @property
     def cutoff_freq(self) -> float:
@@ -462,9 +456,17 @@ class QuantumSystem:
                 hamil[0][self.sites - 1] = 1
                 hamil[self.sites - 1][0] = 1
 
+            return hamil * 2 * np.pi * constants.c * 100.  # cm^-1 -> rad s^-1
+
+        elif self.interaction_model == 'huckel':
+            hamil = np.empty((self.sites, self.sites), dtype=complex)
+            hamil.fill(BETA)
+            np.fill_diagonal(hamil, ALPHA)
+
+            return hamil * 2 * np.pi * constants.c * 100.  # cm^-1 -> rad s^-1
+
         elif self.interaction_model == 'FMO':
-            assert self.sites == 7, 'FMO Hamiltonian only built for 7-sites'
-            # Units of cm^-1
+            assert self.sites <= 7, 'FMO Hamiltonian only built for <= 7-sites'
             hamil = np.array([[12410, -87.7, 5.5, -5.9, 6.7, -13.7, -9.9],
                               [-87.7, 12530, 30.8, 8.2, 0.7, 11.8, 4.3],
                               [5.5, 30.8, 12210, -53.5, -2.2, -9.6, 6.0],
@@ -472,11 +474,13 @@ class QuantumSystem:
                               [6.7, 0.7, -2.2, -70.7, 12480, 81.1, -1.3],
                               [-13.7, 11.8, -9.6, -17.0, 81.1, 12630, 39.7],
                               [-9.9, 4.3, 6.0, -63.3, -1.3, 39.7, 12440]])
+            hamil = hamil[0:self.sites, 0:self.sites]
+
+            return hamil * 2 * np.pi * constants.c * 100.  # cm^-1 -> rad s^-1
+
         else:
             raise NotImplementedError('Other interaction models have not yet'
                                       ' been implemented in quantum_HEOM')
-
-        return hamil * self._hbar
 
     @property
     def hamiltonian_superop(self) -> np.array:
