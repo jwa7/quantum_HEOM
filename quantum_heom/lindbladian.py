@@ -137,6 +137,8 @@ def lindbladian_superop(qsys) -> np.array:
             site_ab_op = thermalising_lindblad_op(qsys.sites, site_a, site_b)
             omega_ab = eigenvalues[site_b - 1] - eigenvalues[site_a - 1]
             k_ab = rate_constant_redfield(qsys, omega_ab)  # rad s^-1
+            if k_ab == 0:
+                continue
             lind_ab_op = k_ab * (np.kron(site_ab_op.conjugate(), site_ab_op)
                                  - 0.5
                                  * (np.kron(np.matmul(site_ab_op.T,
@@ -184,6 +186,9 @@ def lindbladian_superop(qsys) -> np.array:
                                   + np.kron(id,
                                             np.matmul(site_m_op.T.conjugate(),
                                                       site_m_op))))
+            k_ij = rate_constant_redfield(qsys, uniq)
+            if k_ij == 0:
+                continue
             lindbladian += lind * rate_constant_redfield(qsys, uniq)
         return lindbladian
 
@@ -218,7 +223,7 @@ def rate_constant_redfield(qsys, omega_ab: float):
         returned.
     """
 
-    if omega_ab == 0.:  # cannot evaluate bose-einstein distrib
+    if np.isclose(omega_ab, 0.):  # cannot evaluate bose-einstein distrib
         return 0.
 
 
@@ -288,7 +293,7 @@ def bose_einstein_distrib(qsys, omega: float):
         Is a dimensionless quantity.
     """
 
-    if omega == 0.:
+    if np.isclose(omega, 0.):
         raise ValueError('Cannot evaluate the Bose-Einstein distribution at'
                          ' a frequency of zero.')
 
