@@ -9,7 +9,7 @@ import numpy as np
 import utilities as util
 
 
-def complex_space_time(qsys, view_3d: bool = True,
+def complex_space_time(qsys, view_3d: bool = True, save_as: str = None,
                        elements: [np.array, str] = 'diagonals') -> np.array:
 
     """
@@ -68,7 +68,7 @@ def complex_space_time(qsys, view_3d: bool = True,
     matrix_data = {element: np.empty(len(qsys.time_evolution), dtype=float)
                    for element in elements}
     for t_idx, (t, rho_t, trace) in enumerate(qsys.time_evolution, start=0):
-        times[t_idx] = t
+        times[t_idx] = t * 1E15  # convert s --> fs
         tr_rho_sq[t_idx] = np.real(trace)
         for element in elements:
             n, m = int(element[0]), int(element[1])
@@ -88,19 +88,20 @@ def complex_space_time(qsys, view_3d: bool = True,
     zeros = np.zeros(len(qsys.time_evolution), dtype=float)
     for element, amplitudes in matrix_data.items():
         if int(element[0]) == int(element[1]):
-            label = '$Re(\\rho_{' + element + '})$'
+            label = '$\\rho_{' + element + '}$'
             if view_3d:
                 ax.plot3D(times, zeros, amplitudes, ls='-', label=label)
             else:
                 ax.plot(times, amplitudes, ls='-', label=label)
         else:
-            label = '$Im(\\rho_{' + element + '})$'
+            label = '$\\rho_{' + element + '}$'
             if view_3d:
                 ax.plot3D(times, amplitudes, zeros, ls='-', label=label)
     # Plot tr(rho^2) and asymptote at 1 / N or thermal_eq
     if view_3d:
-        ax.plot3D(times, zeros, tr_rho_sq, dashes=[1, 1], label='$tr(\\rho^2)$')
-        if qsys.dynamics_model == 'thermalising lindblad':
+        ax.plot3D(times, zeros, tr_rho_sq, dashes=[1, 1],
+                  label='$tr(\\rho^2)$')
+        if qsys.dynamics_model.endswith('thermalising lindblad'):
             ax.plot3D(times, zeros,
                       util.get_trace_matrix_squared(qsys.thermal_eq_state),
                       c='gray', ls='--', label='$z = tr(\\rho_{eq}^2)$')
@@ -109,35 +110,36 @@ def complex_space_time(qsys, view_3d: bool = True,
                       label='$z = \\frac{1}{N}$')
     else:  # 2D plot
         ax.plot(times, tr_rho_sq, dashes=[1, 1], label='$tr(\\rho^2)$')
-        if qsys.dynamics_model == 'thermalising lindblad':
-            ax.plot(times, zeros,
-                    util.get_trace_matrix_squared(qsys.thermal_eq_state),
+        if qsys.dynamics_model.endswith('thermalising lindblad'):
+            ax.plot(times,
+                    [util.get_trace_matrix_squared(qsys.thermal_eq_state)]
+                    * len(times),
                     c='gray', ls='--', label='$z = tr(\\rho_{eq}^2)$')
         else:
-            ax.plot(times, [1/qsys.sites] * len(times), c='gray', ls='--',
-                    label='$y = \\frac{1}{N}$')
+            ax.plot(times, [1/qsys.sites] * len(times), c='gray',
+                    ls='--', label='$y = \\frac{1}{N}$')
     # Format plot
     label_size = '15'
     title_size = '20'
     title = ('Time evolution of a ' + qsys.interaction_model + ' '
              + str(qsys.sites) + '-site system modelled with '
              + qsys.dynamics_model + ' dynamics. \n(dt = '
-             + str(qsys.time_interval) + ', $\\Gamma$ = '
-             + str(qsys.decay_rate) + ')')
+             + str(qsys.time_interval * 1E15) + ' $fs$, $\\Gamma$ = '
+             + str(qsys.decay_rate * 1E-12) + ' $rad\ ps^{-1})$')
     if view_3d:
         plt.legend(loc='center left', fontsize='large')
-        ax.set_xlabel('time', size=label_size, labelpad=30)
-        ax.set_ylabel('Imaginary Amplitude', size=label_size, labelpad=30)
-        ax.set_zlabel('Real Amplitude', size=label_size, labelpad=10)
+        ax.set_xlabel('time / fs', size=label_size, labelpad=30)
+        ax.set_ylabel('Imaginary Site Population', size=label_size, labelpad=30)
+        ax.set_zlabel('Real Site Population', size=label_size, labelpad=10)
         ax.set_title(title, size=title_size, pad=20)
         ax.view_init(20, -50)
-    else:
+    else:  # 2D plot
         plt.legend(loc='center right', fontsize='large', borderaxespad=-10.)
-        ax.xlabel('time', size=label_size, labelpad=20)
-        ax.ylabel('Real Amplitude', size=label_size, labelpad=20)
+        ax.xlabel('time / fs', size=label_size, labelpad=20)
+        ax.ylabel('Site Population', size=label_size, labelpad=20)
         ax.title(title, size=title_size, pad=20)
-
-    # plt.savefig('example_plot.png')
+    if save_as:
+        plt.savefig(save_as)
 
 
 def site_cartesian_coordinates(N: int) -> np.array:
@@ -161,28 +163,3 @@ def site_cartesian_coordinates(N: int) -> np.array:
         site_coords[i] = (r * np.sin(phi), r * np.cos(phi))
 
     return site_coords
-
-# Create figure
-# fig = plt.figure(figsize=(20, 10))
-# ax = fig.subplots((1, 1, 1))
-
-# Plot diagonals
-# ax.plot(t, rho_11, c='red', ls='-', label='$p_{11}$')
-# ax.plot(t, rho_22, c='green', ls='-', label='$p_{22}$')
-# ax.plot(t, rho_33, c='blue', ls='-', label='$p_{33}$')
-# Plot off-diagonals
-# ax.plot(t, rho_12, c='black', ls='-', label='$p_{12}$')
-# ax.plot(t, rho_21, c='yellow', ls='--', label='$p_{21}$')
-# ax.plot(t, rho_13, c='black', ls='-', label='$p_{13}$')
-# ax.plot(t, rho_31, c='yellow', ls='--', label='$p_{31}$')
-# ax.plot(t, rho_23, c='black', ls='-', label='$p_{23}$')
-# ax.plot(t, rho_32, c='yellow', ls='--', label='$p_{32}$')
-# Plot square trace
-# ax.plot(t, tr_rho_sq, c='purple', ls='-', label='$tr(p^2)$')
-
-# Format plot
-# plt.legend(loc='best', fontsize='x-large')
-# plt.xlabel('time', size='20')
-# plt.ylabel('Probability Amplitude', size='20')
-# plt.hlines(1/N, t[0], t[-1], color='gray', linestyle='--')
-# plt.show()
