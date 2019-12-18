@@ -197,3 +197,24 @@ def test_initial_density_matrix(sites, exp, qsys):
 
     qsys.sites = sites
     assert np.all(qsys.initial_density_matrix == exp)
+
+
+@pytest.mark.parametrize('input, exp', [([1], np.array([[1, 0, 0, 0],
+                                                        [0, 0, 0, 0],
+                                                        [0, 0, 0, 0],
+                                                        [0, 0, 0, 0]])),
+                                        ([1, 1, 3, 2], np.array([[2, 0, 0, 0],
+                                                                 [0, 1, 0, 0],
+                                                                 [0, 0, 1, 0],
+                                                                 [0, 0, 0, 0]])
+                                                       * 0.25)])
+def test_init_site_pop(input, exp, qsys):
+
+    """
+    Tests that the correct site populations are built in
+    the initial density matrix for a 4-site system.
+    """
+
+    qsys.init_site_pop = input
+
+    assert np.all(qsys.initial_density_matrix == exp)
