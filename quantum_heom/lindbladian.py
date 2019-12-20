@@ -81,10 +81,11 @@ def lindbladian_superop(qsys) -> np.array:
     """
     Builds an (N^2) x (N^2) lindbladian superoperator matrix
     for describing the dynamics of the system, where N is the
-    number of sites in the system. Builds either a dephasing
-    or global thermalising lindbladian depending on the value
-    defined in qsys.dynamics_model. The local dephasing
-    lindbladian is given by:
+    number of sites in the system. Builds either a local
+    dephasing, local thermalising, or global thermalising
+    lindbladian depending on the value defined in
+    qsys.dynamics_model. The local dephasing lindbladian is
+    given by:
 
     .. math::
         L_{deph} = \\sum_j (P_j \\otimes P_j
@@ -110,8 +111,9 @@ def lindbladian_superop(qsys) -> np.array:
     Returns
     -------
     lindbladian : array of array of complex
-        The (N^2 x N^2) lindbladian matrix that will dephase the off-
-        diagonals of a vectorised N x N density matrix.
+        The (N^2 x N^2) lindbladian matrix that will dephase the
+        off-diagonals of a vectorised N x N density matrix, in
+        units of rad s^-1.
     """
 
     lindbladian = np.zeros((qsys.sites ** 2, qsys.sites ** 2), dtype=complex)
@@ -190,7 +192,7 @@ def lindbladian_superop(qsys) -> np.array:
             if k_ij == 0:
                 continue
             lindbladian += lind * rate_constant_redfield(qsys, uniq)
-        return lindbladian
+        return lindbladian  # rad s^-1
 
     raise NotImplementedError('Other lindblad dynamics models not yet'
                               ' implemented in quantum_HEOM.')
@@ -227,7 +229,7 @@ def rate_constant_redfield(qsys, omega_ab: float):
         return 0.
 
 
-    return (2 * np.pi *  # 2pi a dimensionless number here
+    return (2 * np.pi *  # 2pi a dimensionless constant here
             (((1 + bose_einstein_distrib(qsys, omega_ab))
               * spectral_density(qsys, omega_ab))
              + (bose_einstein_distrib(qsys, -omega_ab)
@@ -297,7 +299,7 @@ def bose_einstein_distrib(qsys, omega: float):
         raise ValueError('Cannot evaluate the Bose-Einstein distribution at'
                          ' a frequency of zero.')
 
-    return 1. / (np.exp(constants.hbar * omega / qsys._kT) - 1)
+    return 1. / (np.exp(qsys.hbar * omega / qsys.kT) - 1)
 
 def thermal_equilibrium_state(qsys) -> np.array:
 
@@ -315,10 +317,10 @@ def thermal_equilibrium_state(qsys) -> np.array:
     Returns
     -------
     np.array
-        The thermal equilibrum density matrix for the quantum
+        The thermal equilibrium density matrix for the quantum
         system.
     """
 
-    arg = linalg.expm(- qsys.hamiltonian * constants.hbar / qsys._kT)
+    arg = linalg.expm(- qsys.hamiltonian * qsys.hbar / qsys.kT)
 
     return np.divide(arg, np.trace(arg))
