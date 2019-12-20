@@ -1,5 +1,7 @@
+cython
 flake8
 matplotlib
 numpy
 pytest
+qutip
 scipy
