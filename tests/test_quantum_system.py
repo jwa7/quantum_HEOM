@@ -10,7 +10,7 @@ from quantum_heom.quantum_system import QuantumSystem, INTERACTION_MODELS
 N_SITES = 3
 SETTINGS = {'atomic_units': True,
             'interaction_model': 'nearest neighbour cyclic',
-            'dynamics_model': 'dephasing lindblad'}
+            'dynamics_model': 'local dephasing lindblad'}
 
 @pytest.fixture
 def qsys():
