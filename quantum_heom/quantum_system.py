@@ -5,7 +5,9 @@ from typing import Optional
 
 from scipy import constants, linalg
 import numpy as np
-#
+from qutip.nonmarkov.heom import HSolverDL
+from qutip import sigmax, sigmay, sigmaz, basis, expect, Qobj
+
 # import quantum_heom.figures as figs
 # import quantum_heom.hamiltonian as ham
 # import quantum_heom.lindbladian as lind
@@ -16,14 +18,17 @@ import hamiltonian as ham
 import lindbladian as lind
 import utilities as util
 
-INTERACTION_MODELS = ['nearest neighbour linear',
-                      'nearest neighbour cyclic',
-                      'FMO',
-                      'Huckel']
-DYNAMICS_MODELS = ['simple',
-                   'local dephasing lindblad',
+INTERACTION_MODELS = ['nearest neighbour linear', 'nearest neighbour cyclic',
+                      'FMO', 'Huckel']
+TEMP_INDEP_MODELS = ['simple', 'local dephasing lindblad']
+TEMP_DEP_MODELS = ['local thermalising lindblad',  # need temperature defining
+                   'global thermalising lindblad',
+                   'HEOM']
+LINDBLAD_MODELS = ['local dephasing lindblad',
                    'local thermalising lindblad',
                    'global thermalising lindblad']
+DYNAMICS_MODELS = TEMP_INDEP_MODELS + TEMP_DEP_MODELS
+
 ALPHA = 12000.
 BETA = 80.
 
@@ -37,17 +42,20 @@ class QuantumSystem:
     ----------
     sites : int
         The number of sites in the system.
+    interaction_model : str
+        How to model the interactions between sites. Must be
+        one of ['nearest_neighbour_linear',
+        'nearest_neighbour_cyclic', 'FMO'].
+    dynamics_model : str
+        The model used to describe the system dynamics. Must
+        be one of ['simple', 'local dephasing lindblad',
+        'local thermalising lindblad', 'global thermalising
+        lindblad', 'HEOM'].
     **settings
-        atomic_units : bool
-            If True, uses atomic units (i.e. hbar=1). Default True.
-        interaction_model : str
-            How to model the interactions between sites. Must be
-            one of ['nearest_neighbour_linear',
-            'nearest_neighbour_cyclic'].
-        dynamics_model : str
-            The model used to describe the system dynamics. Must
-            be one of ['simple', 'local dephasing lindblad',
-            'global thermalising lindblad'].
+        # units : str
+        #     Either 'SI' (the default) or 'Planck'. If 'Planck',
+        #     sets hbar=k=1, where hbar is the reduced Planck's
+        #     constant and k is the Boltzmann constant.
         init_site_pop : list of int
             The sites in which to place initial population. For
             example, to place equal population in sites 1 and 6
@@ -56,58 +64,24 @@ class QuantumSystem:
             pass [3, 3, 4]. Default value is [1], which populates
             only site 1.
         time_interval : float
-            The time_interval between timesteps at which the
-            system's density matrix is evaluated.
+            The time interval between timesteps at which the system
+            density matrix is evaluated, in units of seconds. Default
+            time interval is 5 fs.
         timesteps : int
             The number of timesteps for which the time evolution
-            of the system is evaluated.
+            of the system is evaluated. Default value is 500.
         decay_rate : float
             The decay constant of the system, in units of rad s^-1.
         temperature : float
-            The temperature of the thermal bath, in Kelvin.
-            Default is 300 K.
+            The temperature of the thermal bath, in Kelvin. Default
+            value is 298 K.
         therm_sf : float
             The scale factor used to match thermalisation rates
             between dynamics models in units of rad ps^-1.
             Default value is 11.87 rad ps^-1.
         cutoff_freq : float
             The cutoff frequency used in calculating the spectral
-            density, in rad ps^-1.
-            Default value is (1. / 0.166) rad ps^-1.
-
-    Attributes
-    ----------
-    sites : int
-        The number of sites in the quantum system.
-    atomic_units : bool
-        If True, uses atomic units (i.e. hbar=1). Default False.
-    interaction_model : str
-        How to model the interactions between sites. Must be
-        one of ['nearest_neighbour_linear',
-        'nearest_neighbour_cyclic'].
-    dynamics_model : str
-        The model used to describe the system dynamics. Must
-        be one of ['simple', 'local dephasing lindblad',
-        'global thermalising lindblad'].
-    time_interval : float
-        The time_interval between timesteps at which the
-        system's density matrix is evaluated, in units of s.
-    timesteps : int
-        The number of timesteps for which the time evolution
-        of the system is evaluated.
-    decay_rate : float
-        The decay constant for the system, in rad s^-1. Default
-        value is 6.024E12 rad s^-1.
-    temperature : float
-        The temperature of the thermal bath, in Kelvin.
-        Default is 298 K.
-    therm_sf : float
-        The scale factor used to match thermalisation rates
-        between dynamics models in units of rad s^-1. Default
-        value is 11.87E12 rad s^-1.
-    cutoff_freq : float
-        The cutoff frequency used in calculating the spectral
-        density, in rad ps^-1. Default value is 6.024E12 rad s^-1.
+            density, in rad s^-1. Default value is 6.024 rad ps^-1.
     """
 
     def __init__(self, sites, interaction_model, dynamics_model, **settings):
@@ -124,15 +98,15 @@ class QuantumSystem:
             self.timesteps = settings.get('timesteps')
         else:
             self.timesteps = 500
-        # SETTINGS FOR DEPHASING LINDBLAD MODEL
-        if self.dynamics_model in ['simple', 'local dephasing lindblad']:
+        # SETTINGS FOR TEMPERATURE INDEPENDENT MODELS
+        if self.dynamics_model in TEMP_INDEP_MODELS:
             if settings.get('decay_rate') is not None:
                 self.decay_rate = settings.get('decay_rate')
             else:
-                self.decay_rate = 6.024 * 1e12  # rad s^-1
-        # SETTINGS FOR THERMALISING LINDBLAD MODELS
-        if self.dynamics_model in ['local thermalising lindblad',
-                                   'global thermalising lindblad']:
+                # Convert default of 6.024 rad ps^-1 into correct units.
+                self.decay_rate = 6.024 * 1e12  # rad s-1
+        # SETTINGS FOR TEMPERATURE DEPENDENT MODELS
+        if self.dynamics_model in TEMP_DEP_MODELS:
             if settings.get('temperature'):
                 self.temperature = settings.get('temperature')
             else:
@@ -144,51 +118,13 @@ class QuantumSystem:
             if settings.get('cutoff_freq'):
                 self.cutoff_freq = settings.get('cutoff_freq')
             else:
+                # Convert default of 6.024 rad ps^-1 into correct units.
                 self.cutoff_freq = 6.024 * 1e12  # rad s-1
         # OTHER SETTINGS
         if settings.get('init_site_pop') is not None:
             self.init_site_pop = settings.get('init_site_pop')
         else:
             self.init_site_pop = [1]
-        if settings.get('atomic_units') is not None:
-            self.atomic_units = settings.get('atomic_units')
-        else:
-            self.atomic_units = False
-
-    @property
-    def atomic_units(self) -> bool:
-
-        """
-        Gets or sets whether or not atomic units are used in
-        calculations.
-
-        Returns
-        -------
-        bool
-            True if atomic units are to be used, false if not.
-        """
-
-        return self._atomic_units
-
-    @atomic_units.setter
-    def atomic_units(self, atomic_units):
-
-        self._atomic_units = atomic_units
-
-    @property
-    def _hbar(self):
-
-        """
-        Returns the value of hbar within the system, i.e. 1 if
-        working with atomic units, or 1.0545718001391127e-34 if
-        not.
-
-        Returns
-        float
-            The value of hbar used.
-        """
-
-        return 1. if self.atomic_units else constants.hbar
 
     @property
     def sites(self) -> int:
@@ -293,23 +229,212 @@ class QuantumSystem:
                              + str(DYNAMICS_MODELS))
         self._dynamics_model = model
 
+    def planck_conversion(self, dim: str = None, cons: str = None) -> float:
+
+        """
+        Returns a conversion factor for converting a dimension
+        (i.e. dim='time' or dim='temp') or a physical constant
+        (i.e. cons='hbar' or cons='k') from base SI units into
+        Planck units.
+
+        Parameters
+        ----------
+        dim : str
+            The dimension to get a conversion factor for. For
+            example dimension='temp' will return a conversion
+            factor for Kelvin to Planck temp units.
+        cons : str
+            A physical constant to get a conversion factor for.
+
+        Raises
+        ------
+        NotImplementedError
+            If a dimension other than 'temp' or 'time' specified.
+        NotImplementedError
+            If a constant other than 'hbar' or 'k' specified.
+
+        Returns
+        -------
+        float
+            The conversion factor for converting the constant
+            or dimension from base SI to Planck units.
+        """
+
+        if dim and cons:
+            raise ValueError('Cannot specify a dimension in conjunction with'
+                             ' a constant.')
+        if dim:
+            if dim == 'temp':
+                return (1.
+                        / constants.physical_constants['Planck temperature'][0])
+            elif dim == 'time':
+                return 1. / constants.physical_constants['Planck time'][0]
+            raise NotImplementedError('Conversions for other physical'
+                                      ' constants not yet implemented in'
+                                      ' quantum_HEOM.')
+        elif cons:
+            if cons == 'hbar':
+                return 1. / constants.hbar
+            elif cons == 'k':
+                return 1. / constants.k
+            raise NotImplementedError('Conversions for other physical'
+                                      ' constants not yet implemented in'
+                                      ' quantum_HEOM.')
+        raise ValueError('Must specify either a dimension or a constant.')
+
+    @property
+    def hbar(self):
+
+        """
+        Get the value of reduced Planck's constant of
+        1.0545718001391127e-34 Js in SI units.
+
+        Returns
+        -------
+        float
+            The value of hbar in base SI units of Js.
+        """
+
+        return constants.hbar  # in J s
+
+    @property
+    def boltzmann(self) -> float:
+
+        """
+        Get the value of boltzmann's constant of 1.38064852e-23
+        J K^-1 in SI units.
+
+        Returns
+        -------
+        float
+            The value of Boltzmann's constant k in base SI units
+            of J K^-1.
+        """
+
+        return constants.k  # in J K^-1
+
+    @property
+    def temperature(self) -> float:
+
+        """
+        Get or set the temperature of the thermal bath in Kelvin.
+
+        Raises
+        ------
+        ValueError
+            If the temperature is being set to a negative value.
+
+        Returns
+        -------
+        float
+            The temperature of the system, in Kelvin.
+        """
+
+        if self.dynamics_model in TEMP_DEP_MODELS:
+            return self._temperature
+
+    @temperature.setter
+    def temperature(self, temperature):
+
+        if temperature <= 0.:
+            raise ValueError('Temperature must be a positive float value'
+                             ' in Kelvin.')
+        self._temperature = temperature
+
+    @property
+    def kT(self) -> float:
+
+        """
+        Returns the thermal energy, kT, of the QuantumSystem in
+        units of Joules, where k (=1.38064852e-23 J K^-1) is the
+        Boltzmann constant and T (in Kelvin) is the temperature
+        of the thermal bath.
+
+        Returns
+        -------
+        float
+            The thermal energy of the system, in Joules.
+        """
+
+        if self.dynamics_model in TEMP_DEP_MODELS:
+            return self.boltzmann * self.temperature
+
+    @property
+    def therm_sf(self) -> float:
+
+        """
+        Get or set the scale factor used in matching thermalising
+        timescales between dynamics models, in units of rad s^-1.
+
+        Raises
+        ------
+        ValueError
+            If the value being set is non-positive.
+
+        Returns
+        -------
+        float
+            The thermalisation scale factor being used, in units
+            of rad s^-1.
+        """
+
+        if self.dynamics_model in TEMP_DEP_MODELS:
+            return self._therm_sf
+
+    @therm_sf.setter
+    def therm_sf(self, therm_sf):
+
+        if therm_sf <= 0.:
+            raise ValueError('Scale factor must be a positive float in rad'
+                             ' s^-1.')
+        self._therm_sf = therm_sf
+
+    @property
+    def cutoff_freq(self) -> float:
+
+        """
+        Get or set the cutoff frequency used in calculating the
+        spectral density, in units of rad s^-1.
+
+        Raises
+        ------
+        ValueError
+            If the cutoff frequency is being set to a non-positive
+            value.
+
+        Returns
+        -------
+        float
+            The cutoff frequency being used, in rad s^-1.
+        """
+
+        if self.dynamics_model in TEMP_DEP_MODELS:
+            return self._cutoff_freq
+
+    @cutoff_freq.setter
+    def cutoff_freq(self, cutoff_freq):
+
+        if cutoff_freq <= 0.:
+            raise ValueError('Cutoff frequency must be a positive float.')
+        self._cutoff_freq = cutoff_freq
+
     @property
     def time_interval(self) -> float:
 
         """
         Gets or sets the time interval value used in evaluating
-        the density matrix evolution.
+        the density matrix evolution, in seconds.
 
         Returns
         -------
         float
-            The time interval being used.
+            The time interval being used, in seconds.
         """
 
-        return self._time_interval
+        return self._time_interval  # seconds
 
     @time_interval.setter
-    def time_interval(self, time_interval: Optional[float]):
+    def time_interval(self, time_interval: float):
 
         self._time_interval = time_interval
 
@@ -345,143 +470,45 @@ class QuantumSystem:
                                  ' integer')
             self._timesteps = timesteps
 
-
     @property
     def decay_rate(self) -> float:
 
         """
-        Gets or sets the decay rate of the density matrix elements.
+        Gets or sets the decay rate of the density matrix elements,
+        in units of rad s^-1.
 
         Returns
         -------
         float
-            The decay rate of the density matrix elements.
+            The decay rate of the density matrix elements, in units
+            of rad s^-1.
         """
 
-        if self.dynamics_model in ['simple', 'local dephasing lindblad']:
+        if self.dynamics_model in TEMP_INDEP_MODELS:
             return self._decay_rate
 
     @decay_rate.setter
     def decay_rate(self, decay_rate: float):
 
+        if decay_rate < 0.:
+            raise ValueError('Cutoff frequency must be a non-negative float'
+                             ' in units of rad s^-1.')
+
         self._decay_rate = decay_rate
-
-    @property
-    def temperature(self) -> float:
-
-        """
-        Get or set the temperature of the thermal bath.
-
-        Raises
-        ------
-        ValueError
-            If the temperature is being set to a negative value
-
-        Returns
-        -------
-        float
-            The temperature of the system, in Kelvin.
-        """
-
-        if self.dynamics_model in ['local thermalising lindblad',
-                                   'global thermalising lindblad']:
-            return self._temperature
-
-    @temperature.setter
-    def temperature(self, temperature):
-
-        if temperature <= 0.:
-            raise ValueError('Temperature must be a positive float value')
-        self._temperature = temperature
-
-    @property
-    def _kT(self) -> float:
-
-        """
-        Returns the thermal energy, kT, of the QuantumSystem, where
-        k is the Boltzmann constant and T is the temperature of the
-        thermal bath. If working in atomic units k=1, otherwise
-        k=1.38064852e-23 J K^-1.
-
-        Returns
-        -------
-        float
-            The thermal energy of the system.
-        """
-
-        return constants.k * self.temperature
-
-    @property
-    def therm_sf(self) -> float:
-
-        """
-        Get or set the scale factor used in matching thermalising
-        timescales between dynamics models.
-
-        Raises
-        ------
-        ValueError
-            If the value being set is non-positive.
-
-        Returns
-        -------
-        float
-            The thermalisation scale factor being used.
-        """
-
-        if self.dynamics_model in ['local thermalising lindblad',
-                                   'global thermalising lindblad']:
-            return self._therm_sf
-
-    @therm_sf.setter
-    def therm_sf(self, therm_sf):
-
-        if therm_sf <= 0.:
-            raise ValueError('Scale factor must be a positive float')
-        self._therm_sf = therm_sf
-
-    @property
-    def cutoff_freq(self) -> float:
-
-        """
-        Get or set the cutoff frequency used in calculating the
-        spectral density.
-
-        Raises
-        ------
-        ValueError
-            If the cutoff frequency is being set to a non-positive
-            value.
-
-        Returns
-        -------
-        float
-            The cutoff frequency being used.
-        """
-
-        if self.dynamics_model in ['local thermalising lindblad',
-                                   'global thermalising lindblad']:
-            return self._cutoff_freq
-
-    @cutoff_freq.setter
-    def cutoff_freq(self, cutoff_freq):
-
-        if cutoff_freq <= 0.:
-            raise ValueError('Cutoff frequency must be a positive float.')
-        self._cutoff_freq = cutoff_freq
 
     @property
     def hamiltonian(self) -> np.array:
 
         """
-        Builds an interaction Hamiltonian for the QuantumSystem
+        Builds an interaction Hamiltonian for the QuantumSystem,
+        in units of rad s^-1.
 
         Returns
         -------
         np.array
             An N x N 2D array that represents the interactions
             between sites in the quantum system, where N is the
-            number of sites.
+            number of sites. In units of rad s^-1.
         """
 
         if self.interaction_model in ['nearest neighbour linear',
@@ -528,7 +555,8 @@ class QuantumSystem:
     def hamiltonian_superop(self) -> np.array:
 
         """
-        Builds the Hamiltonian superoperator, given by:
+        Builds the Hamiltonian superoperator in rad s^-1,
+        given by:
 
         .. math::
             H_{sup} = -i(H \\otimes I - I \\otimes H^{\\dagger})
@@ -537,10 +565,10 @@ class QuantumSystem:
         -------
         np.array
             The (N^2) x (N^2) 2D array representing the Hamiltonian
-            superoperator.
+            superoperator, in units of rad s^-1.
         """
 
-        ham = self.hamiltonian
+        ham = self.hamiltonian  # rad s^-1
         iden = np.identity(self.sites)
 
         return - 1.0j * (np.kron(ham, iden) - np.kron(iden, ham.T.conjugate()))
@@ -550,20 +578,18 @@ class QuantumSystem:
 
         """
         Builds the Lindbladian superoperator for the system, either
-        using the dephasing or global thermalising lindblad
-        description of the dynamics.
+        using the local dephasing, local thermalising, or global
+        thermalising lindblad description of the dynamics.
 
         Returns
         -------
         np.array
             The (N^2) x (N^2) 2D array representing the Lindbladian
-            superoperator.
+            superoperator, in rad s^-1.
         """
 
-        if self.dynamics_model in ['local dephasing lindblad',
-                                   'local thermalising lindblad',
-                                   'global thermalising lindblad']:
-            return lind.lindbladian_superop(self)
+        if self.dynamics_model in LINDBLAD_MODELS:
+            return lind.lindbladian_superop(self)  # rad s^-1
 
     @property
     def initial_density_matrix(self) -> np.array:
@@ -708,6 +734,70 @@ class QuantumSystem:
             the time and density matrix evaluated at that time, as
             well as the trace of the matrix squared.
         """
+
+        if self.dynamics_model == 'HEOM':  # QuTiP works in Planck units
+            # eps = 0.5     # Energy of the 2-level system.
+            # Del = 1.0    # Tunnelling term
+            # Hsys = 0.5*eps*sigmaz() + 0.5*Del* sigmax()
+            # # Bath description parameters (for HEOM)
+            # temperature = 1.0/0.95 # in units where Boltzmann factor is 1
+            # # temperature = self.temperature
+            # Nk = 2 # number of exponentials in approximation of the the spectral density
+            # Ncut = 30 # cut off parameter for the bath
+            # # System-bath coupling (Drude-Lorentz spectral density)
+            # Q = sigmaz() # coupling operator
+            # gam = 0.05 # cut off frequency
+            # lam = 0.05 # coupling strenght
+            #
+            # # Configure the solver
+            # hsolver = HSolverDL(Hsys, Q, lam, temperature, Ncut, Nk, gam, stats=True)
+            #
+            # # Initial state of the system.
+            # rho0 = basis(2,0) * basis(2,0).dag()
+            # # Times to record state
+            # tlist = np.linspace(0, 40, 600)
+            # # run the solver
+            # result = hsolver.run(rho0, tlist)
+            # # convert to quantum_HEOM format
+            # time_evolution = np.empty(len(result.states), dtype=tuple)
+            # for i in range(0, len(result.states)):
+            #     rho = np.array(result.states[i])
+            #     time_evolution[i] = (float(result.times[i]),
+            #                          rho,
+            #                          util.get_trace_matrix_squared(rho))
+
+            Nk = 2 # number of exponentials in approximation of the the spectral density
+            Ncut = 30 # cut off parameter for the bath
+            # System-bath coupling (Drude-Lorentz spectral density)
+            Q = sigmaz() # coupling operator
+            # gam = 0.05  # cut off frequency
+            gam = self.cutoff_freq
+            # lam = 0.05 # coupling strenght
+            lam = self.therm_sf
+            hsolver = HSolverDL(Qobj(self.hamiltonian),
+                                     #* self.planck_conversion(dim='time')**-1),
+                                Q,
+                                lam,
+                                self.temperature
+                                * self.planck_conversion(dim='temp'),
+                                Ncut,
+                                Nk,
+                                gam,
+                                progress_bar=True,
+                                stats=True)
+            times = (np.array(range(self.timesteps)) * self.time_interval)
+                     #* self.planck_conversion(dim='time'))
+            result = hsolver.run(Qobj(self.initial_density_matrix), times)
+
+            # Convert time evolution data to quantum_HEOM format
+            time_evolution = np.empty(len(result.states), dtype=tuple)
+            for i in range(0, len(result.states)):
+                dens_matrix = np.array(result.states[i])
+                time_evolution[i] = (float(result.times[i])
+                                     / self.planck_conversion(dim='time'),
+                                     dens_matrix,
+                                     util.get_trace_matrix_squared(dens_matrix))
+            return time_evolution
 
         if self.time_interval and self.timesteps:
             evolution = np.empty(self.timesteps, dtype=tuple)
