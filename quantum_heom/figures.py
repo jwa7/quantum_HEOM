@@ -10,6 +10,11 @@ import numpy as np
 
 import utilities as util
 
+TEMP_INDEP_MODELS = ['simple', 'local dephasing lindblad']
+TEMP_DEP_MODELS = ['local thermalising lindblad',  # need temperature defining
+                   'global thermalising lindblad',
+                   'HEOM']
+
 
 def complex_space_time(qsys, view_3d: bool = True,
                        elements: [np.array, str] = 'diagonals',
@@ -128,12 +133,11 @@ def complex_space_time(qsys, view_3d: bool = True,
              + str(qsys.sites) + '-site system modelled with '
              + qsys.dynamics_model + ' dynamics. \n(dt = '
              + str(qsys.time_interval * 1E15) + ' $fs$ ,')
-    if qsys.dynamics_model in ['simple', 'local dephasing lindblad']:
+    if qsys.dynamics_model in TEMP_INDEP_MODELS:
         title += ('$\\Gamma$ = ' + str(qsys.decay_rate * 1E-12)
-                  + ' $rad\ ps^{-1})$')
-    elif qsys.dynamics_model in ['local thermalising lindblad',
-                                 'global dephasing lindblad']:
-        title += ('T = ' + str(qsys.temperature) + ' K')
+                  + ' $rad\\ ps^{-1})$')
+    elif qsys.dynamics_model in TEMP_DEP_MODELS:
+        title += (' T = ' + str(qsys.temperature) + ' K)')
     if view_3d:
         plt.legend(loc='center left', fontsize='large')
         ax.set_xlabel('time / fs', size=label_size, labelpad=30)
@@ -150,7 +154,7 @@ def complex_space_time(qsys, view_3d: bool = True,
         plt.savefig(save_as)
 
 
-def site_cartesian_coordinates(N: int) -> np.array:
+def site_cartesian_coordinates(sites: int) -> np.array:
 
     """
     Returns an array of site coordinates on an xy plane
@@ -159,15 +163,15 @@ def site_cartesian_coordinates(N: int) -> np.array:
     centre at the origin.
     """
 
-    assert N > 1
+    assert sites > 1
 
     r = 5  # distance of each site from the origin
 
-    site_coords = np.empty(N, dtype=tuple)
+    site_coords = np.empty(sites, dtype=tuple)
     site_coords[0] = (0, r)
-    for i in range(1, N):
+    for i in range(1, sites):
 
-        phi = i * 2 * np.pi / N  # internal angle of the N-sided polygon
+        phi = i * 2 * np.pi / sites  # internal angle of the N-sided polygon
         site_coords[i] = (r * np.sin(phi), r * np.cos(phi))
 
     return site_coords
