@@ -6,7 +6,7 @@ from typing import Optional
 from scipy import constants, linalg
 import numpy as np
 from qutip.nonmarkov.heom import HSolverDL
-from qutip import sigmax, sigmay, sigmaz, basis, expect, Qobj
+from qutip import sigmax, sigmay, sigmaz, basis, expect, Qobj, qeye
 
 # import quantum_heom.figures as figs
 # import quantum_heom.hamiltonian as ham
@@ -52,10 +52,6 @@ class QuantumSystem:
         'local thermalising lindblad', 'global thermalising
         lindblad', 'HEOM'].
     **settings
-        # units : str
-        #     Either 'SI' (the default) or 'Planck'. If 'Planck',
-        #     sets hbar=k=1, where hbar is the reduced Planck's
-        #     constant and k is the Boltzmann constant.
         init_site_pop : list of int
             The sites in which to place initial population. For
             example, to place equal population in sites 1 and 6
@@ -77,15 +73,24 @@ class QuantumSystem:
             value is 298 K.
         therm_sf : float
             The scale factor used to match thermalisation rates
-            between dynamics models in units of rad ps^-1.
-            Default value is 11.87 rad ps^-1.
+            between dynamics models in units of rad s^-1. Default
+            value is 11.87 rad ps^-1.
         cutoff_freq : float
             The cutoff frequency used in calculating the spectral
             density, in rad s^-1. Default value is 6.024 rad ps^-1.
+        mastsubara_terms : int
+            The number of matubara terms to include in the HEOM
+            evaluation of the system dynamics.
+            Default value is 2.
+        bath_cutoff : int
+            The number of bath terms to include in the HEOM
+            evaluation of the system dynamics. Default value
+            is 30.
     """
 
     def __init__(self, sites, interaction_model, dynamics_model, **settings):
 
+        # INITIALIZATION REQUIREMENTS
         self.sites = sites
         self.interaction_model = interaction_model
         self.dynamics_model = dynamics_model
@@ -120,6 +125,26 @@ class QuantumSystem:
             else:
                 # Convert default of 6.024 rad ps^-1 into correct units.
                 self.cutoff_freq = 6.024 * 1e12  # rad s-1
+        # SETTINGS FOR HEOM
+        if self.dynamics_model == 'HEOM':
+            if settings.get('matsubara_terms'):
+                self.matsubara_terms = settings.get('matsubara_terms')
+            else:
+                self.matsubara_terms = 2
+            if settings.get('matsubara_coeffs'):
+                self.matsubara_coeffs = settings.get('matsubara_coeffs')
+            else:
+                self.matsubara_coeffs = None
+            if settings.get('matsubara_freqs'):
+                self.matsubara_freqs = settings.get('matsubara_freqs')
+            else:
+                self.matsubara_freqs = None
+            if settings.get('bath_cutoff'):
+                self.bath_cutoff = settings.get('bath_cutoff')
+            else:
+                self.bath_cutoff = 30
+            if settings.get('coupling_op') is not None:
+                self.coupling_op = settings.get('coupling_op')
         # OTHER SETTINGS
         if settings.get('init_site_pop') is not None:
             self.init_site_pop = settings.get('init_site_pop')
@@ -334,7 +359,7 @@ class QuantumSystem:
             return self._temperature
 
     @temperature.setter
-    def temperature(self, temperature):
+    def temperature(self, temperature: float):
 
         if temperature <= 0.:
             raise ValueError('Temperature must be a positive float value'
@@ -360,6 +385,32 @@ class QuantumSystem:
             return self.boltzmann * self.temperature
 
     @property
+    def decay_rate(self) -> float:
+
+        """
+        Gets or sets the decay rate of the density matrix elements,
+        in units of rad s^-1.
+
+        Returns
+        -------
+        float
+            The decay rate of the density matrix elements, in units
+            of rad s^-1.
+        """
+
+        if self.dynamics_model in TEMP_INDEP_MODELS:
+            return self._decay_rate
+
+    @decay_rate.setter
+    def decay_rate(self, decay_rate: float):
+
+        if decay_rate < 0.:
+            raise ValueError('Cutoff frequency must be a non-negative float'
+                             ' in units of rad s^-1.')
+
+        self._decay_rate = decay_rate
+
+    @property
     def therm_sf(self) -> float:
 
         """
@@ -382,7 +433,7 @@ class QuantumSystem:
             return self._therm_sf
 
     @therm_sf.setter
-    def therm_sf(self, therm_sf):
+    def therm_sf(self, therm_sf: float):
 
         if therm_sf <= 0.:
             raise ValueError('Scale factor must be a positive float in rad'
@@ -412,11 +463,135 @@ class QuantumSystem:
             return self._cutoff_freq
 
     @cutoff_freq.setter
-    def cutoff_freq(self, cutoff_freq):
+    def cutoff_freq(self, cutoff_freq: float):
 
         if cutoff_freq <= 0.:
             raise ValueError('Cutoff frequency must be a positive float.')
         self._cutoff_freq = cutoff_freq
+
+    @property
+    def matsubara_terms(self) -> int:
+
+        """
+        Get or set the number of Matsubara terms to include in the
+        HEOM approach to solving the system dynamics.
+
+        Raises
+        ------
+        ValueError
+            If being set to a non-positive integer.
+
+        Returns
+        -------
+        int
+            The number of Matsubara terms HEOM is evaluated for.
+        """
+
+        if self.dynamics_model == 'HEOM':
+            return self._matsubara_terms
+
+    @matsubara_terms.setter
+    def matsubara_terms(self, terms: int):
+
+        if terms < 1:
+            raise ValueError('The number of Matsubara terms must be a positive'
+                             ' integer.')
+        self._matsubara_terms = terms
+
+    @property
+    def matsubara_coeffs(self) -> np.array:
+
+        """
+        Get or set the matsubara coefficients used in HEOM dynamics
+
+        Raises
+        ------
+        ValueError
+            If the number of coefficients being set exceeds the
+            number of matsubara terms set.
+
+        Returns
+        -------
+        np.array
+            An array of matsubara coefficients, in order,
+            corresponding to the first n matsubara terms.
+        """
+
+        if self.dynamics_model == 'HEOM':
+            return self._matsubara_coeffs
+
+    @matsubara_coeffs.setter
+    def matsubara_coeffs(self, coeffs: np.array):
+
+        try:
+            if len(coeffs) > self.matsubara_terms:
+                raise ValueError('The number of coefficients being set exceeds'
+                                 ' the number of matsubara terms')
+            self._matsubara_coeffs = coeffs
+        except TypeError:
+            self._matsubara_coeffs = None
+
+    @property
+    def matsubara_freqs(self) -> np.array:
+
+        """
+        Get or set the matsubara frequencies used in HEOM dynamics
+
+        Raises
+        ------
+        ValueError
+            If the number of frequencies being set exceeds the
+            number of matsubara terms set.
+
+        Returns
+        -------
+        np.array
+            An array of matsubara frequencies, in order,
+            corresponding to the first n matsubara terms.
+        """
+
+        if self.dynamics_model == 'HEOM':
+            return self._matsubara_freqs
+
+    @matsubara_freqs.setter
+    def matsubara_freqs(self, freqs: np.array):
+
+        try:
+            if len(freqs) > self.matsubara_terms:
+                raise ValueError('The number of frequencies being set exceeds'
+                                 ' the number of matsubara terms')
+            self._matsubara_freqs = freqs
+        except TypeError:
+            self._matsubara_freqs = None
+
+    @property
+    def bath_cutoff(self) -> int:
+
+        """
+        Get or set the cutoff for the number of bath terms included
+        in the HEOM evaluation of the system dynamics.
+
+        Raises
+        ------
+        ValueError
+            If being set to a non-positive integer.
+
+        Returns
+        -------
+        int
+            The number of bath terms HEOM is evaluated for.
+        """
+
+        if self.dynamics_model == 'HEOM':
+            return self._bath_cutoff
+
+    @bath_cutoff.setter
+    def bath_cutoff(self, bath_cutoff: int):
+
+        if bath_cutoff < 1:
+            raise ValueError('The number of bath terms must be a positive'
+                             ' integer.')
+        self._bath_cutoff = bath_cutoff
 
     @property
     def time_interval(self) -> float:
@@ -471,32 +646,6 @@ class QuantumSystem:
             self._timesteps = timesteps
 
     @property
-    def decay_rate(self) -> float:
-
-        """
-        Gets or sets the decay rate of the density matrix elements,
-        in units of rad s^-1.
-
-        Returns
-        -------
-        float
-            The decay rate of the density matrix elements, in units
-            of rad s^-1.
-        """
-
-        if self.dynamics_model in TEMP_INDEP_MODELS:
-            return self._decay_rate
-
-    @decay_rate.setter
-    def decay_rate(self, decay_rate: float):
-
-        if decay_rate < 0.:
-            raise ValueError('Cutoff frequency must be a non-negative float'
-                             ' in units of rad s^-1.')
-
-        self._decay_rate = decay_rate
-
-    @property
     def hamiltonian(self) -> np.array:
 
         """
@@ -520,7 +669,9 @@ class QuantumSystem:
             if self.interaction_model.endswith('cyclic'):
                 hamil[0][self.sites - 1] = 1
                 hamil[self.sites - 1][0] = 1
-
+            if self.dynamics_model == 'HEOM':
+                return hamil #* 2 * np.pi * constants.c
+                        #* 100. * 1E-15) # cm^-1 -> rad fs^-1
             return hamil * 2 * np.pi * constants.c * 100.  # cm^-1 -> rad s^-1
 
         elif self.interaction_model == 'Huckel':
@@ -592,6 +743,29 @@ class QuantumSystem:
             return lind.lindbladian_superop(self)  # rad s^-1
 
     @property
+    def coupling_op(self) -> np.array:
+
+        """
+        Get or set the operator describing the coupling between
+        the system and bath modes, used in the HEOM model of the
+        dynamics.
+
+        Returns
+        -------
+        np.array of complex
+            2D square array of size N x N (where N is the number
+            of sites) that represents the coupling operator.
+        """
+
+        return self._coupling_op
+
+    @coupling_op.setter
+    def coupling_op(self, coupling_op):
+
+        if self.dynamics_model == 'HEOM':
+            self._coupling_op = coupling_op
+
+    @property
     def initial_density_matrix(self) -> np.array:
 
         """
@@ -646,24 +820,35 @@ class QuantumSystem:
         self._init_site_pop = init_site_pop
 
     @property
-    def thermal_eq_state(self) -> float:
+    def equilibrium_state(self) -> np.array:
 
         """
-        Get the density matrix for the system's thermal
-        equilibrium state, given by:
+        Returns the equilibirum density matrix of the system. For
+        systems described by thermalising models, this is the
+        themal equilibirum state, given by:
 
         .. math::
             \\rho^{(eq)}
                 = \\frac{e^{- H / k_B T}}{tr(e^{- H / k_B T})}
 
+        however for 'simple' and 'local dephasing lindblad' models,
+        this is the maximally mixed state corresponding to a
+        diagonal matrix with elements equal to 1/N. This also
+        corresponds to the thermal equilibrium state in the infinite
+        temperature limit.
+
         Returns
         -------
         np.array
-            A 2D square denisty matrix for the system's thermal
-            equilibrium state.
+            A 2D square density matrix for the system's equilibrium
+            state.
         """
 
-        return lind.thermal_equilibrium_state(self)
+        if self.dynamics_model in TEMP_DEP_MODELS:  # thermal eq
+            arg = linalg.expm(- self.hamiltonian * self.hbar / self.kT)
+            return np.divide(arg, np.trace(arg))
+        # Maximally-mixed state for dephasing model:
+        return np.eye(self.sites, dtype=complex) * 1. / self.sites
 
     def evolve_density_matrix_one_step(self, dens_mat: np.array) -> np.array:
 
@@ -695,7 +880,7 @@ class QuantumSystem:
             # Evolve the density matrix and return
             return (dens_mat
                     - (1.0j * self.time_interval / self._hbar)
-                    * util.get_commutator(self.hamiltonian, dens_mat)
+                    * util.commutator(self.hamiltonian, dens_mat)
                     - dephaser)
 
         elif self.dynamics_model in DYNAMICS_MODELS[1:4]:  # deph/therm lindblad
@@ -728,87 +913,75 @@ class QuantumSystem:
         Returns
         -------
         evolution : np.array
-            An array of tuples, with length corresponding to the
-            number of timesteps the evolution is evaluated for.
-            Each tuple has the form (t, matrix, trace), providing
-            the time and density matrix evaluated at that time, as
-            well as the trace of the matrix squared.
+            An array of length corresponding to the number of
+            timesteps the evolution is evaluated for. Each element
+            is a tuple of the form (time, matrix, squared, distance),
+            where 'time' is the time at which the density matrix
+            - 'matrix' - is evaluted, 'squared' is the trace of
+            'matrix' squared, and 'distance' is the trace distance
+            of 'matrix' from the system's equilibrium state.
         """
 
-        if self.dynamics_model == 'HEOM':  # QuTiP works in Planck units
-            # eps = 0.5     # Energy of the 2-level system.
-            # Del = 1.0    # Tunnelling term
-            # Hsys = 0.5*eps*sigmaz() + 0.5*Del* sigmax()
-            # # Bath description parameters (for HEOM)
-            # temperature = 1.0/0.95 # in units where Boltzmann factor is 1
-            # # temperature = self.temperature
-            # Nk = 2 # number of exponentials in approximation of the the spectral density
-            # Ncut = 30 # cut off parameter for the bath
-            # # System-bath coupling (Drude-Lorentz spectral density)
-            # Q = sigmaz() # coupling operator
-            # gam = 0.05 # cut off frequency
-            # lam = 0.05 # coupling strenght
-            #
-            # # Configure the solver
-            # hsolver = HSolverDL(Hsys, Q, lam, temperature, Ncut, Nk, gam, stats=True)
-            #
-            # # Initial state of the system.
-            # rho0 = basis(2,0) * basis(2,0).dag()
-            # # Times to record state
-            # tlist = np.linspace(0, 40, 600)
-            # # run the solver
-            # result = hsolver.run(rho0, tlist)
-            # # convert to quantum_HEOM format
-            # time_evolution = np.empty(len(result.states), dtype=tuple)
-            # for i in range(0, len(result.states)):
-            #     rho = np.array(result.states[i])
-            #     time_evolution[i] = (float(result.times[i]),
-            #                          rho,
-            #                          util.get_trace_matrix_squared(rho))
+        # HEOM DYNAMICS
+        if self.dynamics_model == 'HEOM':
 
-            Nk = 2 # number of exponentials in approximation of the the spectral density
-            Ncut = 30 # cut off parameter for the bath
-            # System-bath coupling (Drude-Lorentz spectral density)
-            Q = sigmaz() # coupling operator
-            # gam = 0.05  # cut off frequency
-            gam = self.cutoff_freq
-            # lam = 0.05 # coupling strenght
-            lam = self.therm_sf
+            # Units of variables required:
+            # dimension    quantum_HEOM -----> QuTiP      Conversion
+            # time:                   s         fs         * 1E-15
+            # frequency:       rad s^-1         ps^-1      * 1 / (2pi * 1E12)
+            # temperature:            K         rad fs^-1  * k / (h * 1E15)
+            # Build HEOM Solver
             hsolver = HSolverDL(Qobj(self.hamiltonian),
-                                     #* self.planck_conversion(dim='time')**-1),
-                                Q,
-                                lam,
-                                self.temperature
-                                * self.planck_conversion(dim='temp'),
-                                Ncut,
-                                Nk,
-                                gam,
-                                progress_bar=True,
+                                Qobj(self.coupling_op),
+                                self.therm_sf,  # coupling strength
+                                self.temperature,
+                                self.bath_cutoff,
+                                self.matsubara_terms,
+                                self.cutoff_freq,
+                                # planck=self.hbar,
+                                # boltzmann=self.boltzmann,
+                                renorm=False,
                                 stats=True)
-            times = (np.array(range(self.timesteps)) * self.time_interval)
-                     #* self.planck_conversion(dim='time'))
+            # Set the QuantumSystem's matsubara coeffs + freqs to the ones
+            # automatically generated by the HSolverDL if user HASN'T set them,
+            # OR set the HSolverDL's coeffs + freqs to the ones set by the user
+            # if they HAVE.
+            if self.matsubara_coeffs is None:
+                self.matsubara_coeffs = np.array(hsolver.exp_coeff)
+            else:
+                hsolver.exp_coeff = self.matsubara_coeffs
+            if self.matsubara_freqs is None:
+                self.matsubara_freqs = np.array(hsolver.exp_freq)
+            else:
+                hsolver.exp_freq = self.matsubara_freqs
+            print(hsolver.__dict__)
+            # Run the simulation over the time interval.
+            times = (np.array(range(self.timesteps)) * self.time_interval * 1E15)
             result = hsolver.run(Qobj(self.initial_density_matrix), times)
-
             # Convert time evolution data to quantum_HEOM format
-            time_evolution = np.empty(len(result.states), dtype=tuple)
+            evolution = np.empty(len(result.states), dtype=tuple)
             for i in range(0, len(result.states)):
                 dens_matrix = np.array(result.states[i])
-                time_evolution[i] = (float(result.times[i])
-                                     / self.planck_conversion(dim='time'),
-                                     dens_matrix,
-                                     util.get_trace_matrix_squared(dens_matrix))
-            return time_evolution
+                evolution[i] = (float(result.times[i]),
+                                dens_matrix,
+                                util.trace_matrix_squared(dens_matrix),
+                                util.trace_distance(dens_matrix,
+                                                    self.equilibrium_state))
+            return evolution
 
+        # ALL OTHER DYNAMICS
         if self.time_interval and self.timesteps:
             evolution = np.empty(self.timesteps, dtype=tuple)
             time, evolved = 0., self.initial_density_matrix
-            evolution[0] = (time, evolved,
-                            util.get_trace_matrix_squared(evolved))
+            squared = util.trace_matrix_squared(evolved)
+            distance = util.trace_distance(evolved, self.equilibrium_state)
+            evolution[0] = (time, evolved, squared, distance)
             for step in range(1, self.timesteps):
                 time += self.time_interval
                 evolved = self.evolve_density_matrix_one_step(evolved)
-                trace_matrix_sq = np.real(util.get_trace_matrix_squared(evolved))
-                evolution[step] = (time, evolved, trace_matrix_sq)
+                squared = util.trace_matrix_squared(evolved)
+                distance = util.trace_distance(evolved, self.equilibrium_state)
+                evolution[step] = (time, evolved, squared, distance)
 
             return evolution
 
@@ -816,9 +989,10 @@ class QuantumSystem:
                              ' decay_rate attributes of QuantumSystem before'
                              ' its time evolution can be calculated.')
 
-    def plot_time_evolution(self, view_3d: bool = True,
+    def plot_time_evolution(self, view_3d: bool = True, set_title: bool = True,
                             elements: [np.array, str] = 'diagonals',
-                            save_as: str = None):
+                            trace_measure: str = None,
+                            save: bool = False):
 
         """
         Plots the time evolution of the density matrix elements
@@ -841,5 +1015,6 @@ class QuantumSystem:
             or elements=['11', '12', '21', '22'].
         """
 
-        figs.complex_space_time(self, view_3d=view_3d,
-                                elements=elements, save_as=None)
+        figs.complex_space_time(self, view_3d=view_3d, set_title=set_title,
+                                elements=elements, trace_measure=trace_measure,
+                                save=save)
