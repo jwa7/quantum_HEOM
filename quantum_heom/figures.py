@@ -1,6 +1,6 @@
 """Contains functions to plot the time evolution of the quantum system."""
 
-from itertools import permutations, product
+import os
 
 from mpl_toolkits import mplot3d
 import matplotlib.pyplot as plt
@@ -14,11 +14,12 @@ TEMP_INDEP_MODELS = ['simple', 'local dephasing lindblad']
 TEMP_DEP_MODELS = ['local thermalising lindblad',  # need temperature defining
                    'global thermalising lindblad',
                    'HEOM']
+TRACE_MEASURES = ['squared', 'distance']
 
-
-def complex_space_time(qsys, view_3d: bool = True,
+def complex_space_time(qsys, view_3d: bool = True, set_title: bool = False,
                        elements: [np.array, str] = 'diagonals',
-                       save_as: str = None,) -> np.array:
+                       trace_measure: str = None,
+                       save: bool = False,) -> np.array:
 
     """
     Creates a 3D plot of time vs imaginary vs real-amplitude.
@@ -34,6 +35,9 @@ def complex_space_time(qsys, view_3d: bool = True,
         If true, views the plot in 3d, showing real and imaginary
         amplitude axes as well as time. If false, only shows the
         real amplitude axis with time as a 2d plot.
+    set_title : bool
+        If True (default), produces a figure with a title, if False
+        does not.
     elements : str, or list of str
         The elements of the density matrix whose time-evolution
         should be plotted. Can be passed as a string, choosing
@@ -43,48 +47,68 @@ def complex_space_time(qsys, view_3d: bool = True,
         the column. For example, for a 2-site quantum system,
         all elements are plotted by either passing elements='all'
         or elements=['11', '12', '21', '22'].
+    trace_measure : str or list
+        The trace meaure(s) to plot on the figure. Choose between
+        'squared' which is the trace of the density matrix at each
+        timestep squared, or 'distance' which is the trace distance
+        relative to the system's equilibrium state, or a list
+        conatining both of these terms i.e. ['squared', 'distance']
+    save : bool
+        If True, saves the figure plotted to a .pdf file into the
+        directory of relative path 'quantum_HEOM/doc/figures/'.
+        Filenames are set in abbreviated format of (in order); the
+        number of sites, the interaction model, the dynamics model,
+        today's date, then an index for the number of the plot
+        for that system that has been generated. For example, the
+        2nd plot (index 1) of a particular system may have the
+        relative filepath: 'quantum_HEOM/doc/figures/2_site_near_
+        neigh_cyc_HEOM_1.pdf'. A .txt file of the same name will
+        also be created, containing the attributes of the system
+        that the plot in the .pdf file corresponds to.
     """
 
-    # Check elements input
-    if isinstance(elements, list):
-        assert len(elements) <= qsys.sites ** 2, (
-            'The number of elements plotted must be a positive integer less'
-            ' than or equal to the number of elements in the density matrix.')
-        for element in elements:
-            try:
-                int(element)
-            except ValueError:
-                raise ValueError('Invalid format of string representation of'
-                                 ' density matrix element.')
-    elif isinstance(elements, str):
-        assert elements in ['all', 'diagonals', 'off-diagonals'], (
-            'Must choose from "all", "diagonals", or "off-diagonals".')
-        if elements == 'all':
-            elements = [str(i) + str(j)
-                        for i, j in product(range(1, qsys.sites + 1), repeat=2)]
-        elif elements == 'diagonals':
-            elements = [str(i) + str(i) for i in range(1, qsys.sites + 1)]
-        else:  # off-diagonals
-            elements = [str(i) + str(j)
-                        for i, j in permutations(range(1, qsys.sites + 1), 2)]
-    else:
-        raise ValueError('elements argument passed as invalid value.')
-
+    # Check input of trace_measure
+    if isinstance(trace_measure, str):
+        assert trace_measure in TRACE_MEASURES, ('Must choose a trace measure'
+                                                 ' from ' + str(TRACE_MEASURES))
+        trace_measure = [trace_measure]
+    elif trace_measure is None:
+        trace_measure = [trace_measure]
+    elif isinstance(trace_measure, list):
+        assert all(item in TRACE_MEASURES for item in trace_measure)
     # Process time evolution data
-    times = np.empty(len(qsys.time_evolution), dtype=float)
-    tr_rho_sq = np.empty(len(qsys.time_evolution), dtype=float)
-    matrix_data = {element: np.empty(len(qsys.time_evolution), dtype=float)
+    time_evolution = qsys.time_evolution
+    elements = util.elements_from_str(qsys.sites, elements)
+    times = np.empty(len(time_evolution), dtype=float)
+    matrix_data = {element: np.empty(len(time_evolution), dtype=float)
                    for element in elements}
-    for t_idx, (t, rho_t, trace) in enumerate(qsys.time_evolution, start=0):
-        times[t_idx] = t * 1E15  # convert s --> fs
-        tr_rho_sq[t_idx] = np.real(trace)
+    if 'squared' in trace_measure:
+        squared = np.empty(len(time_evolution), dtype=float)
+    if 'distance' in trace_measure:
+        distance = np.empty(len(time_evolution), dtype=float)
+    for t_idx, (time, rho_t, sq, dist) in enumerate(time_evolution,
+                                                    start=0):
+        # Retrieve time
+        times[t_idx] = time * 1E15  # convert s --> fs
+        # Process density matrix data
         for element in elements:
             n, m = int(element[0]), int(element[1])
             value = rho_t[n - 1][m - 1]
             if n == m:  # diagonal element; retrieve real part of amplitude
                 matrix_data[element][t_idx] = np.real(value)
+                # matrix_data[element][t_idx] = np.abs(value)
             else:  # off-diagonal; retrieve imaginary part of amplitude
-                matrix_data[element][t_idx] = np.imag(value)
+                if view_3d:
+                    # matrix_data[element][t_idx] = np.imag(value)
+                    matrix_data[element][t_idx] = np.real(value)
+                else:
+                    matrix_data[element][t_idx] = np.real(np.imag(value))
+                    # matrix_data[element][t_idx] = np.abs(np.imag(value) * -1.j)
+        # Process trace measure data
+        if 'squared' in trace_measure:
+            squared[t_idx] = np.real(sq)
+        if 'distance' in trace_measure:
+            distance[t_idx] = np.real(dist)
     # Initialize plots
     if view_3d:
         ax = plt.figure(figsize=(25, 15))
@@ -93,37 +117,35 @@ def complex_space_time(qsys, view_3d: bool = True,
         ax = plt.figure(figsize=(15, 10))
         ax = plt
     # Plot the data
-    zeros = np.zeros(len(qsys.time_evolution), dtype=float)
+    zeros = np.zeros(len(time_evolution), dtype=float)
     for element, amplitudes in matrix_data.items():
-        if int(element[0]) == int(element[1]):
-            label = '$\\rho_{' + element + '}$'
-            if view_3d:
+        label = '$\\rho_{' + element + '}$'
+        if view_3d:  # 3D PLOT
+            if int(element[0]) == int(element[1]):  # diagonal
                 ax.plot3D(times, zeros, amplitudes, ls='-', label=label)
-            else:
-                ax.plot(times, amplitudes, ls='-', label=label)
-        else:
-            label = '$\\rho_{' + element + '}$'
-            if view_3d:
+            else:  # if an off-diagonal; plot in third dimension
                 ax.plot3D(times, amplitudes, zeros, ls='-', label=label)
+        else:  # 2D PLOT; plot all specified elements in same 2D plane.
+            ax.plot(times, amplitudes, ls='-', label=label)
     # Plot tr(rho^2) and asymptote at 1 / N or thermal_eq
-    if view_3d:
-        ax.plot3D(times, zeros, tr_rho_sq, dashes=[1, 1],
-                  label='$tr(\\rho^2)$')
-        if qsys.dynamics_model.endswith('thermalising lindblad'):
-            ax.plot3D(times, zeros,
-                      util.get_trace_matrix_squared(qsys.thermal_eq_state),
-                      c='gray', ls='--', label='$z = tr(\\rho_{eq}^2)$')
-        else:
+    if view_3d:  # 3D PLOT
+        if 'squared' in trace_measure:
+            ax.plot3D(times, zeros, squared, dashes=[1, 1],
+                      label='$tr(\\rho^2)$')
+        if 'distance' in trace_measure:
+            ax.plot3D(times, zeros, distance, dashes=[1, 1],
+                      label='$tr(\\rho^2)$')
+        if qsys.dynamics_model in TEMP_INDEP_MODELS:
             ax.plot3D(times, zeros, 1/qsys.sites, c='gray', ls='--',
                       label='$z = \\frac{1}{N}$')
     else:  # 2D plot
-        ax.plot(times, tr_rho_sq, dashes=[1, 1], label='$tr(\\rho^2)$')
-        if qsys.dynamics_model.endswith('thermalising lindblad'):
-            ax.plot(times,
-                    [util.get_trace_matrix_squared(qsys.thermal_eq_state)]
-                    * len(times),
-                    c='gray', ls='--', label='$z = tr(\\rho_{eq}^2)$')
-        else:
+        if 'squared' in trace_measure:
+            ax.plot(times, squared, dashes=[1, 1], label='$tr(\\rho^2)$')
+        if 'distance' in trace_measure:
+            ax.plot(times, distance, dashes=[1, 1],
+                    label='$0.5 tr(|\\rho(t) - \\rho^{(eq)}|)$')
+        if qsys.dynamics_model in TEMP_INDEP_MODELS:
+        # else:  # temperature independent model; plot 1/N asymptote.
             ax.plot(times, [1/qsys.sites] * len(times), c='gray',
                     ls='--', label='$y = \\frac{1}{N}$')
     # Format plot
@@ -132,27 +154,57 @@ def complex_space_time(qsys, view_3d: bool = True,
     title = ('Time evolution of a ' + qsys.interaction_model + ' '
              + str(qsys.sites) + '-site system modelled with '
              + qsys.dynamics_model + ' dynamics. \n(dt = '
-             + str(qsys.time_interval * 1E15) + ' $fs$ ,')
+             + str(qsys.time_interval * 1E15) + ' $fs$ , ')
     if qsys.dynamics_model in TEMP_INDEP_MODELS:
         title += ('$\\Gamma$ = ' + str(qsys.decay_rate * 1E-12)
                   + ' $rad\\ ps^{-1})$')
     elif qsys.dynamics_model in TEMP_DEP_MODELS:
-        title += (' T = ' + str(qsys.temperature) + ' K)')
+        title += ('T = ' + str(qsys.temperature) + ' K)')
     if view_3d:
         plt.legend(loc='center left', fontsize='large')
         ax.set_xlabel('time / fs', size=label_size, labelpad=30)
         ax.set_ylabel('Imaginary Site Population', size=label_size, labelpad=30)
         ax.set_zlabel('Real Site Population', size=label_size, labelpad=10)
-        ax.set_title(title, size=title_size, pad=20)
+        if set_title:
+            ax.set_title(title, size=title_size, pad=20)
         ax.view_init(20, -50)
     else:  # 2D plot
-        plt.legend(loc='center right', fontsize='large', borderaxespad=-10.)
+        plt.legend(loc='center right', fontsize='large', borderaxespad=-7.)
         ax.xlabel('time / fs', size=label_size, labelpad=20)
         ax.ylabel('Site Population', size=label_size, labelpad=20)
-        ax.title(title, size=title_size, pad=20)
-    if save_as:
-        plt.savefig(save_as)
-
+        if set_title:
+            ax.title(title, size=title_size, pad=20)
+    # Save the figure in a .pdf and the parameters used in a .txt
+    if save:
+        # Define some abbreviations of terms to use in file naming
+        abbrevs = {'nearest neighbour linear': '_near_neigh_lin',
+                   'nearest neighbour cyclic': '_near_neigh_cyc',
+                   'FMO': '_FMO',
+                   'simple': '_simple',
+                   'local thermalising lindblad': '_local_therm',
+                   'global thermalising lindblad': '_global_therm',
+                   'local dephasing lindblad': '_local_deph',
+                   'HEOM': '_HEOM'
+                  }
+        date_stamp = util.date_stamp()  # avoid duplicates in filenames
+        top_dir = os.getcwd()[:os.getcwd().find('quantum_HEOM')]
+        filename = (top_dir + 'quantum_HEOM/doc/figures/'
+                    + str(qsys.sites) + '_sites'
+                    + abbrevs[qsys.interaction_model]
+                    + abbrevs[qsys.dynamics_model]
+                    + '_' + date_stamp + '_')
+        # Create a file index number to avoid overwriting existing files
+        # with same file name created on the same day
+        index = 0
+        while os.path.exists(filename + str(index) + '.pdf'):
+            index += 1
+        filename += str(index)
+        plt.savefig(filename + '.pdf')
+        # Write the QuantumSystem attribute information to a .txt file.
+        with open(filename + '.txt', 'w+') as file:
+            file.write('Attributes of QuantumSystem object:')
+            file.write(str(qsys.__dict__) + '\n')
+            file.write()
 
 def site_cartesian_coordinates(sites: int) -> np.array:
 
