@@ -61,3 +61,24 @@ def test_anti_commutator(A, B, ans):
     """
 
     assert np.all(util.get_commutator(A, B, anti=True) == ans)
+
+@pytest.mark.parametrize('sites, els, exp', [(2, 'all', ['11', '12',
+                                                         '21', '22']),
+                                             (2, 'diagonals', ['11', '22']),
+                                             (2, 'off-diagonals', ['12', '21']),
+                                             (3, 'all', ['11', '12', '13',
+                                                         '21', '22', '23',
+                                                         '31', '32', '33']),
+                                             (3, 'diagonals', ['11', '22', '33']),
+                                             (3, 'off-diagonals'), ['12', '13',
+                                                                    '21', '23',
+                                                                    '31', '32']])
+def test_elements_from_str(sites, els, exp):
+
+    """
+    Tests that the correct output for numerical string
+    representations of the elements of the denisty matrix
+    from a keywrod description is returned.
+    """
+
+    assert np.all(util.elements_from_str(sites, els) == exp)
