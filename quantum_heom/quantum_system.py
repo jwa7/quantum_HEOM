@@ -670,18 +670,17 @@ class QuantumSystem:
                 hamil[0][self.sites - 1] = 1
                 hamil[self.sites - 1][0] = 1
             if self.dynamics_model == 'HEOM':
-                return hamil #* 2 * np.pi * constants.c
-                        #* 100. * 1E-15) # cm^-1 -> rad fs^-1
+                return hamil #* 2 * np.pi * constants.c * 100. * 1E-15 # cm^-1 -> rad fs^-1
             return hamil * 2 * np.pi * constants.c * 100.  # cm^-1 -> rad s^-1
 
-        elif self.interaction_model == 'Huckel':
+        if self.interaction_model == 'Huckel':
             hamil = np.empty((self.sites, self.sites), dtype=complex)
             hamil.fill(BETA)
             np.fill_diagonal(hamil, ALPHA)
 
             return hamil * 2 * np.pi * constants.c * 100.  # cm^-1 -> rad s^-1
 
-        elif self.interaction_model == 'FMO':
+        if self.interaction_model == 'FMO':
             assert self.sites <= 7, 'FMO Hamiltonian only built for <= 7-sites'
             hamil = np.array([[12410, -87.7, 5.5, -5.9, 6.7, -13.7, -9.9],
                               [-87.7, 12530, 30.8, 8.2, 0.7, 11.8, 4.3],
@@ -694,13 +693,12 @@ class QuantumSystem:
 
             return hamil * 2 * np.pi * constants.c * 100.  # cm^-1 -> rad s^-1
 
-        elif self.interaction_model is None:
+        if self.interaction_model is None:
             raise ValueError('Hamiltonian cannot be built until interaction'
                              ' model chosen from ' + str(INTERACTION_MODELS))
 
-        else:
-            raise NotImplementedError('Other interaction models have not yet'
-                                      ' been implemented in quantum_HEOM')
+        raise NotImplementedError('Other interaction models have not yet'
+                                  ' been implemented in quantum_HEOM')
 
     @property
     def hamiltonian_superop(self) -> np.array:
