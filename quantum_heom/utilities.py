@@ -3,6 +3,7 @@
 import datetime
 from itertools import permutations, product
 
+from scipy import linalg
 import numpy as np
 
 
@@ -92,6 +93,42 @@ def commutator(A: np.array, B: np.array, anti: bool = False) -> complex:
         return np.matmul(A, B) + np.matmul(B, A)
 
     return np.matmul(A, B) - np.matmul(B, A)
+
+def eigenvalues(A: np.array) -> np.array:
+
+    """
+    Returns the eigenvalues of an input matrix.
+
+    Parameters
+    ----------
+    A : np.array of complex
+        A square 2D array.
+
+    Returns
+    -------
+    np.array
+        An array of the eigenvalues of A.
+    """
+
+    return linalg.eig(A)[0]
+
+def eigenstates(A: np.array) -> np.array:
+
+    """
+    Returns the eigenstates of an input matrix.
+
+    Parameters
+    ----------
+    A : np.array of complex
+        A square 2D array.
+
+    Returns
+    -------
+    np.array
+        An array of the eigenstates of A.
+    """
+
+    return linalg.eig(A)[1]
 
 def elements_from_str(sites: int, elements: str) -> list:
 
