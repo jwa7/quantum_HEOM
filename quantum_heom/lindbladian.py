@@ -233,8 +233,7 @@ def rate_constant_redfield(qsys, omega_ab: float):
         returned.
     """
 
-    # if np.isclose(omega_ab, 0.):  # cannot evaluate bose-einstein distrib
-    if omega_ab == 0.:
+    if qsys.therm_sf == 0. or qsys.cutoff_freq == 0. or omega_ab == 0.:
         return 0.
     return (2 * np.pi *  # 2pi a dimensionless constant here
             (((1 + bose_einstein_distrib(qsys, omega_ab))
@@ -273,6 +272,8 @@ def spectral_density(qsys, omega: float) -> float:
         units of rad s^-1.
     """
 
+    if qsys.therm_sf == 0. or qsys.cutoff_freq == 0. or omega == 0.:
+        return 0.
     return qsys.therm_sf * ((2 * qsys.cutoff_freq * omega)
                             / (qsys.cutoff_freq**2 + omega**2)) # rad s^-1
 
