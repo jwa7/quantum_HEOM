@@ -435,8 +435,8 @@ class QuantumSystem:
     @therm_sf.setter
     def therm_sf(self, therm_sf: float):
 
-        if therm_sf <= 0.:
-            raise ValueError('Scale factor must be a positive float in rad'
+        if therm_sf < 0.:
+            raise ValueError('Scale factor must be a non-negative float in rad'
                              ' s^-1.')
         self._therm_sf = therm_sf
 
