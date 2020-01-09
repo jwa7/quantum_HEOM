@@ -96,14 +96,12 @@ def complex_space_time(qsys, view_3d: bool = True, set_title: bool = False,
             value = rho_t[n - 1][m - 1]
             if n == m:  # diagonal element; retrieve real part of amplitude
                 matrix_data[element][t_idx] = np.real(value)
-                # matrix_data[element][t_idx] = np.abs(value)
             else:  # off-diagonal; retrieve imaginary part of amplitude
                 if view_3d:
                     # matrix_data[element][t_idx] = np.imag(value)
                     matrix_data[element][t_idx] = np.real(value)
                 else:
                     matrix_data[element][t_idx] = np.real(np.imag(value))
-                    # matrix_data[element][t_idx] = np.abs(np.imag(value) * -1.j)
         # Process trace measure data
         if 'squared' in trace_measure:
             squared[t_idx] = np.real(sq)
