@@ -527,7 +527,10 @@ class QuantumSystem:
             if len(coeffs) > self.matsubara_terms:
                 raise ValueError('The number of coefficients being set exceeds'
                                  ' the number of matsubara terms')
-            self._matsubara_coeffs = coeffs
+            if isinstance(coeffs, np.array):
+                self._matsubara_coeffs = coeffs
+            elif isinstance(coeffs, list):
+                self._matsubara_coeffs = np.array(coeffs)
         except TypeError:
             self._matsubara_coeffs = None
 
@@ -560,7 +563,10 @@ class QuantumSystem:
             if len(freqs) > self.matsubara_terms:
                 raise ValueError('The number of frequencies being set exceeds'
                                  ' the number of matsubara terms')
-            self._matsubara_freqs = freqs
+            if isinstance(freqs, np.array):
+                self._matsubara_freqs = freqs
+            elif isinstance(freqs, list):
+                self._matsubara_freqs = np.array(freqs)
         except TypeError:
             self._matsubara_freqs = None
 
@@ -669,16 +675,20 @@ class QuantumSystem:
             if self.interaction_model.endswith('cyclic'):
                 hamil[0][self.sites - 1] = 1
                 hamil[self.sites - 1][0] = 1
-            if self.dynamics_model == 'HEOM':
-                return hamil #* 2 * np.pi * constants.c * 100. * 1E-15 # cm^-1 -> rad fs^-1
-            return hamil * 2 * np.pi * constants.c * 100.  # cm^-1 -> rad s^-1
+            # Scale Hamiltonian values by the ratio of oscillation time periods,
+            # where 10000 is the time of oscillation of the unscaled (0 or 1)
+            # Hamiltonian and 160 is the t_osc of the FMO Hamiltonian (7 sites).
+            hamil *= 10000 / 160
+            # if self.dynamics_model == 'HEOM':
+            #     return hamil * 2 * np.pi * constants.c * 100. # cm^-1 -> rad s^-1
+            return hamil * 2 * np.pi * constants.c * 100. # cm^-1 --> rad s^-1
 
         if self.interaction_model == 'Huckel':
             hamil = np.empty((self.sites, self.sites), dtype=complex)
             hamil.fill(BETA)
             np.fill_diagonal(hamil, ALPHA)
 
-            return hamil * 2 * np.pi * constants.c * 100.  # cm^-1 -> rad s^-1
+            return hamil * 2 * np.pi * constants.c * 100.  # cm^-1 --> rad s^-1
 
         if self.interaction_model == 'FMO':
             assert self.sites <= 7, 'FMO Hamiltonian only built for <= 7-sites'
@@ -691,7 +701,7 @@ class QuantumSystem:
                               [-9.9, 4.3, 6.0, -63.3, -1.3, 39.7, 12440]])
             hamil = hamil[0:self.sites, 0:self.sites]
 
-            return hamil * 2 * np.pi * constants.c * 100.  # cm^-1 -> rad s^-1
+            return hamil * 2 * np.pi * constants.c * 100.  # cm^-1 --> rad s^-1
 
         if self.interaction_model is None:
             raise ValueError('Hamiltonian cannot be built until interaction'
@@ -923,44 +933,68 @@ class QuantumSystem:
         # HEOM DYNAMICS
         if self.dynamics_model == 'HEOM':
 
-            # Units of variables required:
-            # dimension    quantum_HEOM -----> QuTiP      Conversion
-            # time:                   s         fs         * 1E-15
-            # frequency:       rad s^-1         ps^-1      * 1 / (2pi * 1E12)
-            # temperature:            K         rad fs^-1  * k / (h * 1E15)
+            # Units of temperature must match units of Hamiltonian
+            # Quantity     quantum_HEOM  ---->  QuTiP       Conversion
+            # -------------------------------------------------------------
+            # hamiltonian:     rad s^-1         rad ps^-1   * 1E-12
+            # time:                   s         ps          * 1E-12
+            # temperature:            K         rad ps^-1    * k / (hbar * 1E12)
+            # coup_strength:   rad s^-1         ps^-1       / (2pi * 1E12)
+            # cutoff_freq:     rad s^-1         ps^-1       / (2pi * 1E12)
+            # planck:                           = 1.0
+            # boltzmann:                        = 1.0
+
+            # Perform conversions
+            hamiltonian = Qobj(self.hamiltonian * 1E-12)  # rad s^-1 ---> rad ps^-1
+            temperature = (self.temperature * 1E-12
+                           * (constants.k / constants.hbar))  # K ---> rad ps^-1
+            time_interval = self.time_interval * 1E12  # s ---> ps
+            coup_strength = self.therm_sf / (2 * np.pi * 1E12) # rad s^-1 -> ps^-1
+            cutoff_freq = self.cutoff_freq / (2 * np.pi * 1E12) # rad s^-1 --> ps^-1
+            hbar = 1.
+            boltzmann = 1.
+
             # Build HEOM Solver
-            hsolver = HSolverDL(Qobj(self.hamiltonian),
+            hsolver = HSolverDL(hamiltonian,
                                 Qobj(self.coupling_op),
-                                self.therm_sf,  # coupling strength
-                                self.temperature,
+                                coup_strength,
+                                temperature,
                                 self.bath_cutoff,
                                 self.matsubara_terms,
-                                self.cutoff_freq,
-                                # planck=self.hbar,
-                                # boltzmann=self.boltzmann,
+                                cutoff_freq,
+                                planck=hbar,
+                                boltzmann=boltzmann,
                                 renorm=False,
                                 stats=True)
+
             # Set the QuantumSystem's matsubara coeffs + freqs to the ones
             # automatically generated by the HSolverDL if user HASN'T set them,
             # OR set the HSolverDL's coeffs + freqs to the ones set by the user
             # if they HAVE.
             if self.matsubara_coeffs is None:
+                # Dimensionless coefficients - no need for conversion?
                 self.matsubara_coeffs = np.array(hsolver.exp_coeff)
             else:
                 hsolver.exp_coeff = self.matsubara_coeffs
             if self.matsubara_freqs is None:
-                self.matsubara_freqs = np.array(hsolver.exp_freq)
+                # Ensure QuantumSystem attribute set in quantum_HEOM units.
+                self.matsubara_freqs = (np.array(hsolver.exp_freq)
+                                        * 2 * np.pi * 1E12) # ps^-1 --> rad s^-1
             else:
-                hsolver.exp_freq = self.matsubara_freqs
+                # Ensure HSolverDL attribute set in QuTip units.
+                hsolver.exp_freq = (self.matsubara_freqs # rad s^-1 --> ps^-1
+                                    * 1. / (2 * np.pi * 1E12))
             print(hsolver.__dict__)
+
             # Run the simulation over the time interval.
-            times = (np.array(range(self.timesteps)) * self.time_interval * 1E15)
+            times = np.array(range(self.timesteps)) * time_interval
             result = hsolver.run(Qobj(self.initial_density_matrix), times)
             # Convert time evolution data to quantum_HEOM format
             evolution = np.empty(len(result.states), dtype=tuple)
             for i in range(0, len(result.states)):
                 dens_matrix = np.array(result.states[i])
-                evolution[i] = (float(result.times[i]),
+                # times need converting back from ps --> s
+                evolution[i] = (float(result.times[i]) * 1E-12,
                                 dens_matrix,
                                 util.trace_matrix_squared(dens_matrix),
                                 util.trace_distance(dens_matrix,
