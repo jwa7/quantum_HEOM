@@ -112,34 +112,34 @@ class QuantumSystem:
                 self.decay_rate = 6.024 * 1e12  # rad s-1
         # SETTINGS FOR TEMPERATURE DEPENDENT MODELS
         if self.dynamics_model in TEMP_DEP_MODELS:
-            if settings.get('temperature'):
+            if settings.get('temperature') is not None:
                 self.temperature = settings.get('temperature')
             else:
                 self.temperature = 298.  # K
-            if settings.get('therm_sf'):
+            if settings.get('therm_sf') is not None:
                 self.therm_sf = settings.get('therm_sf')
             else:
                 self.therm_sf = 1.391 * 1e12  # rad s^-1
-            if settings.get('cutoff_freq'):
+            if settings.get('cutoff_freq') is not None:
                 self.cutoff_freq = settings.get('cutoff_freq')
             else:
                 # Convert default of 6.024 rad ps^-1 into correct units.
                 self.cutoff_freq = 6.024 * 1e12  # rad s-1
         # SETTINGS FOR HEOM
         if self.dynamics_model == 'HEOM':
-            if settings.get('matsubara_terms'):
+            if settings.get('matsubara_terms') is not None:
                 self.matsubara_terms = settings.get('matsubara_terms')
             else:
                 self.matsubara_terms = 2
-            if settings.get('matsubara_coeffs'):
+            if settings.get('matsubara_coeffs') is not None:
                 self.matsubara_coeffs = settings.get('matsubara_coeffs')
             else:
                 self.matsubara_coeffs = None
-            if settings.get('matsubara_freqs'):
+            if settings.get('matsubara_freqs') is not None:
                 self.matsubara_freqs = settings.get('matsubara_freqs')
             else:
                 self.matsubara_freqs = None
-            if settings.get('bath_cutoff'):
+            if settings.get('bath_cutoff') is not None:
                 self.bath_cutoff = settings.get('bath_cutoff')
             else:
                 self.bath_cutoff = 30
