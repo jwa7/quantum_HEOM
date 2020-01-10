@@ -145,6 +145,8 @@ class QuantumSystem:
                 self.bath_cutoff = 20
             if settings.get('coupling_op') is not None:
                 self.coupling_op = settings.get('coupling_op')
+            elif settings.get('coupling_op') is None and self.sites == 2:
+                self.coupling_op = np.array([[1., 0.], [0., -1.]])  # pauli-z
         # OTHER SETTINGS
         if settings.get('init_site_pop') is not None:
             self.init_site_pop = settings.get('init_site_pop')
