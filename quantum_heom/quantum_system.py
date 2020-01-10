@@ -142,7 +142,7 @@ class QuantumSystem:
             if settings.get('bath_cutoff') is not None:
                 self.bath_cutoff = settings.get('bath_cutoff')
             else:
-                self.bath_cutoff = 30
+                self.bath_cutoff = 20
             if settings.get('coupling_op') is not None:
                 self.coupling_op = settings.get('coupling_op')
         # OTHER SETTINGS
@@ -881,17 +881,17 @@ class QuantumSystem:
 
         evolved = np.zeros((self.sites, self.sites), dtype=complex)
 
-        if self.dynamics_model == DYNAMICS_MODELS[0]:  # simple dynamics
+        if self.dynamics_model == DYNAMICS_MODELS[0]:  # 'simple' dynamics
             # Build matrix for simple dephasing of the off-diagonals
             dephaser = dens_mat * self.decay_rate * self.time_interval
             np.fill_diagonal(dephaser, complex(0))
             # Evolve the density matrix and return
             return (dens_mat
-                    - (1.0j * self.time_interval / self._hbar)
+                    - (1.0j * self.time_interval) # / self.hbar)
                     * util.commutator(self.hamiltonian, dens_mat)
                     - dephaser)
 
-        elif self.dynamics_model in DYNAMICS_MODELS[1:4]:  # deph/therm lindblad
+        if self.dynamics_model in DYNAMICS_MODELS[1:4]:  # deph/therm lindblad
             # Build the N^2 x N^2 propagator
             propa = linalg.expm((self.lindbladian_superop
                                  + self.hamiltonian_superop)
@@ -901,9 +901,8 @@ class QuantumSystem:
             # Reshape back to square and return
             return evolved.reshape((self.sites, self.sites), order='C')
 
-        else:
-            raise NotImplementedError('Other dynamics models not yet'
-                                      ' implemented in quantum_HEOM.')
+        raise NotImplementedError('Other dynamics models not yet'
+                                  ' implemented in quantum_HEOM.')
 
     @property
     def time_evolution(self) -> np.array:
@@ -951,8 +950,6 @@ class QuantumSystem:
             time_interval = self.time_interval * 1E12  # s ---> ps
             coup_strength = self.therm_sf / (2 * np.pi * 1E12) # rad s^-1 -> ps^-1
             cutoff_freq = self.cutoff_freq / (2 * np.pi * 1E12) # rad s^-1 --> ps^-1
-            hbar = 1.
-            boltzmann = 1.
 
             # Build HEOM Solver
             hsolver = HSolverDL(hamiltonian,
@@ -962,8 +959,8 @@ class QuantumSystem:
                                 self.bath_cutoff,
                                 self.matsubara_terms,
                                 cutoff_freq,
-                                planck=hbar,
-                                boltzmann=boltzmann,
+                                planck=1.0,
+                                boltzmann=1.0,
                                 renorm=False,
                                 stats=True)
 
@@ -1003,12 +1000,12 @@ class QuantumSystem:
 
         # ALL OTHER DYNAMICS
         if self.time_interval and self.timesteps:
-            evolution = np.empty(self.timesteps, dtype=tuple)
+            evolution = np.empty(self.timesteps + 1, dtype=tuple)
             time, evolved = 0., self.initial_density_matrix
             squared = util.trace_matrix_squared(evolved)
             distance = util.trace_distance(evolved, self.equilibrium_state)
             evolution[0] = (time, evolved, squared, distance)
-            for step in range(1, self.timesteps):
+            for step in range(1, self.timesteps + 1):
                 time += self.time_interval
                 evolved = self.evolve_density_matrix_one_step(evolved)
                 squared = util.trace_matrix_squared(evolved)
@@ -1023,7 +1020,7 @@ class QuantumSystem:
 
     def plot_time_evolution(self, view_3d: bool = True, set_title: bool = True,
                             elements: [np.array, str] = 'diagonals',
-                            trace_measure: str = None,
+                            trace_measure: str = None, asymptote: bool = True,
                             save: bool = False):
 
         """
@@ -1049,4 +1046,4 @@ class QuantumSystem:
 
         figs.complex_space_time(self, view_3d=view_3d, set_title=set_title,
                                 elements=elements, trace_measure=trace_measure,
-                                save=save)
+                                asymptote=asymptote, save=save)
