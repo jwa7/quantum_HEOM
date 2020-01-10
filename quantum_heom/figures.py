@@ -2,7 +2,10 @@
 
 import os
 
+from math import ceil
 from mpl_toolkits import mplot3d
+from matplotlib.ticker import AutoMinorLocator, MultipleLocator
+import matplotlib.ticker as ticker
 import matplotlib.pyplot as plt
 import numpy as np
 
@@ -18,7 +21,7 @@ TRACE_MEASURES = ['squared', 'distance']
 
 def complex_space_time(qsys, view_3d: bool = True, set_title: bool = False,
                        elements: [np.array, str] = 'diagonals',
-                       trace_measure: str = None,
+                       trace_measure: str = None, asymptote: bool = True,
                        save: bool = False,) -> np.array:
 
     """
@@ -53,6 +56,11 @@ def complex_space_time(qsys, view_3d: bool = True, set_title: bool = False,
         timestep squared, or 'distance' which is the trace distance
         relative to the system's equilibrium state, or a list
         conatining both of these terms i.e. ['squared', 'distance']
+    asymptote : bool
+        If True (default) plots an asymptote at real site
+        population 1 / N, where N is there number of sites. Used
+        only for dephasing models, namely those described by
+        'simple' and 'local dephasing lindblad' dynamics models.
     save : bool
         If True, saves the figure plotted to a .pdf file into the
         directory of relative path 'quantum_HEOM/doc/figures/'.
@@ -76,9 +84,21 @@ def complex_space_time(qsys, view_3d: bool = True, set_title: bool = False,
         trace_measure = [trace_measure]
     elif isinstance(trace_measure, list):
         assert all(item in TRACE_MEASURES for item in trace_measure)
+    # Collect the arguments used in plotting, for use when saving plot later.
+    args2 = {'view_3d': view_3d,
+             'set_title': set_title,
+             'elements': elements,
+             'trace_measure': trace_measure,
+             'asymptote': asymptote,
+             'save': save}
+    # Create bool that ascertains whether or not off-diagonals are going to
+    # be plotted (needed for axes ranges later).
+    plot_off_diags = elements in ['all', 'off-diagonals']
+    elements = util.elements_from_str(qsys.sites, elements)
+    plot_off_diags = not all([int(element[0]) == int(element[1])
+                              for element in elements])
     # Process time evolution data
     time_evolution = qsys.time_evolution
-    elements = util.elements_from_str(qsys.sites, elements)
     times = np.empty(len(time_evolution), dtype=float)
     matrix_data = {element: np.empty(len(time_evolution), dtype=float)
                    for element in elements}
@@ -99,7 +119,7 @@ def complex_space_time(qsys, view_3d: bool = True, set_title: bool = False,
             else:  # off-diagonal; retrieve imaginary part of amplitude
                 if view_3d:
                     # matrix_data[element][t_idx] = np.imag(value)
-                    matrix_data[element][t_idx] = np.real(value)
+                    matrix_data[element][t_idx] = np.real(np.imag(value))
                 else:
                     matrix_data[element][t_idx] = np.real(np.imag(value))
         # Process trace measure data
@@ -112,9 +132,11 @@ def complex_space_time(qsys, view_3d: bool = True, set_title: bool = False,
         ax = plt.figure(figsize=(25, 15))
         ax = plt.axes(projection='3d')
     else:
-        ax = plt.figure(figsize=(15, 10))
-        ax = plt
+        gold_ratio = 1.61803
+        scaling = 8
+        fig, ax = plt.subplots(figsize=(gold_ratio * scaling, scaling))
     # Plot the data
+    width = 2.5
     zeros = np.zeros(len(time_evolution), dtype=float)
     for element, amplitudes in matrix_data.items():
         label = '$\\rho_{' + element + '}$'
@@ -124,54 +146,71 @@ def complex_space_time(qsys, view_3d: bool = True, set_title: bool = False,
             else:  # if an off-diagonal; plot in third dimension
                 ax.plot3D(times, amplitudes, zeros, ls='-', label=label)
         else:  # 2D PLOT; plot all specified elements in same 2D plane.
-            ax.plot(times, amplitudes, ls='-', label=label)
-    # Plot tr(rho^2) and asymptote at 1 / N or thermal_eq
+            ax.plot(times, amplitudes, ls='-', label=label, linewidth=width)
+    # Plot tr(rho^2) and/or trace distance and/or asymptote at 1 / N
     if view_3d:  # 3D PLOT
         if 'squared' in trace_measure:
-            ax.plot3D(times, zeros, squared, dashes=[1, 1],
+            ax.plot3D(times, zeros, squared, dashes=[1, 1], c='gray',
                       label='$tr(\\rho^2)$')
         if 'distance' in trace_measure:
-            ax.plot3D(times, zeros, distance, dashes=[1, 1],
+            ax.plot3D(times, zeros, distance, dashes=[3, 1], c='gray',
                       label='$tr(\\rho^2)$')
-        if qsys.dynamics_model in TEMP_INDEP_MODELS:
+        if qsys.dynamics_model in TEMP_INDEP_MODELS and asymptote:
             ax.plot3D(times, zeros, 1/qsys.sites, c='gray', ls='--',
                       label='$z = \\frac{1}{N}$')
     else:  # 2D plot
         if 'squared' in trace_measure:
-            ax.plot(times, squared, dashes=[1, 1], label='$tr(\\rho^2)$')
+            ax.plot(times, squared, dashes=[1, 1], label='$tr(\\rho^2)$',
+                    linewidth=width, c='gray')
         if 'distance' in trace_measure:
-            ax.plot(times, distance, dashes=[1, 1],
+            ax.plot(times, distance, dashes=[3, 1], linewidth=width, c='gray',
                     label='$0.5 tr(|\\rho(t) - \\rho^{(eq)}|)$')
-        if qsys.dynamics_model in TEMP_INDEP_MODELS:
-        # else:  # temperature independent model; plot 1/N asymptote.
-            ax.plot(times, [1/qsys.sites] * len(times), c='gray',
-                    ls='--', label='$y = \\frac{1}{N}$')
+        if qsys.dynamics_model in TEMP_INDEP_MODELS and asymptote:
+            ax.plot(times, [1/qsys.sites] * len(times), c='gray', ls='--',
+                    linewidth=width, label='$y = \\frac{1}{N}$')
     # Format plot
-    label_size = '15'
+    label_size = '25'
     title_size = '20'
     title = ('Time evolution of a ' + qsys.interaction_model + ' '
              + str(qsys.sites) + '-site system modelled with '
-             + qsys.dynamics_model + ' dynamics. \n(dt = '
-             + str(qsys.time_interval * 1E15) + ' $fs$ , ')
+             + qsys.dynamics_model + ' dynamics. \n(')
     if qsys.dynamics_model in TEMP_INDEP_MODELS:
         title += ('$\\Gamma$ = ' + str(qsys.decay_rate * 1E-12)
                   + ' $rad\\ ps^{-1})$')
     elif qsys.dynamics_model in TEMP_DEP_MODELS:
-        title += ('T = ' + str(qsys.temperature) + ' K)')
+        title += ('T = ' + str(qsys.temperature) + ' K, ')
+        title += ('$\\omega_c$ = ' + str(qsys.cutoff_freq * 1e-12)
+                  + ' $rad\\ ps^{-1}$, $f$ = ' + str(qsys.therm_sf * 1e-12)
+                  + ' $rad\\ ps^{-1})$')
     if view_3d:
         plt.legend(loc='center left', fontsize='large')
-        ax.set_xlabel('time / fs', size=label_size, labelpad=30)
+        ax.set_xlabel('Time / fs', size=label_size, labelpad=30)
         ax.set_ylabel('Imaginary Site Population', size=label_size, labelpad=30)
         ax.set_zlabel('Real Site Population', size=label_size, labelpad=10)
         if set_title:
             ax.set_title(title, size=title_size, pad=20)
         ax.view_init(20, -50)
     else:  # 2D plot
-        plt.legend(loc='center right', fontsize='large', borderaxespad=-7.)
-        ax.xlabel('time / fs', size=label_size, labelpad=20)
-        ax.ylabel('Site Population', size=label_size, labelpad=20)
+        # plt.legend(loc='center right', fontsize='large', borderaxespad=ax_pad)
+        plt.legend(loc='upper right', fontsize='x-large')#, **font)
+        ax.set_xlabel('Time / fs', size=label_size, labelpad=20)#, **font)
+        ax.set_ylabel('Site Population', size=label_size, labelpad=20)
+        ax.set_xlim(times[0], ceil((times[-1] - 1e-9) / 100) * 100)
+        # Format axes ranges
+        if qsys.dynamics_model != 'simple':
+            if plot_off_diags:
+                ax.set_ylim(bottom=-0.5, top=1.)
+            else:
+                ax.set_ylim(bottom=0., top=1.)
+            # Format axes ticks
+            upper_bound = list(ax.get_xticks())[5]
+            ax.xaxis.set_minor_locator(MultipleLocator(upper_bound / 10))
+            ax.yaxis.set_major_locator(MultipleLocator(0.5))
+            ax.yaxis.set_minor_locator(MultipleLocator(0.1))
+            ax.tick_params(axis='both', which='major', size=10, labelsize=17)
+            ax.tick_params(axis='both', which='minor', size=5)
         if set_title:
-            ax.title(title, size=title_size, pad=20)
+            ax.set_title(title, size=title_size, pad=20)
     # Save the figure in a .pdf and the parameters used in a .txt
     if save:
         # Define some abbreviations of terms to use in file naming
@@ -199,10 +238,36 @@ def complex_space_time(qsys, view_3d: bool = True, set_title: bool = False,
         filename += str(index)
         plt.savefig(filename + '.pdf')
         # Write the QuantumSystem attribute information to a .txt file.
-        with open(filename + '.txt', 'w+') as file:
-            file.write('Attributes of QuantumSystem object:')
-            file.write(str(qsys.__dict__) + '\n')
-            file.write()
+        write_args_to_file(qsys, args2, filename + '.txt')
+
+def write_args_to_file(qsys, plot_args: dict, filename: str):
+
+    """
+    Writes a file of name 'filename' that contains the arguments
+    used to define a QuantumSystem object and plot its dynamics.
+
+    Parameters
+    ----------
+    qsys : QuantumSystem
+        The QuantumSystem object whose dynamics have been plotted
+    plot_args : dict
+        A dictionary of the arguments used by the method
+        complex_space_time() to plot the dynamics of qsys.
+    filename : str
+        The absolute path of the file to be created.
+    """
+
+    with open(filename, 'w+') as f:
+        f.write('Arguments for reproducing figure in file of name:\n')
+        f.write(filename.replace('.txt', '.pdf') + '\n')
+        f.write('------------------------------------------------------\n')
+        f.write('# Arguments for initialising QuantumSystem:\n')
+        f.write('args1 = ' + str(qsys.__dict__).replace("\'_", "\'") + '\n')
+        f.write('# Arguments for plotting dynamics:\n')
+        f.write('args2 = ' + str(plot_args) + '\n')
+        f.write('# Use the arguments in the following way:\n')
+        f.write('q = QuantumSystem(**args1)\n')
+        f.write('q.plot_time_evolution(**args2)\n')
 
 def site_cartesian_coordinates(sites: int) -> np.array:
 
