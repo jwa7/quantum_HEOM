@@ -139,7 +139,11 @@ def complex_space_time(qsys, view_3d: bool = True, set_title: bool = False,
     width = 2.5
     zeros = np.zeros(len(time_evolution), dtype=float)
     for element, amplitudes in matrix_data.items():
-        label = '$\\rho_{' + element + '}$'
+        if plot_off_diags:  # label lines with density matrix elements
+            label = '$\\rho_{' + element + '}$'
+        else:  # just label lines with site numbers if only diags plotted
+            assert element[0] == element[1]
+            label = 'site ' + element[0]
         if view_3d:  # 3D PLOT
             if int(element[0]) == int(element[1]):  # diagonal
                 ax.plot3D(times, zeros, amplitudes, ls='-', label=label)
@@ -197,18 +201,18 @@ def complex_space_time(qsys, view_3d: bool = True, set_title: bool = False,
         ax.set_ylabel('Site Population', size=label_size, labelpad=20)
         ax.set_xlim(times[0], ceil((times[-1] - 1e-9) / 100) * 100)
         # Format axes ranges
+        upper_bound = list(ax.get_xticks())[5]
+        ax.xaxis.set_minor_locator(MultipleLocator(upper_bound / 20))
         if qsys.dynamics_model != 'simple':
             if plot_off_diags:
-                ax.set_ylim(bottom=-0.5, top=1.)
+                ax.set_ylim(top=1.)
             else:
                 ax.set_ylim(bottom=0., top=1.)
             # Format axes ticks
-            upper_bound = list(ax.get_xticks())[5]
-            ax.xaxis.set_minor_locator(MultipleLocator(upper_bound / 10))
             ax.yaxis.set_major_locator(MultipleLocator(0.5))
             ax.yaxis.set_minor_locator(MultipleLocator(0.1))
-            ax.tick_params(axis='both', which='major', size=10, labelsize=17)
-            ax.tick_params(axis='both', which='minor', size=5)
+        ax.tick_params(axis='both', which='major', size=10, labelsize=17)
+        ax.tick_params(axis='both', which='minor', size=5)
         if set_title:
             ax.set_title(title, size=title_size, pad=20)
     # Save the figure in a .pdf and the parameters used in a .txt
