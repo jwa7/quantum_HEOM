@@ -29,9 +29,6 @@ LINDBLAD_MODELS = ['local dephasing lindblad',
                    'global thermalising lindblad']
 DYNAMICS_MODELS = TEMP_INDEP_MODELS + TEMP_DEP_MODELS
 
-ALPHA = 12000.
-BETA = 80.
-
 
 class QuantumSystem:
 
@@ -668,30 +665,7 @@ class QuantumSystem:
             number of sites. In units of rad s^-1.
         """
 
-        if self.interaction_model in ['nearest neighbour linear',
-                                      'nearest neighbour cyclic']:
-            # Build base Hamiltonian for linear system
-            hamil = (np.eye(self.sites, k=-1, dtype=complex)
-                     + np.eye(self.sites, k=1, dtype=complex))
-            # Build in interaction between 1st and Nth sites for cyclic systems
-            if self.interaction_model.endswith('cyclic'):
-                hamil[0][self.sites - 1] = 1
-                hamil[self.sites - 1][0] = 1
-            # Scale Hamiltonian values by the ratio of oscillation time periods,
-            # where 10000 is the time of oscillation of the unscaled (0 or 1)
-            # Hamiltonian and 160 is the t_osc of the FMO Hamiltonian (7 sites).
-            hamil *= 10000 / 160
-            # if self.dynamics_model == 'HEOM':
-            #     return hamil * 2 * np.pi * constants.c * 100. # cm^-1 -> rad s^-1
-            return hamil * 2 * np.pi * constants.c * 100. # cm^-1 --> rad s^-1
-
-        if self.interaction_model == 'Huckel':
-            hamil = np.empty((self.sites, self.sites), dtype=complex)
-            hamil.fill(BETA)
-            np.fill_diagonal(hamil, ALPHA)
-
-            return hamil * 2 * np.pi * constants.c * 100.  # cm^-1 --> rad s^-1
-
+        # FMO Hamiltonian
         if self.interaction_model == 'FMO':
             assert self.sites <= 7, 'FMO Hamiltonian only built for <= 7-sites'
             hamil = np.array([[12410, -87.7, 5.5, -5.9, 6.7, -13.7, -9.9],
@@ -705,12 +679,26 @@ class QuantumSystem:
 
             return hamil * 2 * np.pi * constants.c * 100.  # cm^-1 --> rad s^-1
 
-        if self.interaction_model is None:
+        # Huckel Hamiltonian H = (alpha * I) + (beta * A)
+        # where A is the adjacency matrix and I the identity.
+        if self.interaction_model in ['nearest neighbour linear',
+                                      'nearest neighbour cyclic']:
+            adjacency = (np.eye(self.sites, k=-1, dtype=complex)
+                         + np.eye(self.sites, k=1, dtype=complex))
+            if self.interaction_model == 'nearest neighbour cyclic':
+                adjacency[0][self.sites - 1] = 1.
+                adjacency[self.sites - 1][0] = 1.
+            alpha = 0. * 2 * np.pi * constants.c * 100            # rad s^-1
+            beta = - (10000 / 160) * 2 * np.pi * constants.c * 100  # rad s^-1
+        elif self.interaction_model is None:
             raise ValueError('Hamiltonian cannot be built until interaction'
                              ' model chosen from ' + str(INTERACTION_MODELS))
-
-        raise NotImplementedError('Other interaction models have not yet'
-                                  ' been implemented in quantum_HEOM')
+        else:
+            raise NotImplementedError('Other interaction models have not yet'
+                                      ' been implemented in quantum_HEOM.'
+                                      ' Choose from ' + str(INTERACTION_MODELS))
+        # Build the Hamiltonian
+        return (alpha * np.eye(self.sites)) + (beta * adjacency) # rad s^-1
 
     @property
     def hamiltonian_superop(self) -> np.array:
@@ -720,7 +708,7 @@ class QuantumSystem:
         given by:
 
         .. math::
-            H_{sup} = -i(H \\otimes I - I \\otimes H^{\\dagger})
+            H_{sup} = H \\otimes I - I \\otimes H^{\\dagger}
 
         Returns
         -------
@@ -732,7 +720,7 @@ class QuantumSystem:
         ham = self.hamiltonian  # rad s^-1
         iden = np.identity(self.sites)
 
-        return - 1.0j * (np.kron(ham, iden) - np.kron(iden, ham.T.conjugate()))
+        return np.kron(ham, iden) - np.kron(iden, ham.T.conjugate())
 
     @property
     def lindbladian_superop(self) -> np.array:
@@ -895,8 +883,11 @@ class QuantumSystem:
 
         if self.dynamics_model in DYNAMICS_MODELS[1:4]:  # deph/therm lindblad
             # Build the N^2 x N^2 propagator
-            propa = linalg.expm((self.lindbladian_superop
-                                 + self.hamiltonian_superop)
+            # Exponent must be dimensionless so time interval must be in inverse
+            # units of Hamiltonian and Lindbladian superoperators.
+            time_interval = self.time_interval / (2 * np.pi)  # s ---> s rad^-1
+            propa = linalg.expm(((-1.0j * self.hamiltonian_superop)
+                                 + self.lindbladian_superop)
                                 * self.time_interval)
             # Flatten to shape (N^2, 1) to allow multiplication w/ propagator
             evolved = np.matmul(propa, dens_mat.flatten('C'))
@@ -937,21 +928,24 @@ class QuantumSystem:
             # Units of temperature must match units of Hamiltonian
             # Quantity     quantum_HEOM  ---->  QuTiP       Conversion
             # -------------------------------------------------------------
-            # hamiltonian:     rad s^-1         rad ps^-1   * 1E-12
-            # time:                   s         ps          * 1E-12
-            # temperature:            K         rad ps^-1    * k / (hbar * 1E12)
-            # coup_strength:   rad s^-1         ps^-1       / (2pi * 1E12)
-            # cutoff_freq:     rad s^-1         ps^-1       / (2pi * 1E12)
+            # hamiltonian:     rad s^-1         rad ps^-1   * 1e-12
+            # time:                   s         ps          * 1e-12
+            # temperature:            K         rad ps^-1    * k / (hbar * 1e12)
+            # coup_strength:   rad s^-1         ps^-1       / (2pi * 1e12)
+            # cutoff_freq:     rad s^-1         ps^-1       / (2pi * 1e12)
             # planck:                           = 1.0
             # boltzmann:                        = 1.0
 
             # Perform conversions
-            hamiltonian = Qobj(self.hamiltonian * 1E-12)  # rad s^-1 ---> rad ps^-1
-            temperature = (self.temperature * 1E-12
+            hamiltonian = Qobj(self.hamiltonian * 1e-12)  # rad s^-1 ---> rad ps^-1
+            # hamiltonian = Qobj(np.multiply(np.eye(self.sites),
+            #                                util.eigenvalues(self.hamiltonian))
+            #                    * 1e-12)  # rad s^-1 ---> rad ps^-1
+            temperature = (self.temperature * 1e-12
                            * (constants.k / constants.hbar))  # K ---> rad ps^-1
-            time_interval = self.time_interval * 1E12  # s ---> ps
-            coup_strength = self.therm_sf / (2 * np.pi * 1E12) # rad s^-1 -> ps^-1
-            cutoff_freq = self.cutoff_freq / (2 * np.pi * 1E12) # rad s^-1 --> ps^-1
+            time_interval = self.time_interval * 1e12  # s ---> ps
+            coup_strength = self.therm_sf / (2 * np.pi * 1e12) # rad s^-1 -> ps^-1
+            cutoff_freq = self.cutoff_freq / (2 * np.pi * 1e12) # rad s^-1 --> ps^-1
 
             # Build HEOM Solver
             hsolver = HSolverDL(hamiltonian,
@@ -978,11 +972,11 @@ class QuantumSystem:
             if self.matsubara_freqs is None:
                 # Ensure QuantumSystem attribute set in quantum_HEOM units.
                 self.matsubara_freqs = (np.array(hsolver.exp_freq)
-                                        * 2 * np.pi * 1E12) # ps^-1 --> rad s^-1
+                                        * 2 * np.pi * 1e12) # ps^-1 --> rad s^-1
             else:
                 # Ensure HSolverDL attribute set in QuTip units.
                 hsolver.exp_freq = (self.matsubara_freqs # rad s^-1 --> ps^-1
-                                    * 1. / (2 * np.pi * 1E12))
+                                    * 1. / (2 * np.pi * 1e12))
             print(hsolver.__dict__)
 
             # Run the simulation over the time interval.
