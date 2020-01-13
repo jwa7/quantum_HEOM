@@ -137,7 +137,7 @@ def lindbladian_superop(qsys) -> np.array:
             lindbladian += lind_j_op
         return lindbladian * qsys.decay_rate  # rad s^-1 to match Hamiltonian.
 
-    elif qsys.dynamics_model == MODELS[1]:  # global thermalising lindblad
+    if qsys.dynamics_model == MODELS[1]:  # global thermalising lindblad
 
         eigenvalues = linalg.eig(hamiltonian)[0]  # energies in rad s^-1
         for site_a, site_b in permutations(range(1, qsys.sites + 1), 2):
@@ -145,8 +145,6 @@ def lindbladian_superop(qsys) -> np.array:
             site_ab_op = thermalising_lindblad_op(qsys.sites, site_a, site_b)
             omega_ab = eigenvalues[site_b - 1] - eigenvalues[site_a - 1]
             k_ab = rate_constant_redfield(qsys, omega_ab)  # rad s^-1
-            # if k_ab == 0:
-            #     continue
             lind_ab_op = k_ab * (np.kron(site_ab_op.conjugate(), site_ab_op)
                                  - 0.5
                                  * (np.kron(np.matmul(site_ab_op.T,
@@ -157,7 +155,7 @@ def lindbladian_superop(qsys) -> np.array:
             lindbladian += lind_ab_op / (2 * np.pi)
         return lindbladian  # rad s^-1 to match Hamiltonian.
 
-    elif qsys.dynamics_model == MODELS[2]:  # local thermalising lindblad
+    if qsys.dynamics_model == MODELS[2]:  # local thermalising lindblad
 
         eigenvalues, eigenstates = linalg.eig(hamiltonian)
         # Generate matrix where element (i, j) gives frequency gap between
