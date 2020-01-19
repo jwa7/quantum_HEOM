@@ -52,9 +52,10 @@ def trace_distance(A: np.array, B: np.array) -> float:
         The trace distance of the density matrix relative to the
         equilibrium state.
     """
+    mat = A - B
 
-    return 0.5 * np.trace(np.sqrt(np.matmul((A - B).T.conjugate(), (A - B))))
-
+    # return 0.5 * np.trace(np.sqrt(np.matmul(mat.T.conjugate(), mat)))
+    return 0.5 * np.trace(np.sqrt(mat.T.conjugate() @ mat))
 
 def commutator(A: np.array, B: np.array, anti: bool = False) -> complex:
 
@@ -125,7 +126,8 @@ def eigenstates(A: np.array) -> np.array:
     Returns
     -------
     np.array
-        An array of the eigenstates of A.
+        An array of the eigenstates of A, where the columns
+        give the eigenstate for each eigenvalue.
     """
 
     return linalg.eig(A)[1]
@@ -217,3 +219,29 @@ def time_stamp():
 
     return (''.join([i for i in str(datetime.datetime.now())
                      if i not in [' ', '-', '.', ':']])[:-4])
+
+def convert_args_to_latex(file: str) -> list:
+
+    """
+    Takes the file created when plotting figures with 'save=True'
+    with quantum_HEOM and converts the arguments into strings
+    that render correctly in LaTeX, printing them to console.
+    The 2 lines corrspond to the 2 sets of arguments for 1)
+    initialising the QuantumSystem object and 2) calling its
+    plot_time_evolution() method.
+
+    Parameters
+    ----------
+    file : str
+        The absolute path of the input file.
+    """
+
+    args = []
+    with open(file, 'r') as f:
+        for line in f:
+            if line.startswith('args'):
+                line = line.replace('\'', '\"').replace(', ', ', \\newline ')
+                line = line.replace('{', '\{').replace('}', '\}')
+                line = line.replace('_', '\_')
+                args.append(line)
+    return args
