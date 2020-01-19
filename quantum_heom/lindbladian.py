@@ -1,7 +1,7 @@
 """Contains functions to build Lindbladian dephasing and
 thermalising (super)operators."""
 
-from itertools import permutations
+from itertools import permutations, product
 import math
 
 from scipy import constants, linalg
@@ -13,8 +13,8 @@ TEMP_DEP_MODELS = ['local thermalising lindblad',
                    'HEOM']
 
 MODELS = ['local dephasing lindblad',
-          'local thermalising lindblad',
-          'global thermalising lindblad']
+          'global thermalising lindblad',
+          'local thermalising lindblad']
 
 
 def dephasing_lindblad_op(sites: int, site_j: int) -> np.array:
@@ -124,7 +124,7 @@ def lindbladian_superop(qsys) -> np.array:
     lindbladian = np.zeros((qsys.sites ** 2, qsys.sites ** 2), dtype=complex)
     id = np.identity(qsys.sites, dtype=complex)
 
-    if qsys.dynamics_model == MODELS[0]:  # local dephasing lindblad
+    if qsys.dynamics_model == 'local dephasing lindblad':
 
         for site_j in range(1, qsys.sites + 1):
             site_j_op = dephasing_lindblad_op(qsys.sites, site_j)
@@ -135,31 +135,35 @@ def lindbladian_superop(qsys) -> np.array:
                                                       site_j_op),
                                             id)))
             lindbladian += lind_j_op
-        return lindbladian * qsys.decay_rate  # rad s^-1 to match Hamiltonian.
+        # decay rate given in units of s^-1
+        return lindbladian * qsys.decay_rate  # s^-1
 
-    if qsys.dynamics_model == MODELS[1]:  # global thermalising lindblad
+    if qsys.dynamics_model == 'global thermalising lindblad':
 
         eigenvalues = linalg.eig(hamiltonian)[0]  # energies in rad s^-1
-        for site_a, site_b in permutations(range(1, qsys.sites + 1), 2):
+        # Iterate over all different states (a notequal b)
+        for state_a, state_b in permutations(range(1, qsys.sites + 1), 2):
 
-            site_ab_op = thermalising_lindblad_op(qsys.sites, site_a, site_b)
-            omega_ab = eigenvalues[site_b - 1] - eigenvalues[site_a - 1]
+            state_ab_op = thermalising_lindblad_op(qsys.sites, state_a, state_b)
+            omega_ab = eigenvalues[state_b - 1] - eigenvalues[state_a - 1]
             k_ab = rate_constant_redfield(qsys, omega_ab)  # rad s^-1
-            lind_ab_op = k_ab * (np.kron(site_ab_op.conjugate(), site_ab_op)
+            if k_ab == 0.:
+                continue
+            lind_ab_op = k_ab * (np.kron(state_ab_op.conjugate(), state_ab_op)
                                  - 0.5
-                                 * (np.kron(np.matmul(site_ab_op.T,
-                                                      site_ab_op).conjugate(),
+                                 * (np.kron(np.matmul(state_ab_op.T,
+                                                      state_ab_op).conjugate(),
                                             id)
-                                    + np.kron(id, np.matmul(site_ab_op.T,
-                                                            site_ab_op))))
-            lindbladian += lind_ab_op / (2 * np.pi)
-        return lindbladian  # rad s^-1 to match Hamiltonian.
+                                    + np.kron(id, np.matmul(state_ab_op.T,
+                                                            state_ab_op))))
+            lindbladian += lind_ab_op / (2 * np.pi)  # 2pi radians
+        return lindbladian / (2 * np.pi)  # s^-1
 
-    if qsys.dynamics_model == MODELS[2]:  # local thermalising lindblad
+    if qsys.dynamics_model == 'local thermalising lindblad':
 
         eigenvalues, eigenstates = linalg.eig(hamiltonian)
         # Generate matrix where element (i, j) gives frequency gap between
-        # eigenstates i and j, i.e. omega_ij = omega_i - omega_j in rad s^-1
+        # eigenstates i and j, i.e. omega_ij = omega_j - omega_i in rad s^-1
         omega = eigenvalues - eigenvalues.reshape(qsys.sites, 1)
         # Generate a flat list of unique energy gap values, accounting for
         # rounding errors with a decimal tolerance.
@@ -168,8 +172,8 @@ def lindbladian_superop(qsys) -> np.array:
         for uniq in unique:  # iterate over unique freq gaps
 
             # If the unique freq gap is zero skip this iteration as will be zero
-            k_ij = rate_constant_redfield(qsys, uniq)
-            if k_ij == 0:
+            k_uniq = rate_constant_redfield(qsys, uniq)  # rad s^-1
+            if k_uniq == 0:
                 continue
             # Initialise operator that will be the cumsum of individual site
             # operators at freq 'uniq', and iterate over sites.
@@ -179,11 +183,15 @@ def lindbladian_superop(qsys) -> np.array:
                 # Initialise operator for site_m at freq 'uniq', and iterate
                 # over eigenstates; find all freq gaps that equal 'uniq'
                 site_m_op = np.zeros((qsys.sites, qsys.sites), dtype=complex)
-                for state_i, state_j in permutations(range(0, qsys.sites), 2):
+                # for state_i, state_j in permutations(range(0, qsys.sites), 2):
+                for state_i, state_j in product(range(0, qsys.sites), repeat=2):
+                    # omega_ij = omega_j - omega_i
                     omega_ij = omega[state_i][state_j]
                     if omega_ij.round(decimals=decimals) == uniq:
-                        site_m_coeff_j = eigenstates[state_j][site_m - 1]
-                        site_m_coeff_i = eigenstates[state_i][site_m - 1]
+                        # site_m_coeff_j = eigenstates[state_j][site_m - 1]
+                        # site_m_coeff_i = eigenstates[state_i][site_m - 1]
+                        site_m_coeff_j = eigenstates[site_m - 1][state_j]
+                        site_m_coeff_i = eigenstates[site_m - 1][state_i]
                         site_m_op += (site_m_coeff_j.conjugate()
                                       * site_m_coeff_i
                                       * np.outer(eigenstates[state_j],
@@ -197,11 +205,12 @@ def lindbladian_superop(qsys) -> np.array:
                                             np.matmul(site_m_op.T.conjugate(),
                                                       site_m_op))))
 
-            lindbladian += lind * rate_constant_redfield(qsys, uniq)
-        return lindbladian  # rad s^-1
+            lindbladian += k_uniq * lind  # rad s^-1
+        return lindbladian / (2 * np.pi)  # s^-1
 
     raise NotImplementedError('Other lindblad dynamics models not yet'
-                              ' implemented in quantum_HEOM.')
+                              ' implemented in quantum_HEOM. Choose from: '
+                              + str(MODELS))
 
 def rate_constant_redfield(qsys, omega_ab: float):
 
@@ -232,7 +241,7 @@ def rate_constant_redfield(qsys, omega_ab: float):
     """
 
     if qsys.therm_sf == 0. or qsys.cutoff_freq == 0. or omega_ab == 0.:
-        return 0.
+        return 0.  # rad s^-1
     return (2 * np.pi *  # 2pi a dimensionless constant here
             (((1 + bose_einstein_distrib(qsys, omega_ab))
               * spectral_density(qsys, omega_ab))
@@ -270,8 +279,8 @@ def spectral_density(qsys, omega: float) -> float:
         units of rad s^-1.
     """
 
-    if qsys.therm_sf == 0. or qsys.cutoff_freq == 0. or omega == 0.:
-        return 0.
+    if qsys.therm_sf == 0. or qsys.cutoff_freq == 0. or omega <= 0.:
+        return 0.  # rad s^-1
     return qsys.therm_sf * ((2 * qsys.cutoff_freq * omega)
                             / (qsys.cutoff_freq**2 + omega**2)) # rad s^-1
 
@@ -297,8 +306,8 @@ def bose_einstein_distrib(qsys, omega: float):
     Returns
     -------
     float
-        The Bose-Einstein distribution between the 2 states.
-        Is a dimensionless quantity.
+        The Bose-Einstein distribution between the 2 states, a
+        dimensionless quantity.
     """
 
     if np.isclose(omega, 0.):
