@@ -14,19 +14,19 @@ from qutip import sigmax, sigmay, sigmaz, basis, expect, Qobj, qeye
 # import quantum_heom.utilities as util
 
 import figures as figs
-import hamiltonian as ham
 import lindbladian as lind
 import utilities as util
 
-INTERACTION_MODELS = ['nearest neighbour linear', 'nearest neighbour cyclic',
-                      'FMO', 'Huckel']
+INTERACTION_MODELS = ['nearest neighbour linear',
+                      'nearest neighbour cyclic',
+                      'FMO']
 TEMP_INDEP_MODELS = ['simple', 'local dephasing lindblad']
-TEMP_DEP_MODELS = ['local thermalising lindblad',  # need temperature defining
-                   'global thermalising lindblad',
+TEMP_DEP_MODELS = ['global thermalising lindblad',
+                   'local thermalising lindblad',
                    'HEOM']
 LINDBLAD_MODELS = ['local dephasing lindblad',
-                   'local thermalising lindblad',
-                   'global thermalising lindblad']
+                   'global thermalising lindblad',
+                   'local thermalising lindblad']
 DYNAMICS_MODELS = TEMP_INDEP_MODELS + TEMP_DEP_MODELS
 
 
@@ -105,8 +105,7 @@ class QuantumSystem:
             if settings.get('decay_rate') is not None:
                 self.decay_rate = settings.get('decay_rate')
             else:
-                # Convert default of 6.024 rad ps^-1 into correct units.
-                self.decay_rate = 6.024 * 1e12  # rad s-1
+                self.decay_rate = 11e12  # s-1
         # SETTINGS FOR TEMPERATURE DEPENDENT MODELS
         if self.dynamics_model in TEMP_DEP_MODELS:
             if settings.get('temperature') is not None:
@@ -120,7 +119,6 @@ class QuantumSystem:
             if settings.get('cutoff_freq') is not None:
                 self.cutoff_freq = settings.get('cutoff_freq')
             else:
-                # Convert default of 6.024 rad ps^-1 into correct units.
                 self.cutoff_freq = 6.024 * 1e12  # rad s-1
         # SETTINGS FOR HEOM
         if self.dynamics_model == 'HEOM':
@@ -203,6 +201,9 @@ class QuantumSystem:
         if model not in INTERACTION_MODELS:
             raise ValueError('Must choose an interaction model from '
                              + str(INTERACTION_MODELS))
+        if model == 'FMO':
+            assert self.sites == 7, ('If using the FMO Hamiltonian, the number'
+                                     ' of sites in the system must be set to 7')
         self._interaction_model = model
 
     @property
@@ -311,15 +312,15 @@ class QuantumSystem:
 
         """
         Get the value of reduced Planck's constant of
-        1.0545718001391127e-34 Js in SI units.
+        1.0545718001391127e-34 J s rad^-1 in SI units.
 
         Returns
         -------
         float
-            The value of hbar in base SI units of Js.
+            The value of hbar in base SI units of J s rad^-1.
         """
 
-        return constants.hbar  # in J s
+        return constants.hbar  # in J s rad^-1
 
     @property
     def boltzmann(self) -> float:
@@ -388,13 +389,13 @@ class QuantumSystem:
 
         """
         Gets or sets the decay rate of the density matrix elements,
-        in units of rad s^-1.
+        in units of s^-1.
 
         Returns
         -------
         float
             The decay rate of the density matrix elements, in units
-            of rad s^-1.
+            of s^-1.
         """
 
         if self.dynamics_model in TEMP_INDEP_MODELS:
@@ -405,7 +406,7 @@ class QuantumSystem:
 
         if decay_rate < 0.:
             raise ValueError('Cutoff frequency must be a non-negative float'
-                             ' in units of rad s^-1.')
+                             ' in units of s^-1.')
 
         self._decay_rate = decay_rate
 
@@ -667,7 +668,7 @@ class QuantumSystem:
 
         # FMO Hamiltonian
         if self.interaction_model == 'FMO':
-            assert self.sites <= 7, 'FMO Hamiltonian only built for <= 7-sites'
+            assert self.sites == 7, 'FMO Hamiltonian only built for <= 7-sites'
             hamil = np.array([[12410, -87.7, 5.5, -5.9, 6.7, -13.7, -9.9],
                               [-87.7, 12530, 30.8, 8.2, 0.7, 11.8, 4.3],
                               [5.5, 30.8, 12210, -53.5, -2.2, -9.6, 6.0],
@@ -675,8 +676,15 @@ class QuantumSystem:
                               [6.7, 0.7, -2.2, -70.7, 12480, 81.1, -1.3],
                               [-13.7, 11.8, -9.6, -17.0, 81.1, 12630, 39.7],
                               [-9.9, 4.3, 6.0, -63.3, -1.3, 39.7, 12440]])
+            # From Cho's paper:
+            # hamil = np.array([[280, -106, 8, -5, 6, -8, -4],
+            #                   [-106, 420, 28, 6, 2, 13, 1],
+            #                   [8, 28, 0, -62, -1 , -9, 17],
+            #                   [-5, 6, -62, 175, -70, -19, -57],
+            #                   [6, 2, -1, -70, 320, 40, -2],
+            #                   [-8, 13, -9, -19, 40, 360, 32],
+            #                   [-4, 1, 17, -57, -2, 32, 260]])
             hamil = hamil[0:self.sites, 0:self.sites]
-
             return hamil * 2 * np.pi * constants.c * 100.  # cm^-1 --> rad s^-1
 
         # Huckel Hamiltonian H = (alpha * I) + (beta * A)
@@ -688,8 +696,8 @@ class QuantumSystem:
             if self.interaction_model == 'nearest neighbour cyclic':
                 adjacency[0][self.sites - 1] = 1.
                 adjacency[self.sites - 1][0] = 1.
-            alpha = 0. * 2 * np.pi * constants.c * 100            # rad s^-1
-            beta = - (10000 / 160) * 2 * np.pi * constants.c * 100  # rad s^-1
+            alpha = 0. * 2 * np.pi * constants.c * 100              # rad s^-1
+            beta = - (10700 / 130) * 2 * np.pi * constants.c * 100  # rad s^-1
         elif self.interaction_model is None:
             raise ValueError('Hamiltonian cannot be built until interaction'
                              ' model chosen from ' + str(INTERACTION_MODELS))
@@ -708,7 +716,7 @@ class QuantumSystem:
         given by:
 
         .. math::
-            H_{sup} = H \\otimes I - I \\otimes H^{\\dagger}
+            H_{sup} = -i(H \\otimes I - I \\otimes H^{\\dagger})
 
         Returns
         -------
@@ -720,7 +728,7 @@ class QuantumSystem:
         ham = self.hamiltonian  # rad s^-1
         iden = np.identity(self.sites)
 
-        return np.kron(ham, iden) - np.kron(iden, ham.T.conjugate())
+        return -1.0j * (np.kron(ham, iden) - np.kron(iden, ham.T.conjugate()))
 
     @property
     def lindbladian_superop(self) -> np.array:
@@ -843,7 +851,8 @@ class QuantumSystem:
         """
 
         if self.dynamics_model in TEMP_DEP_MODELS:  # thermal eq
-            arg = linalg.expm(- self.hamiltonian * self.hbar / self.kT)
+            arg = linalg.expm(- self.hamiltonian * self.hbar
+                              / (2 * np.pi * self.kT))
             return np.divide(arg, np.trace(arg))
         # Maximally-mixed state for dephasing model:
         return np.eye(self.sites, dtype=complex) * 1. / self.sites
@@ -871,7 +880,7 @@ class QuantumSystem:
 
         evolved = np.zeros((self.sites, self.sites), dtype=complex)
 
-        if self.dynamics_model == DYNAMICS_MODELS[0]:  # 'simple' dynamics
+        if self.dynamics_model == 'simple':
             # Build matrix for simple dephasing of the off-diagonals
             dephaser = dens_mat * self.decay_rate * self.time_interval
             np.fill_diagonal(dephaser, complex(0))
@@ -881,12 +890,15 @@ class QuantumSystem:
                     * util.commutator(self.hamiltonian, dens_mat)
                     - dephaser)
 
-        if self.dynamics_model in DYNAMICS_MODELS[1:4]:  # deph/therm lindblad
+        if self.dynamics_model in LINDBLAD_MODELS:
+            #         quantum_HEOM units      UNITS REQUIRED FOR PROPAGATION:
+            # hbar  : J s rad^-1              J s rad^-1
+            # H_sup : rad s^-1                rad s^-1
+            # L_sup : s^-1                    s^-1
+            # dt    : s                       s
+
             # Build the N^2 x N^2 propagator
-            # Exponent must be dimensionless so time interval must be in inverse
-            # units of Hamiltonian and Lindbladian superoperators.
-            time_interval = self.time_interval / (2 * np.pi)  # s ---> s rad^-1
-            propa = linalg.expm(((-1.0j * self.hamiltonian_superop)
+            propa = linalg.expm((self.hamiltonian_superop
                                  + self.lindbladian_superop)
                                 * self.time_interval)
             # Flatten to shape (N^2, 1) to allow multiplication w/ propagator
