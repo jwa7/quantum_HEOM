@@ -1,6 +1,7 @@
 """Contains functions to plot the time evolution of the quantum system."""
 
 import os
+import re
 
 from math import ceil
 from mpl_toolkits import mplot3d
@@ -267,6 +268,10 @@ def write_args_to_file(qsys, plot_args: dict, filename: str):
     """
 
     with open(filename, 'w+') as f:
+        args1 = re.sub(' +', ' ', str(qsys.__dict__).replace("\'_", "\'"))
+        args2 = re.sub(' +', ' ', str(plot_args))
+        args1 = args1.replace('\n', '')
+        args2 = args2.replace('\n', '')
         f.write('-----------------------------------------------------------\n')
         f.write('Arguments for reproducing figure in file of name:\n')
         f.write(filename.replace('.txt', '.pdf') + '\n')
@@ -276,9 +281,9 @@ def write_args_to_file(qsys, plot_args: dict, filename: str):
         f.write('READY TO COPY INTO PYTHON:\n')
         f.write('-----------------------------------------------------------\n')
         f.write('# Arguments for initialising QuantumSystem\n')
-        f.write('args1 = ' + str(qsys.__dict__).replace("\'_", "\'") + '\n')
+        f.write('args1 = ' + args1 + '\n')
         f.write('# Arguments for plotting dynamics\n')
-        f.write('args2 = ' + str(plot_args) + '\n')
+        f.write('args2 = ' + args2 + '\n')
         f.write('# Use the arguments in the following way:\n')
         f.write('q = QuantumSystem(**args1)\n')
         f.write('q.plot_time_evolution(**args2)\n')

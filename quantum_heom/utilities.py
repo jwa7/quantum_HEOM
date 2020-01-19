@@ -240,7 +240,7 @@ def convert_args_to_latex(file: str) -> list:
     with open(file, 'r') as f:
         for line in f:
             if line.startswith('args'):
-                line = line.replace('\'', '\"').replace(', ', ', \\newline ')
+                line = line.replace('\'', '\"').replace(', "', ', \\newline "')
                 line = line.replace('{', '\{').replace('}', '\}')
                 line = line.replace('_', '\_')
                 args.append(line)
