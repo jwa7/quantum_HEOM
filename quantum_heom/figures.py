@@ -132,8 +132,7 @@ def complex_space_time(qsys, view_3d: bool = True, set_title: bool = False,
         ax = plt.figure(figsize=(25, 15))
         ax = plt.axes(projection='3d')
     else:
-        gold_ratio = 1.61803
-        scaling = 8
+        gold_ratio, scaling = 1.61803, 8
         fig, ax = plt.subplots(figsize=(gold_ratio * scaling, scaling))
     # Plot the data
     width = 2.5
@@ -143,7 +142,10 @@ def complex_space_time(qsys, view_3d: bool = True, set_title: bool = False,
             label = '$\\rho_{' + element + '}$'
         else:  # just label lines with site numbers if only diags plotted
             assert element[0] == element[1]
-            label = 'site ' + element[0]
+            if qsys.interaction_model == 'FMO':
+                label = 'BChl ' + element[0]
+            else:
+                label = 'Site ' + element[0]
         if view_3d:  # 3D PLOT
             if int(element[0]) == int(element[1]):  # diagonal
                 ax.plot3D(times, zeros, amplitudes, ls='-', label=label)
@@ -159,7 +161,7 @@ def complex_space_time(qsys, view_3d: bool = True, set_title: bool = False,
         if 'distance' in trace_measure:
             ax.plot3D(times, zeros, distance, dashes=[3, 1], c='gray',
                       label='$tr(\\rho^2)$')
-        if qsys.dynamics_model in TEMP_INDEP_MODELS and asymptote:
+        if asymptote:
             ax.plot3D(times, zeros, 1/qsys.sites, c='gray', ls='--',
                       label='$z = \\frac{1}{N}$')
     else:  # 2D plot
@@ -169,7 +171,7 @@ def complex_space_time(qsys, view_3d: bool = True, set_title: bool = False,
         if 'distance' in trace_measure:
             ax.plot(times, distance, dashes=[3, 1], linewidth=width, c='gray',
                     label='$0.5 tr(|\\rho(t) - \\rho^{(eq)}|)$')
-        if qsys.dynamics_model in TEMP_INDEP_MODELS and asymptote:
+        if asymptote:
             ax.plot(times, [1/qsys.sites] * len(times), c='gray', ls='--',
                     linewidth=width, label='$y = \\frac{1}{N}$')
     # Format plot
@@ -179,8 +181,8 @@ def complex_space_time(qsys, view_3d: bool = True, set_title: bool = False,
              + str(qsys.sites) + '-site system modelled with '
              + qsys.dynamics_model + ' dynamics. \n(')
     if qsys.dynamics_model in TEMP_INDEP_MODELS:
-        title += ('$\\Gamma$ = ' + str(qsys.decay_rate * 1E-12)
-                  + ' $rad\\ ps^{-1})$')
+        title += ('$\\Gamma_{deph}$ = ' + str(qsys.decay_rate * 1E-12)
+                  + ' $ps^{-1})$')
     elif qsys.dynamics_model in TEMP_DEP_MODELS:
         title += ('T = ' + str(qsys.temperature) + ' K, ')
         title += ('$\\omega_c$ = ' + str(qsys.cutoff_freq * 1e-12)
@@ -189,8 +191,8 @@ def complex_space_time(qsys, view_3d: bool = True, set_title: bool = False,
     if view_3d:
         plt.legend(loc='center left', fontsize='large')
         ax.set_xlabel('Time / fs', size=label_size, labelpad=30)
-        ax.set_ylabel('Imaginary Site Population', size=label_size, labelpad=30)
-        ax.set_zlabel('Real Site Population', size=label_size, labelpad=10)
+        ax.set_ylabel('Imaginary Amplitude', size=label_size, labelpad=30)
+        ax.set_zlabel('Real Amplitude', size=label_size, labelpad=10)
         if set_title:
             ax.set_title(title, size=title_size, pad=20)
         ax.view_init(20, -50)
@@ -198,7 +200,10 @@ def complex_space_time(qsys, view_3d: bool = True, set_title: bool = False,
         # plt.legend(loc='center right', fontsize='large', borderaxespad=ax_pad)
         plt.legend(loc='upper right', fontsize='x-large')#, **font)
         ax.set_xlabel('Time / fs', size=label_size, labelpad=20)#, **font)
-        ax.set_ylabel('Site Population', size=label_size, labelpad=20)
+        if plot_off_diags:
+            ax.set_ylabel('Amplitude', size=label_size, labelpad=20)
+        else:
+            ax.set_ylabel('Site Population', size=label_size, labelpad=20)
         ax.set_xlim(times[0], ceil((times[-1] - 1e-9) / 100) * 100)
         # Format axes ranges
         upper_bound = list(ax.get_xticks())[5]
@@ -262,16 +267,30 @@ def write_args_to_file(qsys, plot_args: dict, filename: str):
     """
 
     with open(filename, 'w+') as f:
+        f.write('-----------------------------------------------------------\n')
         f.write('Arguments for reproducing figure in file of name:\n')
         f.write(filename.replace('.txt', '.pdf') + '\n')
-        f.write('------------------------------------------------------\n')
-        f.write('# Arguments for initialising QuantumSystem:\n')
+        f.write('-----------------------------------------------------------\n')
+        f.write('\n\n')
+        f.write('-----------------------------------------------------------\n')
+        f.write('READY TO COPY INTO PYTHON:\n')
+        f.write('-----------------------------------------------------------\n')
+        f.write('# Arguments for initialising QuantumSystem\n')
         f.write('args1 = ' + str(qsys.__dict__).replace("\'_", "\'") + '\n')
-        f.write('# Arguments for plotting dynamics:\n')
+        f.write('# Arguments for plotting dynamics\n')
         f.write('args2 = ' + str(plot_args) + '\n')
         f.write('# Use the arguments in the following way:\n')
         f.write('q = QuantumSystem(**args1)\n')
         f.write('q.plot_time_evolution(**args2)\n')
+    with open(filename, 'a+') as f:
+        args1, args2 = util.convert_args_to_latex(filename)
+        f.write('\n\n')
+        f.write('-----------------------------------------------------------\n')
+        f.write('READY TO COPY IN LATEX FOR PROPER RENDERING:\n')
+        f.write('-----------------------------------------------------------\n')
+        f.write(args1 + '\n')
+        f.write(args2 + '\n')
+        f.write('-----------------------------------------------------------\n')
 
 def site_cartesian_coordinates(sites: int) -> np.array:
 
