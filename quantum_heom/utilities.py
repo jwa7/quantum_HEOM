@@ -52,10 +52,12 @@ def trace_distance(A: np.array, B: np.array) -> float:
         The trace distance of the density matrix relative to the
         equilibrium state.
     """
-    mat = A - B
 
-    # return 0.5 * np.trace(np.sqrt(np.matmul(mat.T.conjugate(), mat)))
-    return 0.5 * np.trace(np.sqrt(mat.T.conjugate() @ mat))
+    mat = A - B
+    eigs = linalg.eig(mat)[0]
+    diag = np.diag(np.absolute(eigs))
+
+    return 0.5 * np.trace(diag)
 
 def commutator(A: np.array, B: np.array, anti: bool = False) -> complex:
 
