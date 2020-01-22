@@ -14,6 +14,7 @@ from qutip import sigmax, sigmay, sigmaz, basis, expect, Qobj, qeye
 # import quantum_heom.utilities as util
 
 import figures as figs
+import heom
 import lindbladian as lind
 import utilities as util
 
@@ -752,9 +753,8 @@ class QuantumSystem:
     def coupling_op(self) -> np.array:
 
         """
-        Get or set the operator describing the coupling between
-        the system and bath modes, used in the HEOM model of the
-        dynamics.
+        Get the operator describing the coupling between the system
+        and bath modes, used in the HEOM model of the dynamics.
 
         Returns
         -------
@@ -763,13 +763,7 @@ class QuantumSystem:
             of sites) that represents the coupling operator.
         """
 
-        return self._coupling_op
-
-    @coupling_op.setter
-    def coupling_op(self, coupling_op):
-
-        if self.dynamics_model == 'HEOM':
-            self._coupling_op = coupling_op
+        return heom.system_bath_coupling_op(self)
 
     @property
     def initial_density_matrix(self) -> np.array:
@@ -851,8 +845,7 @@ class QuantumSystem:
         """
 
         if self.dynamics_model in TEMP_DEP_MODELS:  # thermal eq
-            arg = linalg.expm(- self.hamiltonian * self.hbar
-                              / (2 * np.pi * self.kT))
+            arg = linalg.expm(- self.hamiltonian * self.hbar / self.kT)
             return np.divide(arg, np.trace(arg))
         # Maximally-mixed state for dephasing model:
         return np.eye(self.sites, dtype=complex) * 1. / self.sites
