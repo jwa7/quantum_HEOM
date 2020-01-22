@@ -141,8 +141,6 @@ class QuantumSystem:
                 self.bath_cutoff = 20
             if settings.get('coupling_op') is not None:
                 self.coupling_op = settings.get('coupling_op')
-            elif settings.get('coupling_op') is None and self.sites == 2:
-                self.coupling_op = np.array([[1., 0.], [0., -1.]])  # pauli-z
         # OTHER SETTINGS
         if settings.get('init_site_pop') is not None:
             self.init_site_pop = settings.get('init_site_pop')
@@ -697,8 +695,10 @@ class QuantumSystem:
             if self.interaction_model == 'nearest neighbour cyclic':
                 adjacency[0][self.sites - 1] = 1.
                 adjacency[self.sites - 1][0] = 1.
-            alpha = 0. * 2 * np.pi * constants.c * 100              # rad s^-1
+            alpha = 1. * 2 * np.pi * constants.c * 100              # rad s^-1
             beta = - (10700 / 130) * 2 * np.pi * constants.c * 100  # rad s^-1
+            # adjacency[0, 0] = 100. * 2 * np.pi * constants.c * 100
+            # adjacency[1, 1] = 200. * 2 * np.pi * constants.c * 100
         elif self.interaction_model is None:
             raise ValueError('Hamiltonian cannot be built until interaction'
                              ' model chosen from ' + str(INTERACTION_MODELS))
@@ -894,6 +894,17 @@ class QuantumSystem:
             propa = linalg.expm((self.hamiltonian_superop
                                  + self.lindbladian_superop)
                                 * self.time_interval)
+            # lindbladian_superop = np.array([[-2.19156757e+13+0.j, 0.00000000e+00+0.j,
+            #                                  0.00000000e+00+0.j, 4.82639606e+13+0.j],
+            #                                 [0.00000000e+00+0.j, -3.50898181e+13+0.j,
+            #                                  0.00000000e+00+0.j, 0.00000000e+00+0.j],
+            #                                 [0.00000000e+00+0.j, 0.00000000e+00+0.j,
+            #                                  -3.50898181e+13+0.j, 0.00000000e+00+0.j],
+            #                                 [2.19156757e+13+0.j, 0.00000000e+00+0.j,
+            #                                  0.00000000e+00+0.j, -4.82639606e+13+0.j]])
+            # propa = linalg.expm((self.hamiltonian_superop
+            #                      + (lindbladian_superop / (2 * np.pi)))
+            #                     * self.time_interval)
             # Flatten to shape (N^2, 1) to allow multiplication w/ propagator
             evolved = np.matmul(propa, dens_mat.flatten('C'))
             # Reshape back to square and return
@@ -942,7 +953,7 @@ class QuantumSystem:
             # boltzmann:                        = 1.0
 
             # Perform conversions
-            hamiltonian = Qobj(self.hamiltonian * 1e-12)  # rad s^-1 ---> rad ps^-1
+            hamiltonian = Qobj(self.hamiltonian * 1e-12)  # rad s^-1 -> rad ps^-1
             # hamiltonian = Qobj(np.multiply(np.eye(self.sites),
             #                                util.eigenvalues(self.hamiltonian))
             #                    * 1e-12)  # rad s^-1 ---> rad ps^-1
@@ -988,30 +999,30 @@ class QuantumSystem:
             times = np.array(range(self.timesteps)) * time_interval
             result = hsolver.run(Qobj(self.initial_density_matrix), times)
             # Convert time evolution data to quantum_HEOM format
-            evolution = np.empty(len(result.states), dtype=tuple)
+            evolution = np.empty(len(result.states), dtype=np.ndarray)
             for i in range(0, len(result.states)):
                 dens_matrix = np.array(result.states[i])
                 # times need converting back from ps --> s
-                evolution[i] = (float(result.times[i]) * 1E-12,
-                                dens_matrix,
-                                util.trace_matrix_squared(dens_matrix),
-                                util.trace_distance(dens_matrix,
-                                                    self.equilibrium_state))
+                evolution[i] = np.array([float(result.times[i]) * 1E-12,
+                                         dens_matrix,
+                                         util.trace_matrix_squared(dens_matrix),
+                                         util.trace_distance(dens_matrix,
+                                                             self.equilibrium_state)])
             return evolution
 
         # ALL OTHER DYNAMICS
         if self.time_interval and self.timesteps:
-            evolution = np.empty(self.timesteps + 1, dtype=tuple)
+            evolution = np.empty(self.timesteps + 1, dtype=np.ndarray)
             time, evolved = 0., self.initial_density_matrix
             squared = util.trace_matrix_squared(evolved)
             distance = util.trace_distance(evolved, self.equilibrium_state)
-            evolution[0] = (time, evolved, squared, distance)
+            evolution[0] = np.array([time, evolved, squared, distance])
             for step in range(1, self.timesteps + 1):
                 time += self.time_interval
                 evolved = self.evolve_density_matrix_one_step(evolved)
                 squared = util.trace_matrix_squared(evolved)
                 distance = util.trace_distance(evolved, self.equilibrium_state)
-                evolution[step] = (time, evolved, squared, distance)
+                evolution[step] = np.array([time, evolved, squared, distance])
 
             return evolution
 
