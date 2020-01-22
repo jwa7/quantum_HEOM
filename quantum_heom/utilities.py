@@ -1,6 +1,7 @@
 """Contains general use utility functions."""
 
 import datetime
+import re
 from itertools import permutations, product
 
 from scipy import linalg
@@ -156,8 +157,13 @@ def elements_from_str(sites: int, elements: str) -> list:
     Returns
     -------
     list
-        A list of numerical string representations of denisty
+        A list of numerical string representations of density
         matrix elements.
+
+    Raises
+    ------
+    ValueError
+        If an invalid input for the elements is passed.
     """
 
     # Check elements input
@@ -185,6 +191,48 @@ def elements_from_str(sites: int, elements: str) -> list:
                     for i, j in permutations(range(1, sites + 1), 2)]
     else:
         raise ValueError('elements argument passed as invalid value.')
+
+def types_of_elements(elements: list):
+
+    """
+    Characterises whether all the elements passed in the input list
+    are 'diagonals' (i.e. if elements=['11', '22', '33']),
+    'off-diagonals' (i.e. if elements=['12', '21', '42']), or 'both'
+    (i.e. if elements=['11', '22', '21', '12']). String descriptions
+    of 'diagonals', 'off-diagonals', or 'all' may also be passed.
+
+    Parameters
+    ----------
+    elements : list of str
+        A list of string represntations of the elements of a
+        matrix, numbered with indexing starting at 1; i.e ['11',
+        '12', '21', '22']. Alternatively, the string description
+        can also be passed, in accordance with the specification
+        for the elements argument to the
+        figures.complex_space_time() method.
+
+    Returns
+    -------
+    str
+        The characterisation of the list of elements as a whole,
+        returning either 'diagonals', 'off-diagonals', or 'both'.
+    """
+
+    if isinstance(elements, str):
+        assert elements in ['all', 'off-diagonals', 'diagonals']
+        if elements == 'all':
+            return 'both'
+        else:
+            return elements
+
+    # If elements are passed in list form i.e. ['11', '21', ...]
+    if isinstance(elements, list):
+        if all([int(element[0]) == int(element[1]) for element in elements]):
+            return 'diagonals'
+        if all([int(element[0]) != int(element[1]) for element in elements]):
+            return 'off-diagonals'
+        return 'both'
+    raise ValueError('Incorrect format for elements')
 
 def date_stamp():
 
@@ -247,3 +295,72 @@ def convert_args_to_latex(file: str) -> list:
                 line = line.replace('_', '\_')
                 args.append(line)
     return args
+
+def write_args_to_file(qsys, plot_args: dict, filename: str):
+
+    """
+    Writes a file of name 'filename' that contains the arguments
+    used to define a QuantumSystem object and plot its dynamics.
+
+    Parameters
+    ----------
+    qsys : QuantumSystem
+        The QuantumSystem object whose dynamics have been plotted
+    plot_args : dict
+        A dictionary of the arguments used by the method
+        complex_space_time() to plot the dynamics of qsys.
+    filename : str
+        The absolute path of the file to be created.
+    """
+
+    with open(filename, 'w+') as f:
+        args1 = re.sub(' +', ' ', str(qsys.__dict__).replace("\'_", "\'"))
+        args2 = re.sub(' +', ' ', str(plot_args))
+        args1 = args1.replace('\n', '')
+        args2 = args2.replace('\n', '')
+        f.write('-----------------------------------------------------------\n')
+        f.write('Arguments for reproducing figure in file of name:\n')
+        f.write(filename.replace('.txt', '.pdf') + '\n')
+        f.write('-----------------------------------------------------------\n')
+        f.write('\n\n')
+        f.write('-----------------------------------------------------------\n')
+        f.write('READY TO COPY INTO PYTHON:\n')
+        f.write('-----------------------------------------------------------\n')
+        f.write('# Arguments for initialising QuantumSystem\n')
+        f.write('args1 = ' + args1 + '\n')
+        f.write('# Arguments for plotting dynamics\n')
+        f.write('args2 = ' + args2 + '\n')
+        f.write('# Use the arguments in the following way:\n')
+        f.write('q = QuantumSystem(**args1)\n')
+        f.write('q.plot_time_evolution(**args2)\n')
+    with open(filename, 'a+') as f:
+        args1, args2 = convert_args_to_latex(filename)
+        f.write('\n\n')
+        f.write('-----------------------------------------------------------\n')
+        f.write('READY TO COPY IN LATEX FOR PROPER RENDERING:\n')
+        f.write('-----------------------------------------------------------\n')
+        f.write(args1 + '\n')
+        f.write(args2 + '\n')
+        f.write('-----------------------------------------------------------\n')
+
+def site_cartesian_coordinates(sites: int) -> np.array:
+
+    """
+    Returns an array of site coordinates on an xy plane
+    for an N-site system, where the coordinates represent
+    the vertices of an N-sided regular polygon with its
+    centre at the origin.
+    """
+
+    assert sites > 1
+
+    r = 5  # distance of each site from the origin
+
+    site_coords = np.empty(sites, dtype=tuple)
+    site_coords[0] = (0, r)
+    for i in range(1, sites):
+
+        phi = i * 2 * np.pi / sites  # internal angle of the N-sided polygon
+        site_coords[i] = (r * np.sin(phi), r * np.cos(phi))
+
+    return site_coords
