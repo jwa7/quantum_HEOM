@@ -49,11 +49,11 @@ def dephasing_lindblad_op(sites: int, site_j: int) -> np.array:
 
     return lindblad_operator
 
-def thermalising_lindblad_op(sites: int, site_a: int, site_b: int):
+def thermalising_lindblad_op(sites: int, state_a: int, state_b: int):
 
     """
     Builds an N x N matrix that contains a single non-zero element
-    (of value 1) at element (site_a, site_b), where N is the number
+    (of value 1) at element (state_b, state_a), where N is the number
     of sites in the system. Used in constructing the thermalising
     lindbladian superoperator.
 
@@ -62,23 +62,26 @@ def thermalising_lindblad_op(sites: int, site_a: int, site_b: int):
     sites : int
         The number of sites in the open quantum system and
         hence the dimension of the lindblad operator.
-    site_a : int
-        The number of the site receiving exciton population.
-    site_b : int
-        The number of the site transferring exiton population.
+    state_a : int
+        The number of the state receiving exciton population.
+    state_b : int
+        The number of the state transferring exiton population.
     """
 
-    assert site_a > 0, 'The site number must be a positive integer'
-    assert site_b > 0, 'The site number must be a positive integer'
-    assert site_a <= sites, ('The site number cannot be larger than the total'
-                             ' number of sites')
-    assert site_b <= sites, ('The site number cannot be larger than the total'
-                             ' number of sites')
+    assert state_a >= 0, 'The state number must be a non-negative integer'
+    assert state_b >= 0, 'The state number must be a non-negative integer'
+    assert state_a <= sites - 1, ('The state number cannot be larger than the'
+                                  ' total number of sites')
+    assert state_b <= sites - 1, ('The state number cannot be larger than the'
+                                  ' total number of sites')
 
-    lindblad_operator = np.zeros((sites, sites), dtype=complex)
-    lindblad_operator[site_a - 1][site_b - 1] = 1.+0.j
+    ket_b = np.zeros(sites, dtype=float)
+    bra_a = np.zeros(sites, dtype=float).reshape(sites, 1)
+    ket_b[state_b] = 1.
+    bra_a[state_a] = 1.
+    lindblad_op = np.outer(ket_b, bra_a)
 
-    return lindblad_operator
+    return lindblad_op
 
 def lindbladian_superop(qsys) -> np.array:
 
@@ -142,14 +145,15 @@ def lindbladian_superop(qsys) -> np.array:
 
         eigenvalues = linalg.eig(hamiltonian)[0]  # energies in rad s^-1
         # Iterate over all different states (a notequal b)
-        for state_a, state_b in permutations(range(1, qsys.sites + 1), 2):
+        for state_a, state_b in permutations(range(0, qsys.sites), 2):
 
+            # L_ab = ket(b) x bra(a)   (outer product |b><a|)
             state_ab_op = thermalising_lindblad_op(qsys.sites, state_a, state_b)
-            omega_ab = eigenvalues[state_b - 1] - eigenvalues[state_a - 1]
+            omega_ab = eigenvalues[state_b] - eigenvalues[state_a]
             k_ab = rate_constant_redfield(qsys, omega_ab)  # rad s^-1
             if k_ab == 0.:
                 continue
-            lind_ab_op = k_ab * (np.kron(state_ab_op.conjugate(), state_ab_op)
+            lind_ab_op = k_ab * (np.kron(state_ab_op, state_ab_op)
                                  - 0.5
                                  * (np.kron(np.matmul(state_ab_op.T,
                                                       state_ab_op).conjugate(),
@@ -161,10 +165,22 @@ def lindbladian_superop(qsys) -> np.array:
 
     if qsys.dynamics_model == 'local thermalising lindblad':
 
+        # lin = np.array([[-2.19156757e+13+0.j, 0.00000000e+00+0.j,
+        #                                  0.00000000e+00+0.j, 4.82639606e+13+0.j],
+        #                                 [0.00000000e+00+0.j, -3.50898181e+13+0.j,
+        #                                  0.00000000e+00+0.j, 0.00000000e+00+0.j],
+        #                                 [0.00000000e+00+0.j, 0.00000000e+00+0.j,
+        #                                  -3.50898181e+13+0.j, 0.00000000e+00+0.j],
+        #                                 [2.19156757e+13+0.j, 0.00000000e+00+0.j,
+        #                                  0.00000000e+00+0.j, -4.82639606e+13+0.j]])
+        # lin = lin / (2 * np.pi)
+        # return lin
+
         eigenvalues, eigenstates = linalg.eig(hamiltonian)
         # Generate matrix where element (i, j) gives frequency gap between
         # eigenstates i and j, i.e. omega_ij = omega_j - omega_i in rad s^-1
         omega = eigenvalues - eigenvalues.reshape(qsys.sites, 1)
+        # import pdb;
         # Generate a flat list of unique energy gap values, accounting for
         # rounding errors with a decimal tolerance.
         decimals = 0
@@ -186,7 +202,7 @@ def lindbladian_superop(qsys) -> np.array:
                 # for state_i, state_j in permutations(range(0, qsys.sites), 2):
                 for state_i, state_j in product(range(0, qsys.sites), repeat=2):
                     # omega_ij = omega_j - omega_i
-                    omega_ij = omega[state_i][state_j]
+                    omega_ij = omega[state_j][state_i]
                     if omega_ij.round(decimals=decimals) == uniq:
                         # site_m_coeff_j = eigenstates[state_j][site_m - 1]
                         # site_m_coeff_i = eigenstates[state_i][site_m - 1]
@@ -198,15 +214,16 @@ def lindbladian_superop(qsys) -> np.array:
                                                  eigenstates[state_i]))
 
                 # Get lindblad superoperator for site_m at freq 'uniq'
-                lind += (np.kron(site_m_op.T.conjugate(), site_m_op)
-                         - 0.5 * (np.kron(np.matmul(site_m_op.T.conjugate(),
-                                                    site_m_op), id)
+                lind += (np.kron(site_m_op.conjugate(), site_m_op)
+                         - 0.5 * (np.kron(np.matmul(site_m_op.T,
+                                                    site_m_op).conjugate(), id)
                                   + np.kron(id,
-                                            np.matmul(site_m_op.T.conjugate(),
+                                            np.matmul(site_m_op.T,
                                                       site_m_op))))
 
             lindbladian += k_uniq * lind  # rad s^-1
-        return lindbladian / (2 * np.pi)  # s^-1
+        lindbladian /= (2 * np.pi)  # rad s^-1 ---> s^-1
+        return lindbladian #/ (2 * np.pi)  # s^-1
 
     raise NotImplementedError('Other lindblad dynamics models not yet'
                               ' implemented in quantum_HEOM. Choose from: '
