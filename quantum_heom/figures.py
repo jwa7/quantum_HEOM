@@ -48,12 +48,8 @@ def plot_dynamics(systems, elements: [list, str] = 'diagonals',
                                                    + name + ' must be'
                                                    ' the same.')
     sites = systems[0].sites
-    timesteps = systems[0].timesteps
-    time_interval = systems[0].time_interval
     # Checks the elements input, and convert to i.e. ['11', '21', ...] format
     elements = util.elements_from_str(sites, elements)
-    # Get the types of the elements; 'diagonals', 'off-diagonals', or 'both'
-    elem_types = util.types_of_elements(elements)
     assert isinstance(view_3d, bool), 'view_3d must be passed as a bool'
     assert isinstance(set_title, bool), 'set_title must be passed as a bool'
     # assert trace_measure in TRACE_MEASURES, ('Must choose the trace measures'
@@ -68,21 +64,16 @@ def plot_dynamics(systems, elements: [list, str] = 'diagonals',
         assert all(item in TRACE_MEASURES for item in trace_measure)
     assert isinstance(asymptote, bool), 'asymptote must be passed as a bool'
     assert isinstance(save, bool), 'save must be passed as a bool'
-
-    # ----------------------------------------------------------------------
-    # PROCESS DATA
-    # ----------------------------------------------------------------------
-    # times, matrices, squared, distance = process_evo_data(time_evolution,
-    #                                                       elements,
-    #                                                       trace_measure)
     # ----------------------------------------------------------------------
     # 3D PLOT
     # ----------------------------------------------------------------------
     if view_3d:
-        ax = plt.figure(figsize=(25, 15))
-        ax = plt.axes(projection='3d')
+        axes = plt.figure(figsize=(25, 15))
+        axes = plt.axes(projection='3d')
         for sys in systems:
-            plot_evo_3d(fig, sys, elements, set_title, trace_measure)
+            time_evo = sys.time_evolution
+            processed = process_evo_data(time_evo, elements, trace_measure)
+            plot_evo_3d(axes, processed, sys, elements, set_title, asymptote)
     # ----------------------------------------------------------------------
     # 2D PLOT
     # ----------------------------------------------------------------------
@@ -97,9 +88,15 @@ def plot_dynamics(systems, elements: [list, str] = 'diagonals',
     # ----------------------------------------------------------------------
     # SAVE PLOT
     # ----------------------------------------------------------------------
-    # Save the figure in a .pdf and the parameters used in a .txt
+    # Save the figure in a .pdf and the arguments used in a .txt
     if save:
-        save_figure_and_args(systems, plot_args)
+        plot_args = {'view_3d': view_3d,
+                     'set_title': set_title,
+                     'elements': elements,
+                     'trace_measure': trace_measure,
+                     'asymptote': asymptote,
+                     'save': save}
+        save_figure_and_args(axes, systems, plot_args)
 
 def plot_evo_2d(ax, processed, qsys, elements: list, set_title: bool,
                 asymptote: bool):
@@ -112,7 +109,6 @@ def plot_evo_2d(ax, processed, qsys, elements: list, set_title: bool,
 
     # Unpack the processed data
     times, matrix_data, squared, distance = processed
-    zeros = np.zeros(len(times), dtype=float)
     # Get the types of the elements; 'diagonals', 'off-diagonals', or 'both'
     elem_types = util.types_of_elements(elements)
     # ----------------------------------------------------------------------
@@ -477,7 +473,7 @@ def plot_evo_3d(fig, qsys, elements: list, set_title: bool,
 #     if save:
 #         save_figure_and_args(qsys, plot_args)
 
-def save_figure_and_args(qsys, plot_args: dict):
+def save_figure_and_args(ax, systems, plot_args: dict):
 
     """
     Saves the figure to a descriptive filename in the relative
@@ -488,12 +484,11 @@ def save_figure_and_args(qsys, plot_args: dict):
 
     Parameters
     ----------
-    qsys : QuantumSystem
-        The QuantumSystem object that defines the system and
-        its dynamics.
+    systems : list of QuantumSystem
+        The QuantumSystem objects whose dynamics have been plotted.
     plot_args : dict
-        The arguments passed to the complex_space_time() method,
-        used to plot the dynamics of qsys.
+        The arguments passed to the plot_dynamics() method,
+        used to plot the dynamics of the systems.
     """
 
     # Define some abbreviations of terms to use in file naming
@@ -510,26 +505,49 @@ def save_figure_and_args(qsys, plot_args: dict):
     fig_dir = (os.getcwd()[:os.getcwd().find('quantum_HEOM')]
                + 'quantum_HEOM/doc/figures/')
     if len(systems) == 1:
-        filename = (fig_dir + str(qsys.sites) + '_sites'
-                    + abbrevs[qsys.interaction_model]
-                    + abbrevs[qsys.dynamics_model]
-                    + '_')
-                    # + '_' + date_stamp + '_')
+        filename = (fig_dir + str(systems[0].sites) + '_sites'
+                    + abbrevs[systems[0].interaction_model]
+                    + abbrevs[systems[0].dynamics_model])
     else:
-        filename = (fig_dir)
+        # Ascertain which variables are being compared between systems.
+        interactions = [sys.interaction_model for sys in systems]
+        interactions = interactions.count(interactions[0]) == len(interactions)
+        dynamics = [sys.dynamics_model for sys in systems]
+        dynamics = dynamics.count(dynamics[0]) == len(dynamics)
+        temp = [sys.temperature for sys in systems]
+        temp = temp.count(temp[0]) == len(temp)
+        # Include the constant arguments in the filename and highlight variables
+        filename = fig_dir + str(systems[0].sites) + '_sites'
+        if interactions:
+            filename += abbrevs[systems[0].interaction_model]
+        else:
+            filename += '_variable_interactions'
+        if dynamics:
+            filename += abbrevs[systems[0].dynamics_model]
+        else:
+            filename += '_variable_dynamics'
+        if temp:
+            filename += '_' + systems[0].temperature + 'K'
+        else:
+            filename += '_variable_temp'
+        filename += '_elements'
+        for elem in plot_args['elements']:
+            filename += '_' + elem
     # Create a file index number to avoid overwriting existing files
-    # with same file name created on the same day
+    filename += '_version_'
     index = 0
     while os.path.exists(filename + str(index) + '.pdf'):
         index += 1
     filename += str(index)
+    # Save the figure and write the argument info to file.
     plt.savefig(filename + '.pdf')
-    # Write the QuantumSystem attribute information and plotting
-    # arguments to a .txt file.
-    util.write_args_to_file(qsys, plot_args, filename + '.txt')
+    util.write_args_to_file(systems, plot_args, filename + '.txt')
 
 def process_evo_data(time_evolution: np.array, elements: list,
                      trace_measure: list) -> dict:
+
+    """
+    """
 
     times = np.empty(len(time_evolution), dtype=float)
     matrix_data = {element: np.empty(len(time_evolution), dtype=complex)
