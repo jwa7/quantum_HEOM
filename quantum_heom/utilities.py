@@ -289,14 +289,14 @@ def convert_args_to_latex(file: str) -> list:
     args = []
     with open(file, 'r') as f:
         for line in f:
-            if line.startswith('args'):
+            if line.startswith('args') or line.startswith('plot_args'):
                 line = line.replace('\'', '\"').replace(', "', ', \\newline "')
                 line = line.replace('{', '\{').replace('}', '\}')
                 line = line.replace('_', '\_')
                 args.append(line)
     return args
 
-def write_args_to_file(qsys, plot_args: dict, filename: str):
+def write_args_to_file(systems, plot_args: dict, filename: str):
 
     """
     Writes a file of name 'filename' that contains the arguments
@@ -304,44 +304,63 @@ def write_args_to_file(qsys, plot_args: dict, filename: str):
 
     Parameters
     ----------
-    qsys : QuantumSystem
-        The QuantumSystem object whose dynamics have been plotted
+    systems : list of QuantumSystem
+        The QuantumSystem objects whose dynamics have been plotted.
     plot_args : dict
-        A dictionary of the arguments used by the method
-        complex_space_time() to plot the dynamics of qsys.
+        The arguments passed to the plot_dynamics() method,
+        used to plot the dynamics of the systems.
     filename : str
         The absolute path of the file to be created.
     """
 
+    # Define names of all systems plotted and args used to be written to file
+    sys_names, arg_names = [], []
+    for i in range(1, len(systems) + 1):
+        sys_names.append('q' + str(i))
+        arg_names.append('args' + str(i))
+    # Write file header
     with open(filename, 'w+') as f:
-        args1 = re.sub(' +', ' ', str(qsys.__dict__).replace("\'_", "\'"))
-        args2 = re.sub(' +', ' ', str(plot_args))
-        args1 = args1.replace('\n', '')
-        args2 = args2.replace('\n', '')
-        f.write('-----------------------------------------------------------\n')
+        f.write('-------------------------------------------------------\n')
         f.write('Arguments for reproducing figure in file of name:\n')
         f.write(filename.replace('.txt', '.pdf') + '\n')
-        f.write('-----------------------------------------------------------\n')
-        f.write('\n\n')
-        f.write('-----------------------------------------------------------\n')
-        f.write('READY TO COPY INTO PYTHON:\n')
-        f.write('-----------------------------------------------------------\n')
-        f.write('# Arguments for initialising QuantumSystem\n')
-        f.write('args1 = ' + args1 + '\n')
-        f.write('# Arguments for plotting dynamics\n')
-        f.write('args2 = ' + args2 + '\n')
-        f.write('# Use the arguments in the following way:\n')
-        f.write('q = QuantumSystem(**args1)\n')
-        f.write('q.plot_time_evolution(**args2)\n')
+        f.write('-------------------------------------------------------\n')
+        f.write('\n')
+    # Write args to file as Python copyable text
     with open(filename, 'a+') as f:
-        args1, args2 = convert_args_to_latex(filename)
+        f.write('-------------------------------------------------------\n')
+        f.write('ARGS IN PYTHON-FUNCTIONAL CODE:\n')
+        f.write('-------------------------------------------------------\n')
+        for idx, sys in enumerate(systems):
+            args = re.sub(' +', ' ', str(sys.__dict__).replace("\'_", "\'"))
+            args = args.replace('\n', '')
+            f.write('# Args for initialising QuantumSystem '
+                    + str(idx + 1) + '\n')
+            f.write(arg_names[idx] + ' = ' + args + '\n')
+        plot_args = re.sub(' +', ' ', str(plot_args))
+        plot_args = plot_args.replace('\n', '')
+        f.write('# Arguments for plotting dynamics\n')
+        f.write('plot_args = ' + plot_args + '\n')
         f.write('\n\n')
-        f.write('-----------------------------------------------------------\n')
-        f.write('READY TO COPY IN LATEX FOR PROPER RENDERING:\n')
-        f.write('-----------------------------------------------------------\n')
-        f.write(args1 + '\n')
-        f.write(args2 + '\n')
-        f.write('-----------------------------------------------------------\n')
+        f.write('# Use the arguments in the following way:\n')
+        f.write('from quantum_heom import QuantumSystem\n')
+        f.write('import figures as figs\n\n')
+        for sys, arg in zip(sys_names, arg_names):
+            f.write(sys + ' = QuantumSystem(**' + arg + ')\n')
+        f.write('figs.plot_dynamics([' + sys_names[0])
+        for idx in range(1, len(sys_names)):
+            f.write(', ' + sys_names[idx])
+        f.write('], **plot_args)\n')
+        f.write('-------------------------------------------------------\n')
+        f.write('\n')
+    # Write args to file as LaTeX-renderable text
+    with open(filename, 'a+') as f:
+        args = convert_args_to_latex(filename)
+        f.write('-------------------------------------------------------\n')
+        f.write('ARGS IN LATEX-RENDERABLE FORMAT:\n')
+        f.write('-------------------------------------------------------\n')
+        for arg in args:
+            f.write(arg + '\n')
+        f.write('-------------------------------------------------------\n')
 
 def site_cartesian_coordinates(sites: int) -> np.array:
 

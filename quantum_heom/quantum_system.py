@@ -993,7 +993,7 @@ class QuantumSystem:
                 # Ensure HSolverDL attribute set in QuTip units.
                 hsolver.exp_freq = (self.matsubara_freqs # rad s^-1 --> ps^-1
                                     * 1. / (2 * np.pi * 1e12))
-            print(hsolver.__dict__)
+            # print(hsolver.__dict__)
 
             # Run the simulation over the time interval.
             times = np.array(range(self.timesteps)) * time_interval
