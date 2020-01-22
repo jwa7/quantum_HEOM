@@ -1,7 +1,15 @@
 cython
+datetime
 flake8
+itertools
+jupyter
+math
 matplotlib
+mpl_toolkits
 numpy
+os
 pytest
 qutip
+re
 scipy
+typing
