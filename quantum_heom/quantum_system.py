@@ -695,10 +695,8 @@ class QuantumSystem:
             if self.interaction_model == 'nearest neighbour cyclic':
                 adjacency[0][self.sites - 1] = 1.
                 adjacency[self.sites - 1][0] = 1.
-            alpha = 0 * 2 * np.pi * constants.c * 100              # rad s^-1
+            alpha = 0  # rad s^-1
             beta = - (10700 / 130) * 2 * np.pi * constants.c * 100  # rad s^-1
-            # adjacency[0, 0] = 100. * 2 * np.pi * constants.c * 100
-            # adjacency[1, 1] = 200. * 2 * np.pi * constants.c * 100
         elif self.interaction_model is None:
             raise ValueError('Hamiltonian cannot be built until interaction'
                              ' model chosen from ' + str(INTERACTION_MODELS))
