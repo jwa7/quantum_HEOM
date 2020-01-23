@@ -54,10 +54,7 @@ def trace_distance(A: np.array, B: np.array) -> float:
         equilibrium state.
     """
 
-    mat = A - B
-    eigs = linalg.eig(mat)[0]
-    diag = np.diag(np.absolute(eigs))
-
+    diag = np.diag(np.absolute(eigv(A - B)))
     return 0.5 * np.trace(diag)
 
 def commutator(A: np.array, B: np.array, anti: bool = False) -> complex:
@@ -98,7 +95,7 @@ def commutator(A: np.array, B: np.array, anti: bool = False) -> complex:
 
     return np.matmul(A, B) - np.matmul(B, A)
 
-def eigenvalues(A: np.array) -> np.array:
+def eigv(A: np.array) -> np.array:
 
     """
     Returns the eigenvalues of an input matrix.
@@ -116,7 +113,7 @@ def eigenvalues(A: np.array) -> np.array:
 
     return linalg.eig(A)[0]
 
-def eigenstates(A: np.array) -> np.array:
+def eigs(A: np.array) -> np.array:
 
     """
     Returns the eigenstates of an input matrix.
