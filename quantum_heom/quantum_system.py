@@ -695,7 +695,7 @@ class QuantumSystem:
             if self.interaction_model == 'nearest neighbour cyclic':
                 adjacency[0][self.sites - 1] = 1.
                 adjacency[self.sites - 1][0] = 1.
-            alpha = 1. * 2 * np.pi * constants.c * 100              # rad s^-1
+            alpha = 0 * 2 * np.pi * constants.c * 100              # rad s^-1
             beta = - (10700 / 130) * 2 * np.pi * constants.c * 100  # rad s^-1
             # adjacency[0, 0] = 100. * 2 * np.pi * constants.c * 100
             # adjacency[1, 1] = 200. * 2 * np.pi * constants.c * 100
@@ -1001,13 +1001,12 @@ class QuantumSystem:
             # Convert time evolution data to quantum_HEOM format
             evolution = np.empty(len(result.states), dtype=np.ndarray)
             for i in range(0, len(result.states)):
-                dens_matrix = np.array(result.states[i])
+                dens_matrix = np.array(result.states[i]).T
                 # times need converting back from ps --> s
-                evolution[i] = np.array([float(result.times[i]) * 1E-12,
-                                         dens_matrix,
-                                         util.trace_matrix_squared(dens_matrix),
-                                         util.trace_distance(dens_matrix,
-                                                             self.equilibrium_state)])
+                evolution[i] = np.array(
+                    [float(result.times[i]) * 1E-12, dens_matrix,
+                     util.trace_matrix_squared(dens_matrix),
+                     util.trace_distance(dens_matrix, self.equilibrium_state)])
             return evolution
 
         # ALL OTHER DYNAMICS
@@ -1029,33 +1028,3 @@ class QuantumSystem:
         raise AttributeError('You need to set the time_interval, timesteps, and'
                              ' decay_rate attributes of QuantumSystem before'
                              ' its time evolution can be calculated.')
-
-    def plot_time_evolution(self, view_3d: bool = True, set_title: bool = True,
-                            elements: [np.array, str] = 'diagonals',
-                            trace_measure: str = None, asymptote: bool = True,
-                            save: bool = False):
-
-        """
-        Plots the time evolution of the density matrix elements
-        for the system.
-
-        Parameters
-        ----------
-        view_3d : bool
-            If true, views the plot in 3d, showing real and imaginary
-            amplitude axes as well as time. If false, only shows the
-            real amplitude axis with time as a 2d plot.
-        elements : str, or list of str
-            The elements of the density matrix whose time-evolution
-            should be plotted. Can be passed as a string, choosing
-            either 'all', 'diagonals' (default), 'off-diagonals'.
-            Can also be passed as a list, where each string element
-            in is of the form 'nm', where n is the row index and m
-            the column. For example, for a 2-site quantum system,
-            all elements are plotted by either passing elements='all'
-            or elements=['11', '12', '21', '22'].
-        """
-
-        figs.complex_space_time(self, view_3d=view_3d, set_title=set_title,
-                                elements=elements, trace_measure=trace_measure,
-                                asymptote=asymptote, save=save)
