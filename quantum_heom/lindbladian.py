@@ -143,13 +143,17 @@ def lindbladian_superop(qsys) -> np.array:
 
     if qsys.dynamics_model == 'global thermalising lindblad':
 
-        eigenvalues = linalg.eig(hamiltonian)[0]  # energies in rad s^-1
+        eigv, eigs = linalg.eig(hamiltonian)  # energies in rad s^-1
+        omega = eigv - eigv.reshape(qsys.sites, 1)
         # Iterate over all different states (a notequal b)
         for state_a, state_b in permutations(range(0, qsys.sites), 2):
 
             # L_ab = ket(b) x bra(a)   (outer product |b><a|)
-            state_ab_op = thermalising_lindblad_op(qsys.sites, state_a, state_b)
-            omega_ab = eigenvalues[state_b] - eigenvalues[state_a]
+            # state_ab_op = thermalising_lindblad_op(qsys.sites, state_a, state_b)
+            omega_ab = eigv[state_b] - eigv[state_a]
+            if omega_ab.round(decimals=0) == 0.:
+                continue
+            state_ab_op = np.outer(eigs[state_b], eigs[state_a])
             k_ab = rate_constant_redfield(qsys, omega_ab)  # rad s^-1
             if k_ab == 0.:
                 continue
@@ -257,7 +261,7 @@ def rate_constant_redfield(qsys, omega_ab: float):
         returned.
     """
 
-    if qsys.therm_sf == 0. or qsys.cutoff_freq == 0. or omega_ab == 0.:
+    if qsys.therm_sf == 0. or qsys.cutoff_freq == 0. or omega_ab <= 0.:
         return 0.  # rad s^-1
     return (2 * np.pi *  # 2pi a dimensionless constant here
             (((1 + bose_einstein_distrib(qsys, omega_ab))
@@ -327,8 +331,9 @@ def bose_einstein_distrib(qsys, omega: float):
         dimensionless quantity.
     """
 
-    if np.isclose(omega, 0.):
-        raise ValueError('Cannot evaluate the Bose-Einstein distribution at'
-                         ' a frequency of zero.')
+    if omega <= 0.:
+        return 0.
+        # raise ValueError('Cannot evaluate the Bose-Einstein distribution at'
+        #                  ' a frequency of zero.')
 
     return 1. / (np.exp(qsys.hbar * omega / qsys.kT) - 1)  # dimensionless

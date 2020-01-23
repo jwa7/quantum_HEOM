@@ -130,7 +130,7 @@ def plot_dynamics(systems, elements: [list, str] = None,
         processed = process_evo_data(time_evo, elements, trace_measure)
         times = processed[0]
         axes = _plot_data(axes, processed, sys, multiple, elements,
-                         coherences, asymptote, view_3d)
+                          coherences, asymptote, view_3d)
         axes = _format_axes(axes, sys, elements, times, view_3d)
     # ----------------------------------------------------------------------
     # SAVE PLOT
@@ -254,23 +254,22 @@ def _plot_data(ax, processed, qsys, multiple: bool, elements: list,
                             if view_3d else (np.imag(amplitudes),))
                     ax.plot(times, *args, ls=style, c=colour,
                             linewidth=linewidth, label=lab)
-    else:
-        # -------------------------------------------------------------------
-        # PLOT TRACE METRICS
-        # -------------------------------------------------------------------
-        if squared is not None:
-            args = ((zeros, squared) if view_3d else (squared,))
-            ax.plot(times, *args, dashes=[1, 1], linewidth=linewidth,
-                    c='gray', label='$tr(\\rho^2)$')
-        if distance is not None:
-            args = ((zeros, distance) if view_3d else (distance,))
-            ax.plot(times, *args, dashes=[3, 1], linewidth=linewidth,
-                    c='gray', label='$0.5\\ tr|\\rho(t) - \\rho^{eq}|$')
-        if asymptote:
-            asym = [1 / qsys.sites] * len(times)
-            args = ((zeros, asym) if view_3d else (asym,))
-            ax.plot(times, *args, ls='--', linewidth=linewidth, c='gray',
-                    label='$y = \\frac{1}{N}$')
+    # -------------------------------------------------------------------
+    # PLOT TRACE METRICS
+    # -------------------------------------------------------------------
+    if squared is not None:
+        args = ((zeros, squared) if view_3d else (squared,))
+        ax.plot(times, *args, dashes=[1, 1], linewidth=linewidth,
+                c='gray', label='$tr(\\rho^2)$')
+    if distance is not None:
+        args = ((zeros, distance) if view_3d else (distance,))
+        ax.plot(times, *args, dashes=[3, 1], linewidth=linewidth,
+                c='gray', label='$0.5\\ tr|\\rho(t) - \\rho^{eq}|$')
+    if asymptote:
+        asym = [1 / qsys.sites] * len(times)
+        args = ((zeros, asym) if view_3d else (asym,))
+        ax.plot(times, *args, ls='--', linewidth=linewidth, c='gray',
+                label='$y = \\frac{1}{N}$')
 
     return ax
 
