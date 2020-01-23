@@ -8,7 +8,7 @@ from scipy import linalg
 import numpy as np
 
 
-def trace_matrix_squared(matrix: np.array) -> complex:
+def trace_matrix_squared(matrix: np.array) -> float:
 
     """
     Returns the trace of the square of an input matrix.
@@ -27,7 +27,7 @@ def trace_matrix_squared(matrix: np.array) -> complex:
 
     assert matrix.shape[0] == matrix.shape[1], 'Input matrix must be square.'
 
-    return np.trace(np.matmul(matrix, matrix))
+    return np.real(np.trace(np.matmul(matrix, matrix)))
 
 def trace_distance(A: np.array, B: np.array) -> float:
 
@@ -167,6 +167,8 @@ def elements_from_str(sites: int, elements: str) -> list:
     """
 
     # Check elements input
+    if elements is None:
+        return None
     if isinstance(elements, list):
         assert len(elements) <= sites ** 2, (
             'The number of elements plotted must be a positive integer less'
@@ -178,19 +180,18 @@ def elements_from_str(sites: int, elements: str) -> list:
                 raise ValueError('Invalid format of string representation of'
                                  ' density matrix element.')
         return elements
-    elif isinstance(elements, str):
+    if isinstance(elements, str):
         assert elements in ['all', 'diagonals', 'off-diagonals'], (
             'Must choose from "all", "diagonals", or "off-diagonals".')
         if elements == 'all':
             return [str(i) + str(j)
                     for i, j in product(range(1, sites + 1), repeat=2)]
-        elif elements == 'diagonals':
+        if elements == 'diagonals':
             return [str(i) + str(i) for i in range(1, sites + 1)]
-        else:  # off-diagonals
-            return [str(i) + str(j)
-                    for i, j in permutations(range(1, sites + 1), 2)]
-    else:
-        raise ValueError('elements argument passed as invalid value.')
+        # Off-diagonals
+        return [str(i) + str(j)
+                for i, j in permutations(range(1, sites + 1), 2)]
+    raise ValueError('elements argument passed as invalid value.')
 
 def types_of_elements(elements: list):
 
@@ -216,14 +217,19 @@ def types_of_elements(elements: list):
     str
         The characterisation of the list of elements as a whole,
         returning either 'diagonals', 'off-diagonals', or 'both'.
+    None
+        If the value of elements is passed as None.
     """
+    # If elements is passed as None
+    if elements is None:
+        return None
 
+    # If elements pass as 'all', 'off_diagonals', or 'diagonals'
     if isinstance(elements, str):
         assert elements in ['all', 'off-diagonals', 'diagonals']
         if elements == 'all':
             return 'both'
-        else:
-            return elements
+        return elements
 
     # If elements are passed in list form i.e. ['11', '21', ...]
     if isinstance(elements, list):
@@ -232,6 +238,7 @@ def types_of_elements(elements: list):
         if all([int(element[0]) != int(element[1]) for element in elements]):
             return 'off-diagonals'
         return 'both'
+
     raise ValueError('Incorrect format for elements')
 
 def date_stamp():
