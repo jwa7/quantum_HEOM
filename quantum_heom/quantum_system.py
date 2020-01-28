@@ -855,8 +855,6 @@ class QuantumSystem:
         the dynamics model specified by the QuantumSystem's
         dynamics_model attribute.
 
-        Simple:
-
         Parameters
         ----------
         dens_mat : np.array
@@ -867,6 +865,12 @@ class QuantumSystem:
         decay_rate : float
             The rate at which to decay the matrix elements of the
             density matrix.
+
+        Returns
+        -------
+        evolved : np.array
+            The density matrix dens_mat evolved forward in time by
+            the set self.time_interval.
         """
 
         evolved = np.zeros((self.sites, self.sites), dtype=complex)
