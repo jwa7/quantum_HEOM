@@ -108,5 +108,4 @@ dependencies:
   - zeromq=4.3.1
   - zipp=0.6.0
   - zlib=1.2.11
-    #prefix: /Users/joe.abbott/miniconda3/envs/heom
 
