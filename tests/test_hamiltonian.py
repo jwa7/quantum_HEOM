@@ -6,18 +6,20 @@ import pytest
 import quantum_heom.hamiltonian as ham
 
 
-@pytest.mark.parametrize('inp_h, exp', [(np.array([[0, 1],
-                                                   [1, 0]]),
-                                         np.array([[0, 0, 0],
-                                                   [0, 0, 1],
-                                                   [0, 1, 0]])),
-                                        (np.array([[1, 2, 3],
-                                                   [4, 5, 6],
-                                                   [7, 8, 9]]),
-                                         np.array([[0, 0, 0, 0],
-                                                   [0, 1, 2, 3],
-                                                   [0, 4, 5, 6],
-                                                   [0, 7, 8, 9]]))])
+@pytest.mark.parametrize(
+    'inp_h, exp',
+    [(np.array([[0, 1],
+                [1, 0]]),
+      np.array([[0, 0, 0],
+                [0, 0, 1],
+                [0, 1, 0]])),
+     (np.array([[1, 2, 3],
+                [4, 5, 6],
+                [7, 8, 9]]),
+      np.array([[0, 0, 0, 0],
+                [0, 1, 2, 3],
+                [0, 4, 5, 6],
+                [0, 7, 8, 9]]))])
 def test_pad_hamiltonian_zero_exciton_gs(inp_h, exp):
 
     """
