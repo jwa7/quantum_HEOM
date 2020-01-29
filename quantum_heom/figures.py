@@ -210,8 +210,7 @@ def _plot_data(ax, processed, qsys, multiple: bool, elements: list,
                           'HEOM': 'HEOM',
                           'simple': 'simple'}
                 lines = {'local dephasing lindblad':
-                         ['-', 'mediumblue', 'royalblue', 'lightsteelblue',
-                          'deepskyblue'],
+                         ['-', 'red', 'indianred', 'coral', 'lightcoral'],
                          'global thermalising lindblad':
                          ['-', 'blueviolet', 'mediumpurple', 'violet',
                           'thistle'],
@@ -219,8 +218,8 @@ def _plot_data(ax, processed, qsys, multiple: bool, elements: list,
                          ['-', 'forestgreen', 'limegreen', 'springgreen',
                           'lawngreen'],
                          'HEOM': ['--', 'k', 'dimgray', 'silver', 'lightgrey'],
-                         'simple': ['-', 'red', 'indianred', 'coral',
-                                    'lightcoral']}
+                         'simple': ['-', 'mediumblue', 'royalblue',
+                                    'lightsteelblue', 'deepskyblue']}
                 label += ' (' + labels[qsys.dynamics_model] + ')'
                 style = lines[qsys.dynamics_model][0]
                 colour = lines[qsys.dynamics_model][(idx % 4) + 1]

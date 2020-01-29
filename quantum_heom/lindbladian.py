@@ -7,6 +7,8 @@ import math
 from scipy import constants, linalg
 import numpy as np
 
+import utilities as util
+
 TEMP_INDEP_MODELS = ['simple', 'local dephasing lindblad']
 TEMP_DEP_MODELS = ['local thermalising lindblad',
                    'global thermalising lindblad',
@@ -139,33 +141,35 @@ def lindbladian_superop(qsys) -> np.array:
                                             id)))
             lindbladian += lind_j_op
         # decay rate given in units of s^-1
-        return lindbladian * qsys.decay_rate  # s^-1
+        return lindbladian * qsys.decay_rate # rad s^-1
 
     if qsys.dynamics_model == 'global thermalising lindblad':
 
-        eigv, eigs = linalg.eig(hamiltonian)  # energies in rad s^-1
+        eigv, eigs = util.eigv(hamiltonian), util.eigs(hamiltonian)  # rad s^-1
         omega = eigv - eigv.reshape(qsys.sites, 1)
-        # Iterate over all different states (a notequal b)
+        # Iterate over all pairs of different states (a notequal b)
         for state_a, state_b in permutations(range(0, qsys.sites), 2):
 
             # L_ab = ket(b) x bra(a)   (outer product |b><a|)
-            # state_ab_op = thermalising_lindblad_op(qsys.sites, state_a, state_b)
-            omega_ab = eigv[state_b] - eigv[state_a]
-            if omega_ab.round(decimals=0) == 0.:
-                continue
-            state_ab_op = np.outer(eigs[state_b], eigs[state_a])
+            # Construct in the eigenbasis
+            state_ab_op = thermalising_lindblad_op(qsys.sites, state_a, state_b)
+            # state_ab_op = np.outer(eigs[:, state_b], eigs[:, state_a])
+            omega_ab = eigv[state_a] - eigv[state_b]  # rad s^-1
             k_ab = rate_constant_redfield(qsys, omega_ab)  # rad s^-1
-            if k_ab == 0.:
+            if omega_ab.round(decimals=0) == 0. or k_ab == 0:
                 continue
-            lind_ab_op = k_ab * (np.kron(state_ab_op, state_ab_op)
+            lind_ab_op = k_ab * (np.kron(state_ab_op.conjugate(), state_ab_op)
                                  - 0.5
-                                 * (np.kron(np.matmul(state_ab_op.T,
+                                 * (np.kron(np.matmul(state_ab_op.T.conjugate(),
                                                       state_ab_op).conjugate(),
                                             id)
-                                    + np.kron(id, np.matmul(state_ab_op.T,
-                                                            state_ab_op))))
-            lindbladian += lind_ab_op / (2 * np.pi)  # 2pi radians
-        return lindbladian / (2 * np.pi)  # s^-1
+                                    + np.kron(id,
+                                              np.matmul(state_ab_op.T.conjugate(),
+                                                        state_ab_op))))
+            lindbladian += lind_ab_op #/ (2 * np.pi)  # 2pi is a constant
+        # Transform back to site basis
+        lindbladian = util.lspace_basis_change(lindbladian, eigs)
+        return lindbladian  # rad s^-1
 
     if qsys.dynamics_model == 'local thermalising lindblad':
 
@@ -184,7 +188,6 @@ def lindbladian_superop(qsys) -> np.array:
         # Generate matrix where element (i, j) gives frequency gap between
         # eigenstates i and j, i.e. omega_ij = omega_j - omega_i in rad s^-1
         omega = eigenvalues - eigenvalues.reshape(qsys.sites, 1)
-        # import pdb;
         # Generate a flat list of unique energy gap values, accounting for
         # rounding errors with a decimal tolerance.
         decimals = 0
@@ -226,8 +229,7 @@ def lindbladian_superop(qsys) -> np.array:
                                                       site_m_op))))
 
             lindbladian += k_uniq * lind  # rad s^-1
-        lindbladian /= (2 * np.pi)  # rad s^-1 ---> s^-1
-        return lindbladian #/ (2 * np.pi)  # s^-1
+        return lindbladian  # rad s^-1
 
     raise NotImplementedError('Other lindblad dynamics models not yet'
                               ' implemented in quantum_HEOM. Choose from: '
@@ -242,13 +244,13 @@ def rate_constant_redfield(qsys, omega_ab: float):
 
     .. math::
         k_{a \\rightarrow b}
-            = 2 \\pi ( (1 + n(\\omega_{ab})) J(\\omega_{ab})
-                       + n(\\omega_{ba}) J(\\omega_{ba}) )
+            = 2 ( (1 + n(\\omega_{ab})) J(\\omega_{ab})
+                   + n(\\omega_{ba}) J(\\omega_{ba}) )
 
     where $n(\\omega_{ab})$ is the Bose-Einstein distribution
     between eigenstates a and b separated by energy
     $\\omega_{ab}$ and $J(\\omega_{ab})$ is the spectral density
-    of frequency $\\omega_{ab}$.
+    at frequency $\\omega_{ab}$.
 
     Parameters
     ----------
@@ -263,7 +265,7 @@ def rate_constant_redfield(qsys, omega_ab: float):
 
     if qsys.therm_sf == 0. or qsys.cutoff_freq == 0. or omega_ab <= 0.:
         return 0.  # rad s^-1
-    return (2 * np.pi *  # 2pi a dimensionless constant here
+    return (2 *
             (((1 + bose_einstein_distrib(qsys, omega_ab))
               * spectral_density(qsys, omega_ab))
              + (bose_einstein_distrib(qsys, -omega_ab)
@@ -300,7 +302,7 @@ def spectral_density(qsys, omega: float) -> float:
         units of rad s^-1.
     """
 
-    if qsys.therm_sf == 0. or qsys.cutoff_freq == 0. or omega <= 0.:
+    if qsys.therm_sf == 0. or qsys.cutoff_freq == 0. or omega == 0.:
         return 0.  # rad s^-1
     return qsys.therm_sf * ((2 * qsys.cutoff_freq * omega)
                             / (qsys.cutoff_freq**2 + omega**2)) # rad s^-1
@@ -331,7 +333,7 @@ def bose_einstein_distrib(qsys, omega: float):
         dimensionless quantity.
     """
 
-    if omega <= 0.:
+    if omega == 0.:
         return 0.
         # raise ValueError('Cannot evaluate the Bose-Einstein distribution at'
         #                  ' a frequency of zero.')

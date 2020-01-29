@@ -13,7 +13,6 @@ from qutip import sigmax, sigmay, sigmaz, basis, expect, Qobj, qeye
 # import quantum_heom.lindbladian as lind
 # import quantum_heom.utilities as util
 
-import figures as figs
 import heom
 import lindbladian as lind
 import utilities as util
@@ -726,7 +725,6 @@ class QuantumSystem:
 
         ham = self.hamiltonian  # rad s^-1
         iden = np.identity(self.sites)
-
         return -1.0j * (np.kron(ham, iden) - np.kron(iden, ham.T.conjugate()))
 
     @property
@@ -761,7 +759,7 @@ class QuantumSystem:
             of sites) that represents the coupling operator.
         """
 
-        return heom.system_bath_coupling_op(self)
+        return heom.system_bath_coupling_op(self.sites)
 
     @property
     def initial_density_matrix(self) -> np.array:
@@ -783,7 +781,6 @@ class QuantumSystem:
         pop_share = 1. / len(self.init_site_pop)
         for site in self.init_site_pop:
             rho_0[site - 1][site - 1] += pop_share
-
         return rho_0
 
     @property
@@ -874,7 +871,6 @@ class QuantumSystem:
         """
 
         evolved = np.zeros((self.sites, self.sites), dtype=complex)
-
         if self.dynamics_model == 'simple':
             # Build matrix for simple dephasing of the off-diagonals
             dephaser = dens_mat * self.decay_rate * self.time_interval
@@ -964,7 +960,6 @@ class QuantumSystem:
             time_interval = self.time_interval * 1e12  # s ---> ps
             coup_strength = self.therm_sf / (2 * np.pi * 1e12) # rad s^-1 -> ps^-1
             cutoff_freq = self.cutoff_freq / (2 * np.pi * 1e12) # rad s^-1 --> ps^-1
-
             # Build HEOM Solver
             hsolver = HSolverDL(hamiltonian,
                                 Qobj(self.coupling_op),
@@ -995,8 +990,6 @@ class QuantumSystem:
                 # Ensure HSolverDL attribute set in QuTip units.
                 hsolver.exp_freq = (self.matsubara_freqs # rad s^-1 --> ps^-1
                                     * 1. / (2 * np.pi * 1e12))
-            # print(hsolver.__dict__)
-
             # Run the simulation over the time interval.
             times = np.array(range(self.timesteps)) * time_interval
             result = hsolver.run(Qobj(self.initial_density_matrix), times)
@@ -1024,7 +1017,6 @@ class QuantumSystem:
                 squared = util.trace_matrix_squared(evolved)
                 distance = util.trace_distance(evolved, self.equilibrium_state)
                 evolution[step] = np.array([time, evolved, squared, distance])
-
             return evolution
 
         raise AttributeError('You need to set the time_interval, timesteps, and'

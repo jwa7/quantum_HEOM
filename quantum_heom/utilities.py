@@ -1,6 +1,5 @@
 """Contains general use utility functions."""
 
-import datetime
 import re
 from itertools import permutations, product
 
@@ -132,6 +131,29 @@ def eigs(A: np.array) -> np.array:
 
     return linalg.eig(A)[1]
 
+def basis_change(matrix: np.array, states: np.array) -> np.array:
+
+    """
+    Transforms a matrix expressed in Liouville space into the basis
+    expressed by the states matrix.
+
+    Parameters
+    ----------
+    matrix : np.array
+        The matrix whose basis is to be transformed
+    states : np.array
+        The states in the basis into which 'matrix' will be
+        transformed.
+
+    Returns
+    -------
+    np.array
+        The input matrix, basis tranformed.
+    """
+
+    transform = np.kron(states, states.conjugate())
+    return np.matmul(np.matmul(transform, matrix), transform.conj().T)
+
 def elements_from_str(sites: int, elements: str) -> list:
 
     """
@@ -238,42 +260,6 @@ def types_of_elements(elements: list):
 
     raise ValueError('Incorrect format for elements')
 
-def date_stamp():
-
-    """
-    Creates a unique time stamp for the current time to the nearest
-    100th of a second that contains no other character than digits
-    0~9, i.e.'2019-05-17 17:04:19.92' ---> '2019051717041992'.
-
-    Creates a numerical string representation of today's date,
-    containing only digits 0-9 and '_' characters. I.e. on the 29th
-    Jan 2020 this function would return '2020_01_29'.
-
-    Returns:
-    -----
-    time_stamp : str
-        A unique numerical string of the current date.
-    """
-
-    return str(datetime.datetime.now().date()).replace('-', '_')
-
-def time_stamp():
-
-    """
-    Creates a unique time stamp for the current time to the nearest
-    100th of a second that contains no other character than digits
-    0~9, i.e.'2019-05-17 17:04:19.92' ---> '2019051717041992'.
-
-    Returns:
-    -----
-    time_stamp : str
-        A unique numerical string of the current time to the
-        nearest 100th of a second.
-    """
-
-    return (''.join([i for i in str(datetime.datetime.now())
-                     if i not in [' ', '-', '.', ':']])[:-4])
-
 def convert_args_to_latex(file: str) -> list:
 
     """
@@ -365,25 +351,3 @@ def write_args_to_file(systems, plot_args: dict, filename: str):
         for arg in args:
             f.write(arg + '\n')
         f.write('-------------------------------------------------------\n')
-
-def site_cartesian_coordinates(sites: int) -> np.array:
-
-    """
-    Returns an array of site coordinates on an xy plane
-    for an N-site system, where the coordinates represent
-    the vertices of an N-sided regular polygon with its
-    centre at the origin.
-    """
-
-    assert sites > 1
-
-    r = 5  # distance of each site from the origin
-
-    site_coords = np.empty(sites, dtype=tuple)
-    site_coords[0] = (0, r)
-    for i in range(1, sites):
-
-        phi = i * 2 * np.pi / sites  # internal angle of the N-sided polygon
-        site_coords[i] = (r * np.sin(phi), r * np.cos(phi))
-
-    return site_coords
