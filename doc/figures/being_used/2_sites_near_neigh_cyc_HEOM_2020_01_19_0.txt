@@ -1,0 +1,26 @@
+-----------------------------------------------------------
+Arguments for reproducing figure in file of name:
+/Users/joe.abbott/Documents/masters/code/quantum_HEOM/doc/figures/2_sites_near_neigh_cyc_HEOM_2020_01_19_0.pdf
+-----------------------------------------------------------
+
+
+-----------------------------------------------------------
+READY TO COPY INTO PYTHON:
+-----------------------------------------------------------
+# Arguments for initialising QuantumSystem
+args1 = {'sites': 2, 'interaction_model': 'nearest neighbour cyclic', 'dynamics_model': 'HEOM', 'time_interval': 5e-15, 'timesteps': 500, 'temperature': 300, 'therm_sf': 22400000000000.0, 'cutoff_freq': 6024000000000.0, 'matsubara_terms': 3, 'matsubara_coeffs': None, 'matsubara_freqs': None, 'bath_cutoff': 20, 'coupling_op': array([[ 1., 0.], [ 0., -1.]]), 'init_site_pop': [1]}
+# Arguments for plotting dynamics
+args2 = {'view_3d': False, 'set_title': False, 'elements': 'all', 'trace_measure': ['squared', 'distance'], 'asymptote': False, 'save': True}
+# Use the arguments in the following way:
+q = QuantumSystem(**args1)
+q.plot_time_evolution(**args2)
+
+
+-----------------------------------------------------------
+READY TO COPY IN LATEX FOR PROPER RENDERING:
+-----------------------------------------------------------
+args1 = \{"sites": 2, \newline "interaction\_model": "nearest neighbour cyclic", \newline "dynamics\_model": "HEOM", \newline "time\_interval": 5e-15, \newline "timesteps": 500, \newline "temperature": 300, \newline "therm\_sf": 22400000000000.0, \newline "cutoff\_freq": 6024000000000.0, \newline "matsubara\_terms": 3, \newline "matsubara\_coeffs": None, \newline "matsubara\_freqs": None, \newline "bath\_cutoff": 20, \newline "coupling\_op": array([[ 1., 0.], [ 0., -1.]]), \newline "init\_site\_pop": [1]\}
+
+args2 = \{"view\_3d": False, \newline "set\_title": False, \newline "elements": "all", \newline "trace\_measure": ["squared", \newline "distance"], \newline "asymptote": False, \newline "save": True\}
+
+-----------------------------------------------------------

@@ -1,5 +1,9 @@
 # Python caches
 ./quantum-heom/__pycache__
+./tests/__pycache__
 
 # Jupyter notebooks
 ./quantum-heom/time_evolution_of_p(t).ipynb
+
+# Python scripts
+unused.py
