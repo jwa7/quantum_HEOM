@@ -11,9 +11,4 @@ echo 'CONFIGURING IPYTHON KERNEL...'
 ipython kernel install --user --name=$NAME
 sleep 1s
 
-# Enter the virtual environment
-echo '...ENTERING VIRTUAL ENVIRONMENT...'
-conda activate heom
-sleep 2s
-
 echo 'DONE.'
