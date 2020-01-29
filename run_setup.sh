@@ -2,8 +2,8 @@
 NAME=qHEOM
 
 # Create the conda virtual environment
-echo 'CREATING VIRTUAL ENVIRONEMENT...'
-yes | conda env create -f environment.yml -n $NAME
+echo 'CREATING VIRTUAL ENVIRONMENT...'
+yes | conda env create -f environment.yml -n $NAME python=3.7 
 sleep 1s
 
 # Configure the environment into a kernel for use in ipython
