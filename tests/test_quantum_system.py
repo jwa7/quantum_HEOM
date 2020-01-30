@@ -111,15 +111,18 @@
 #     assert qsys.interaction_model == model
 #
 #
-# @pytest.mark.parametrize('sites, expected', [(1, np.array([1])),
-#                                              (2, np.array([[0, 1], [1, 0]])),
-#                                              (3, np.array([[0, 1, 1],
-#                                                            [1, 0, 1],
-#                                                            [1, 1, 0]])),
-#                                              (4, np.array([[0, 1, 0, 1],
-#                                                            [1, 0, 1, 0],
-#                                                            [0, 1, 0, 1],
-#                                                            [1, 0, 1, 0]]))])
+# @pytest.mark.parametrize(
+#     'sites, expected',
+#     [(1, np.array([1])),
+#      (2, np.array([[0, 1],
+#                    [1, 0]])),
+#      (3, np.array([[0, 1, 1],
+#                    [1, 0, 1],
+#                    [1, 1, 0]])),
+#      (4, np.array([[0, 1, 0, 1],
+#                    [1, 0, 1, 0],
+#                    [0, 1, 0, 1],
+#                    [1, 0, 1, 0]]))])
 # def test_hamiltonian_nearest_neighbour_cyclic(sites, expected):
 #
 #     """
@@ -182,12 +185,14 @@
 #     assert qsys.hamiltonian_superop.shape == (sites**2, sites**2)
 #
 #
-# @pytest.mark.parametrize('sites, exp', [(2, np.array([[1, 0],
-#                                                       [0, 0]])),
-#                                         (4, np.array([[1, 0, 0, 0],
-#                                                       [0, 0, 0, 0],
-#                                                       [0, 0, 0, 0],
-#                                                       [0, 0, 0, 0]]))])
+# @pytest.mark.parametrize(
+#     'sites, exp',
+#     [(2, np.array([[1, 0],
+#                    [0, 0]])),
+#      (4, np.array([[1, 0, 0, 0],
+#                    [0, 0, 0, 0],
+#                    [0, 0, 0, 0],
+#                    [0, 0, 0, 0]]))])
 # def test_initial_density_matrix(sites, exp, qsys):
 #
 #     """
@@ -199,15 +204,16 @@
 #     assert np.all(qsys.initial_density_matrix == exp)
 #
 #
-# @pytest.mark.parametrize('input, exp', [([1], np.array([[1, 0, 0, 0],
-#                                                         [0, 0, 0, 0],
-#                                                         [0, 0, 0, 0],
-#                                                         [0, 0, 0, 0]])),
-#                                         ([1, 1, 3, 2], np.array([[2, 0, 0, 0],
-#                                                                  [0, 1, 0, 0],
-#                                                                  [0, 0, 1, 0],
-#                                                                  [0, 0, 0, 0]])
-#                                                        * 0.25)])
+# @pytest.mark.parametrize(
+#     'input, exp',
+#     [([1], np.array([[1, 0, 0, 0],
+#                      [0, 0, 0, 0],
+#                      [0, 0, 0, 0],
+#                      [0, 0, 0, 0]])),
+#      ([1, 1, 3, 2], np.array([[2, 0, 0, 0],
+#                               [0, 1, 0, 0],
+#                               [0, 0, 1, 0],
+#                               [0, 0, 0, 0]]) * 0.25)])
 # def test_init_site_pop(input, exp, qsys):
 #
 #     """
