@@ -1,3 +1,6 @@
+# Define the name of the environment (must be the same as defined in run_setup.sh)
+NAME=qheom
+
 # Configure the environment as an ipython kernel
 echo 'CONFIGURING IPYTHON KERNEL...'
 ipython kernel install --user --name=$NAME
