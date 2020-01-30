@@ -4,7 +4,7 @@ thermalising (super)operators."""
 from itertools import permutations, product
 import numpy as np
 
-import utilities as util
+import quantum_heom.utilities as util
 
 MODELS = ['local dephasing lindblad',
           'global thermalising lindblad',

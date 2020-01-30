@@ -35,14 +35,14 @@ def test_loc_deph_lindblad_op(dims, site_j, expected):
     constructed.
     """
 
-    assert np.all(lind.dephasing_lindblad_op(dims, site_j) == expected)
+    assert np.all(lind.loc_deph_lindblad_op(dims, site_j) == expected)
 
 
 @pytest.mark.parametrize(
     'dims, site_j',
     [(5, -1),
      (0, 3)])
-def test_dephasing_lindblad_op_errors(dims, site_j):
+def test_loc_deph_lindblad_op(dims, site_j):
 
     """
     Tests that the correct error is raised when passing invalid
@@ -51,14 +51,16 @@ def test_dephasing_lindblad_op_errors(dims, site_j):
     """
 
     with pytest.raises(AssertionError):
-        lind.dephasing_lindblad_op(dims, site_j)
+        lind.loc_deph_lindblad_op(dims, site_j)
 
-def test_lindblad_superop_sum_element(l_op, expected):
+def test_lindblad_superop_sum_element():  #l_op, expected):
 
     """
     Tests that the correct individual superoperator (part of the
     sum to construct the total lindbladian superoperator) is constructed
     """
+
+
 
 
 # -------------------------------------------------------------------
@@ -72,7 +74,7 @@ def test_lindblad_superop_sum_element(l_op, expected):
 # LOCAL THERMALISING LINDBLAD OPERATOR
 # -------------------------------------------------------------------
 
-def test_thermalising_lindblad_op(sites, state_a, state_b):
+def test_thermalising_lindblad_op():  #sites, state_a, state_b):
 
     """
     """
@@ -86,30 +88,30 @@ def test_thermalising_lindblad_op(sites, state_a, state_b):
 # TOTAL LINDBLADIAN SUPEROPERATOR
 # -------------------------------------------------------------------
 
-@pytest.mark.parametrize(
-    'sites, exp',
-    [(2, np.array([[0, 0, 0, 0],
-                   [0, -1, 0, 0],
-                   [0, 0, -1, 0],
-                   [0, 0, 0, 0]]) * GAMMA),
-     (3, np.array([[0, 0, 0, 0, 0, 0, 0, 0, 0],
-                   [0, -1, 0, 0, 0, 0, 0, 0, 0],
-                   [0, 0, -1, 0, 0, 0, 0, 0, 0],
-                   [0, 0, 0, -1, 0, 0, 0, 0, 0],
-                   [0, 0, 0, 0, 0, 0, 0, 0, 0],
-                   [0, 0, 0, 0, 0, -1, 0, 0, 0],
-                   [0, 0, 0, 0, 0, 0, -1, 0, 0],
-                   [0, 0, 0, 0, 0, 0, 0, -1, 0],
-                   [0, 0, 0, 0, 0, 0, 0, 0, 0]]) * GAMMA)])
-def test_lindbladian_superop(sites, exp):
-
-    """
-    Tests that the correct dephasing Lindbladian superoperator
-    is constructed for the number of sites N.
-    """
-
-    assert np.all(lind.lindbladian_superop(sites, GAMMA,
-                                           model='dephasing lindblad') == exp)
+# @pytest.mark.parametrize(
+#     'sites, exp',
+#     [(2, np.array([[0, 0, 0, 0],
+#                    [0, -1, 0, 0],
+#                    [0, 0, -1, 0],
+#                    [0, 0, 0, 0]]) * GAMMA),
+#      (3, np.array([[0, 0, 0, 0, 0, 0, 0, 0, 0],
+#                    [0, -1, 0, 0, 0, 0, 0, 0, 0],
+#                    [0, 0, -1, 0, 0, 0, 0, 0, 0],
+#                    [0, 0, 0, -1, 0, 0, 0, 0, 0],
+#                    [0, 0, 0, 0, 0, 0, 0, 0, 0],
+#                    [0, 0, 0, 0, 0, -1, 0, 0, 0],
+#                    [0, 0, 0, 0, 0, 0, -1, 0, 0],
+#                    [0, 0, 0, 0, 0, 0, 0, -1, 0],
+#                    [0, 0, 0, 0, 0, 0, 0, 0, 0]]) * GAMMA)])
+# def test_lindbladian_superop(sites, exp):
+#
+#     """
+#     Tests that the correct dephasing Lindbladian superoperator
+#     is constructed for the number of sites N.
+#     """
+#
+#     assert np.all(lind.lindbladian_superop(sites, GAMMA,
+#                                            model='lcoadephasing lindblad') == exp)
 
 # -------------------------------------------------------------------
 # RATE CONSTANT + SPECTRAL DENSITY + BOSE-EINSTEIN
