@@ -19,7 +19,8 @@ sleep 1s
 echo 'START INSTALLATION:'
 echo ''
 echo ''
-
+# Add package to PYTHONPATH
+export 
 # Create the virtual conda environment
 echo 'CREATING VIRTUAL ENVIRONMENT...'
 yes | conda create -n $NAME python=3.7

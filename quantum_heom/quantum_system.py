@@ -13,9 +13,9 @@ from qutip import sigmax, sigmay, sigmaz, basis, expect, Qobj, qeye
 # import quantum_heom.lindbladian as lind
 # import quantum_heom.utilities as util
 
-import heom
-import lindbladian as lind
-import utilities as util
+from quantum_heom import heom
+from quantum_heom import lindbladian as lind
+from quantum_heom import utilities as util
 
 INTERACTION_MODELS = ['nearest neighbour linear',
                       'nearest neighbour cyclic',

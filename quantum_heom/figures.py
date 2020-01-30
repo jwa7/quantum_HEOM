@@ -12,7 +12,7 @@ import numpy as np
 
 # import quantum_heom.utilities as util
 
-import utilities as util
+from quantum_heom import utilities as util
 
 TEMP_INDEP_MODELS = ['simple', 'local dephasing lindblad']
 TEMP_DEP_MODELS = ['local thermalising lindblad',  # need temperature defining
@@ -132,6 +132,7 @@ def plot_dynamics(systems, elements: [list, str] = None,
         axes = _plot_data(axes, processed, sys, multiple, elements,
                           coherences, asymptote, view_3d)
         axes = _format_axes(axes, sys, elements, times, view_3d)
+    plt.show()
     # ----------------------------------------------------------------------
     # SAVE PLOT
     # ----------------------------------------------------------------------
