@@ -2,7 +2,15 @@
 NAME=qheom
 
 # Add package to PYTHONPATH
-export PYTHONPATH="$(PWD)"
+#export PYTHONPATH="$(PWD)"
+python -c "
+import os;
+import sys;
+idx = os.getcwd().rfind('quantum_HEOM');
+ROOT_DIR = os.getcwd()[:idx] + 'quantum_HEOM';
+if ROOT_DIR not in sys.path:
+    sys.path.append(ROOT_DIR);
+"
 
 # Install packages
 echo 'INSTALLING PACKAGES...'
