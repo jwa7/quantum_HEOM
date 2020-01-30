@@ -14,9 +14,9 @@ Written in Python, interactive, and with control over input parameters, *quantum
 ## Getting Started
 ### Pre-requisites
 
-* Python version 3.7.x (download [here](https://www.python.org/downloads/))
-* Anaconda version 4.7.x
-* Git
+* Python version 3.7.x ([download](https://www.python.org/downloads/))
+* Anaconda version 4.7.x ([download](https://www.anaconda.com/distribution/#download-section))
+* Git 
 
 ### Installation
 
