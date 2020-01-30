@@ -32,7 +32,7 @@ Written in Python, interactive, and with control over input parameters, *quantum
 3. Enter the environment:  
 ``conda activate qheom``
 
-3. Run package installation and testing:
+3. Run package installation and testing:  
 ``chmod +x run_install.sh && ./run_install.sh``
 
 
