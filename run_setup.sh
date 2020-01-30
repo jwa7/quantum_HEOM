@@ -28,51 +28,17 @@ echo ''
 echo ''
 sleep 1s
 
-# Configure the enviornment as a ipython kernel
-echo 'CONFIGURING IPYTHON KERNEL...'
-ipython kernel install --user --name=$NAME
-echo 'DONE.'
+# User info
+echo 'PROCESS COMPLETE'
 echo ''
 echo ''
-sleep 1s
-
-# Enter the environment
-echo 'ENTERING THE VIRTUAL ENVIRONMENT...'
-source activate $NAME
-echo 'DONE.'
-echo ''
-echo ''
-sleep 1s
-
-# Install packages
-echo 'INSTALLING PACKAGES...'
-yes | conda install qutip ipython jupyter matplotlib numpy scipy cython pytest
-echo 'DONE.'
-echo ''
-echo ''
-sleep 1s
-
-# Print extra information
-echo 'INSTALLATION COMPLETE.'
-echo ''
-echo ''
-echo 'ENTER THE quantum_HEOM VIRTUAL ENVIRONMENT WITH THE COMMAND:'
+echo 'ENTER THE ENVIRONMENT USING:'
 echo ''
 echo '    conda activate qheom'
 echo ''
+echo 'THEN RUN THE INSTALLATION & TESTING SCRIPT:'
 echo ''
-echo 'TO RUN UNIT TESTS ON THE CODEBASE:'
-echo ''
-echo '    chmod +x run_tests.sh && ./run_tests.sh'
-echo ''
-echo 'ALL TESTS SHOULD PASS. IF THERE IS AN ISSUE, IT MAY BE TO DO'
-echo 'DEPENDENCY VERSIONS. CHECK THAT YOU MEET THE PREREQUISITES IN THE'
-echo 'README.'
-echo ''
-echo ''
-echo 'TO LAUNCH THE INTERACTIVE TUTORIAL:'
-echo ''
-echo '    cd tutorials && jupyter notebook quantum_HEOM_tutorial.ipynb &'
+echo '    chmod +x run_install.sh && ./run_install.sh'
 echo ''
 echo '----------------------------------------------------------------'
-
+sleep 1s
