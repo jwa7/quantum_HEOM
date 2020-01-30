@@ -19,8 +19,6 @@ sleep 1s
 echo 'START INSTALLATION:'
 echo ''
 echo ''
-# Add package to PYTHONPATH
-export PYTHONPATH="$(PWD)"
 
 # Create the virtual conda environment
 echo 'CREATING VIRTUAL ENVIRONMENT...'

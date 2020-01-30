@@ -1,6 +1,9 @@
 # Define the name of the environment (must be the same as defined in run_setup.sh)
 NAME=qheom
 
+# Add package to PYTHONPATH
+export PYTHONPATH="$(PWD)"
+
 # Install packages
 echo 'INSTALLING PACKAGES...'
 yes | conda install qutip ipython jupyter matplotlib numpy=1.17 scipy cython pytest
