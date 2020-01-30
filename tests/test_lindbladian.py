@@ -42,7 +42,7 @@ def test_loc_deph_lindblad_op(dims, site_j, expected):
     'dims, site_j',
     [(5, -1),
      (0, 3)])
-def test_loc_deph_lindblad_op(dims, site_j):
+def test_loc_deph_lindblad_op_errors(dims, site_j):
 
     """
     Tests that the correct error is raised when passing invalid
@@ -52,16 +52,6 @@ def test_loc_deph_lindblad_op(dims, site_j):
 
     with pytest.raises(AssertionError):
         lind.loc_deph_lindblad_op(dims, site_j)
-
-def test_lindblad_superop_sum_element():  #l_op, expected):
-
-    """
-    Tests that the correct individual superoperator (part of the
-    sum to construct the total lindbladian superoperator) is constructed
-    """
-
-
-
 
 # -------------------------------------------------------------------
 # GLOBAL THERMALISING LINDBLAD OPERATOR
@@ -83,6 +73,20 @@ def test_thermalising_lindblad_op():  #sites, state_a, state_b):
 # -------------------------------------------------------------------
 # INDIVIDUAL SUPEROPERATOR
 # -------------------------------------------------------------------
+
+# @pytest.mark.parametrize(
+#     'lindblad_op, expected',
+#     [(np.array([[1, 0],
+#                 [0, 0]]),
+#       )]
+# )
+# def test_lindblad_superop_sum_element(lindblad_op, expected):
+#
+#     """
+#     Tests that the correct individual superoperator (part of the
+#     sum to construct the total lindbladian superoperator) is constructed
+#     """
+
 
 # -------------------------------------------------------------------
 # TOTAL LINDBLADIAN SUPEROPERATOR

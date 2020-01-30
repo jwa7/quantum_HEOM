@@ -4,7 +4,7 @@ thermalising (super)operators."""
 from itertools import permutations, product
 import numpy as np
 
-import quantum_heom.utilities as util
+from quantum_heom import utilities as util
 
 MODELS = ['local dephasing lindblad',
           'global thermalising lindblad',
@@ -40,7 +40,7 @@ def loc_deph_lindblad_op(dims: int, site_j: int) -> np.array:
                             ' number of sites')
 
     l_op = np.zeros((dims, dims), dtype=complex)
-    l_op[site_j - 1][site_j - 1] = 1.+0.j
+    l_op[site_j][site_j] = 1.+0.j
     return l_op
 
 def glob_therm_lindblad_op(dims: int, state_a: int, state_b: int):
