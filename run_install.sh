@@ -1,17 +1,17 @@
 # Define the name of the environment (must be the same as defined in run_setup.sh)
 NAME=qheom
 
-# Configure the environment as an ipython kernel
-echo 'CONFIGURING IPYTHON KERNEL...'
-ipython kernel install --user --name=$NAME
+# Install packages
+echo 'INSTALLING PACKAGES...'
+yes | conda install qutip ipython jupyter matplotlib numpy=1.17 scipy cython pytest
 echo 'DONE.'
 echo ''
 echo ''
 sleep 1s
 
-# Install packages
-echo 'INSTALLING PACKAGES...'
-yes | conda install qutip ipython jupyter matplotlib numpy=1.17 scipy cython pytest
+# Configure the environment as an ipython kernel
+echo 'CONFIGURING IPYTHON KERNEL...'
+ipython kernel install --user --name=$NAME
 echo 'DONE.'
 echo ''
 echo ''
