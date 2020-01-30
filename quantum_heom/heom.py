@@ -31,6 +31,5 @@ def system_bath_coupling_op(sites: int = 2) -> np.array:
         # Only the sigma z Pauli operator is accepted as the form for the
         # coupling operator.
         return np.array([[1, 0], [0, -1]])
-    else:
-        raise NotImplementedError('HEOM can currently only be plotted for'
-                                  ' 2 site systems.')
+    raise NotImplementedError('HEOM can currently only be plotted for'
+                              ' 2 site systems.')
