@@ -3,7 +3,7 @@ via QuTiP's HEOM Solver."""
 
 import numpy as np
 
-def system_bath_coupling_op(sites: int = 2) -> np.array:
+def system_bath_coupling_op(sites: int = 2) -> np.ndarray:
 
     """
     Builds an N x N operator for the system-bath coupling, where
@@ -18,7 +18,7 @@ def system_bath_coupling_op(sites: int = 2) -> np.array:
 
     Returns
     -------
-    np.array
+    np.ndarray
         The coupling operator for the system-bath interaction.
 
     Raises

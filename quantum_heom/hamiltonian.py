@@ -3,12 +3,12 @@
 from scipy import constants
 import numpy as np
 
-INTERACTION_MODELS = ['nearest_neighbour_cyclic', 'nearest_neighbour_linear',
+INTERACTION_MODELS = ['nearest neighbour cyclic', 'nearest neighbour linear',
                       'FMO']
 
 
 def hamiltonian_matrix(dims: int, interaction_model: str,
-                       alpha_beta: tuple) -> np.array:
+                       alpha_beta: tuple) -> np.ndarray:
 
     """
     Builds an system Hamiltonian for the QuantumSystem,
@@ -23,7 +23,7 @@ def hamiltonian_matrix(dims: int, interaction_model: str,
 
     Returns
     -------
-    np.array
+    np.ndarray
         An N x N 2D array Hamiltonian for the quantum system,
         where N is the number of sites. In units of rad s^-1.
     """
@@ -66,7 +66,7 @@ def hamiltonian_matrix(dims: int, interaction_model: str,
                               ' been implemented in quantum_HEOM.'
                               ' Choose from ' + str(INTERACTION_MODELS))
 
-def adjacency_matrix(dims, interaction_model: str) -> np.array:
+def adjacency_matrix(dims, interaction_model: str) -> np.ndarray:
 
     """
     Builds an adjacency matrix that describes in binary whether
@@ -87,7 +87,7 @@ def adjacency_matrix(dims, interaction_model: str) -> np.array:
 
     Returns
     -------
-    np.array
+    np.ndarray
         The (dims x dims) adjacency matrix that describes
         interactions between sites in the quantum system.
 
@@ -113,7 +113,7 @@ def adjacency_matrix(dims, interaction_model: str) -> np.array:
                               'neighbour cyclic" or "nearest neighbour'
                               ' linear" models.')
 
-def hamiltonian_superop(hamiltonian: np.array) -> np.array:
+def hamiltonian_superop(hamiltonian: np.ndarray) -> np.ndarray:
 
     """
     Builds the Hamiltonian superoperator from an input Hamiltonian,
@@ -124,7 +124,7 @@ def hamiltonian_superop(hamiltonian: np.array) -> np.array:
 
     Returns
     -------
-    np.array
+    np.ndarray
         The (N^2) x (N^2) 2D array representing the Hamiltonian
         superoperator.
     """
@@ -137,7 +137,7 @@ def hamiltonian_superop(hamiltonian: np.array) -> np.array:
     return (-1.0j * (np.kron(hamiltonian, iden)
                      - np.kron(iden, hamiltonian.T.conjugate())))
 
-def pad_hamiltonian_zero_exciton_gs(hamiltonian: np.array) -> np.array:
+def pad_hamiltonian_zero_exciton_gs(hamiltonian: np.ndarray) -> np.ndarray:
 
     """
     Takes an input Hamiltonian H of shape N x N ands pads it
@@ -151,7 +151,7 @@ def pad_hamiltonian_zero_exciton_gs(hamiltonian: np.array) -> np.array:
 
     Returns
     -------
-    np.array
+    np.ndarray
         An (N+1) x (N+1) Hamiltonian where the elements of the
         first column and first row have value zero.
     """
