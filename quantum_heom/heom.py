@@ -19,7 +19,7 @@ def system_bath_coupling_op(sites: int = 2) -> np.array:
     Returns
     -------
     np.array
-        The coupling operator for the system.
+        The coupling operator for the system-bath interaction.
 
     Raises
     ------
