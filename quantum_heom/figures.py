@@ -13,11 +13,8 @@ import numpy as np
 # import quantum_heom.utilities as util
 
 from quantum_heom import utilities as util
+from quantum_heom.evolution import TEMP_INDEP_MODELS, TEMP_DEP_MODELS
 
-TEMP_INDEP_MODELS = ['simple', 'local dephasing lindblad']
-TEMP_DEP_MODELS = ['local thermalising lindblad',  # need temperature defining
-                   'global thermalising lindblad',
-                   'HEOM']
 TRACE_MEASURES = ['squared', 'distance']
 LINE_COLOURS = ['r', 'g', 'b', 'p']
 
@@ -208,8 +205,8 @@ def _plot_data(ax, processed, qsys, multiple: bool, elements: list,
                 labels = {'local dephasing lindblad': 'Local Deph.',
                           'global thermalising lindblad': 'Global Therm.',
                           'local thermalising lindblad': 'Local Therm.',
-                          'HEOM': 'HEOM',
-                          'simple': 'simple'}
+                          'HEOM': 'HEOM'}
+                # ['mediumblue', 'royalblue', 'lightsteelblue', 'deepskyblue']
                 lines = {'local dephasing lindblad':
                          ['-', 'red', 'indianred', 'coral', 'lightcoral'],
                          'global thermalising lindblad':
@@ -218,9 +215,7 @@ def _plot_data(ax, processed, qsys, multiple: bool, elements: list,
                          'local thermalising lindblad':
                          ['-', 'forestgreen', 'limegreen', 'springgreen',
                           'lawngreen'],
-                         'HEOM': ['--', 'k', 'dimgray', 'silver', 'lightgrey'],
-                         'simple': ['-', 'mediumblue', 'royalblue',
-                                    'lightsteelblue', 'deepskyblue']}
+                         'HEOM': ['--', 'k', 'dimgray', 'silver', 'lightgrey']}
                 label += ' (' + labels[qsys.dynamics_model] + ')'
                 style = lines[qsys.dynamics_model][0]
                 colour = lines[qsys.dynamics_model][(idx % 4) + 1]
@@ -318,13 +313,12 @@ def _format_axes(ax, qsys, elements: [list, None], times: np.array,
         # Format axes ranges
         upper_bound = list(ax.get_xticks())[5]
         ax.xaxis.set_minor_locator(MultipleLocator(upper_bound / 20))
-        if qsys.dynamics_model != 'simple':
-            ax.set_ylim(top=0.5, bottom=-0.5)
-            ax.set_zlim(top=1., bottom=0.)
-            ax.yaxis.set_major_locator(MultipleLocator(0.5))
-            ax.yaxis.set_minor_locator(MultipleLocator(0.1))
-            ax.zaxis.set_major_locator(MultipleLocator(0.5))
-            ax.zaxis.set_minor_locator(MultipleLocator(0.1))
+        ax.set_ylim(top=0.5, bottom=-0.5)
+        ax.set_zlim(top=1., bottom=0.)
+        ax.yaxis.set_major_locator(MultipleLocator(0.5))
+        ax.yaxis.set_minor_locator(MultipleLocator(0.1))
+        ax.zaxis.set_major_locator(MultipleLocator(0.5))
+        ax.zaxis.set_minor_locator(MultipleLocator(0.1))
         ax.tick_params(axis='both', which='major', size=10, labelsize=17)
         ax.tick_params(axis='both', which='minor', size=5)
     else:
@@ -341,16 +335,15 @@ def _format_axes(ax, qsys, elements: [list, None], times: np.array,
         # Format axes ranges
         upper_bound = list(ax.get_xticks())[5]
         ax.xaxis.set_minor_locator(MultipleLocator(upper_bound / 20))
-        if qsys.dynamics_model != 'simple':
-            if elem_types == 'both':
-                ax.set_ylim(top=1., bottom=-0.5)
-            elif elem_types == 'diagonals' or elem_types is None:
-                ax.set_ylim(top=1., bottom=0.)
-            else:
-                ax.set_ylim(top=0.5, bottom=-0.5)
-            # Format axes ticks
-            ax.yaxis.set_major_locator(MultipleLocator(0.5))
-            ax.yaxis.set_minor_locator(MultipleLocator(0.1))
+        if elem_types == 'both':
+            ax.set_ylim(top=1., bottom=-0.5)
+        elif elem_types == 'diagonals' or elem_types is None:
+            ax.set_ylim(top=1., bottom=0.)
+        else:
+            ax.set_ylim(top=0.5, bottom=-0.5)
+        # Format axes ticks
+        ax.yaxis.set_major_locator(MultipleLocator(0.5))
+        ax.yaxis.set_minor_locator(MultipleLocator(0.1))
         ax.tick_params(axis='both', which='major', size=10, labelsize=17)
         ax.tick_params(axis='both', which='minor', size=5)
 
@@ -378,7 +371,6 @@ def save_figure_and_args(systems, plot_args: dict):
     abbrevs = {'nearest neighbour linear': '_near_neigh_lin',
                'nearest neighbour cyclic': '_near_neigh_cyc',
                'FMO': '_FMO',
-               'simple': '_simple',
                'local thermalising lindblad': '_local_therm',
                'global thermalising lindblad': '_global_therm',
                'local dephasing lindblad': '_local_deph',
