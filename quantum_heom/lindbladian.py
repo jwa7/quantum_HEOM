@@ -6,9 +6,9 @@ import numpy as np
 
 from quantum_heom import utilities as util
 
-MODELS = ['local dephasing lindblad',
-          'global thermalising lindblad',
-          'local thermalising lindblad']
+LINDBLAD_MODELS = ['local dephasing lindblad',
+                   'global thermalising lindblad',
+                   'local thermalising lindblad']
 
 
 def loc_deph_lindblad_op(dims: int, site_j: int) -> np.array:
@@ -242,7 +242,7 @@ def lindbladian_superop(qsys) -> np.array:
 
     raise NotImplementedError('Other lindblad dynamics models not yet'
                               ' implemented in quantum_HEOM. Choose from: '
-                              + str(MODELS))
+                              + str(LINDBLAD_MODELS))
 
 def rate_constant_redfield(qsys, omega_ab: float):
 
