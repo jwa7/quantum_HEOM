@@ -265,7 +265,7 @@ def time_evo_heom(dens_mat: np.ndarray, timesteps: int, time_interval: float,
     hamiltonian : np.ndarray
         The system Hamiltonian for the open quantum system, with
         dimensions (dims x dims), in units of rad ps^-1.
-    coupling_op : np.array
+    coupling_op : np.ndarray
         The coupling operator for the system-bath interaction.
     coup_strength : float
         The strength of coupling between sites in the system and

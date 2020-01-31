@@ -50,7 +50,8 @@ class QuantumSystem:
             The number of timesteps for which the time evolution
             of the system is evaluated. Default value is 500.
         deph_rate : float
-            The decay constant of the system, in units of rad s^-1.
+            The dephasing rate constant of the system, in units
+            of s^-1.
         temperature : float
             The temperature of the thermal bath, in Kelvin. Default
             value is 298 K.
@@ -150,7 +151,7 @@ class QuantumSystem:
             self.init_site_pop = settings.get('init_site_pop')
         else:
             self.init_site_pop = [1]
-        if settings.get('interaction_model').startswith('nearest'):
+        if self.interaction_model.startswith('nearest'):
             if settings.get('alpha_beta') is not None:
                 self.alpha_beta = settings.get('alpha_beta')
             else:
@@ -343,7 +344,7 @@ class QuantumSystem:
     @deph_rate.setter
     def deph_rate(self, deph_rate: float):
 
-        assert isinstance(deph_rate, [int, float]), (
+        assert isinstance(deph_rate, (int, float)), (
             'deph_rate must be passed as either an int or float')
         if deph_rate < 0.:
             raise ValueError('Cutoff frequency must be a non-negative float'
@@ -376,7 +377,7 @@ class QuantumSystem:
     @therm_sf.setter
     def therm_sf(self, therm_sf: float):
 
-        assert isinstance(therm_sf, [int, float]), (
+        assert isinstance(therm_sf, (int, float)), (
             'therm_sf must be passed as either an int or float')
         if therm_sf < 0.:
             raise ValueError('Scale factor must be a non-negative float in rad'
@@ -442,7 +443,7 @@ class QuantumSystem:
         self._matsubara_terms = terms
 
     @property
-    def matsubara_coeffs(self) -> np.array:
+    def matsubara_coeffs(self) -> np.ndarray:
 
         """
         Get or set the matsubara coefficients used in HEOM dynamics
@@ -455,7 +456,7 @@ class QuantumSystem:
 
         Returns
         -------
-        np.array
+        np.ndarray
             An array of matsubara coefficients, in order,
             corresponding to the first n matsubara terms.
         """
@@ -464,7 +465,7 @@ class QuantumSystem:
             return self._matsubara_coeffs
 
     @matsubara_coeffs.setter
-    def matsubara_coeffs(self, coeffs: np.array):
+    def matsubara_coeffs(self, coeffs: np.ndarray):
 
         try:
             if len(coeffs) > self.matsubara_terms:
@@ -482,7 +483,7 @@ class QuantumSystem:
             self._matsubara_coeffs = None
 
     @property
-    def matsubara_freqs(self) -> np.array:
+    def matsubara_freqs(self) -> np.ndarray:
 
         """
         Get or set the matsubara frequencies used in HEOM dynamics,
@@ -496,7 +497,7 @@ class QuantumSystem:
 
         Returns
         -------
-        np.array
+        np.ndarray
             An array of matsubara frequencies, in order,
             corresponding to the first n matsubara terms, in units
             of s^-1.
@@ -506,7 +507,7 @@ class QuantumSystem:
             return self._matsubara_freqs
 
     @matsubara_freqs.setter
-    def matsubara_freqs(self, freqs: np.array):
+    def matsubara_freqs(self, freqs: np.ndarray):
 
         try:
             if len(freqs) > self.matsubara_terms:
@@ -637,7 +638,7 @@ class QuantumSystem:
         self._alpha_beta = alpha_beta
 
     @property
-    def hamiltonian(self) -> np.array:
+    def hamiltonian(self) -> np.ndarray:
 
         """
         Builds an interaction Hamiltonian for the QuantumSystem,
@@ -645,7 +646,7 @@ class QuantumSystem:
 
         Returns
         -------
-        np.array
+        np.ndarray
             An N x N 2D array that represents the interactions
             between sites in the quantum system, where N is the
             number of sites. In units of rad s^-1.
@@ -655,7 +656,7 @@ class QuantumSystem:
                                       self.alpha_beta)
 
     @property
-    def hamiltonian_superop(self) -> np.array:
+    def hamiltonian_superop(self) -> np.ndarray:
 
         """
         Builds the Hamiltonian superoperator in rad s^-1,
@@ -666,7 +667,7 @@ class QuantumSystem:
 
         Returns
         -------
-        np.array
+        np.ndarray
             The (N^2) x (N^2) 2D array representing the Hamiltonian
             superoperator, in units of rad s^-1.
         """
@@ -674,7 +675,7 @@ class QuantumSystem:
         return ham.hamiltonian_superop(self.hamiltonian)
 
     @property
-    def lindbladian_superop(self) -> np.array:
+    def lindbladian_superop(self) -> np.ndarray:
 
         """
         Builds the Lindbladian superoperator for the system, either
@@ -683,16 +684,22 @@ class QuantumSystem:
 
         Returns
         -------
-        np.array
+        np.ndarray
             The (N^2) x (N^2) 2D array representing the Lindbladian
             superoperator, in rad s^-1.
         """
 
         if self.dynamics_model in LINDBLAD_MODELS:
-            return lind.lindbladian_superop(self)  # rad s^-1
+            return lind.lindbladian_superop(self.sites,
+                                            self.hamiltonian,
+                                            self.dynamics_model,
+                                            self.deph_rate,
+                                            self.cutoff_freq,
+                                            self.therm_sf,
+                                            self.temperature)  # rad s^-1
 
     @property
-    def coupling_op(self) -> np.array:
+    def coupling_op(self) -> np.ndarray:
 
         """
         Get the operator describing the coupling between the system
@@ -700,7 +707,7 @@ class QuantumSystem:
 
         Returns
         -------
-        np.array of complex
+        np.ndarray of complex
             2D square array of size N x N (where N is the number
             of sites) that represents the coupling operator.
         """
@@ -708,7 +715,7 @@ class QuantumSystem:
         return heom.system_bath_coupling_op(self.sites)
 
     @property
-    def initial_density_matrix(self) -> np.array:
+    def initial_density_matrix(self) -> np.ndarray:
 
         """
         Returns an N x N 2D array corresponding to the density
@@ -718,7 +725,7 @@ class QuantumSystem:
 
         Returns
         -------
-        np.array
+        np.ndarray
             N x N 2D array (where N is the number of sites)
             for the initial density matrix.
         """
@@ -757,7 +764,7 @@ class QuantumSystem:
         self._init_site_pop = init_site_pop
 
     @property
-    def equilibrium_state(self) -> np.array:
+    def equilibrium_state(self) -> np.ndarray:
 
         """
         Returns the equilibirum density matrix of the system. For
@@ -781,7 +788,7 @@ class QuantumSystem:
 
         Returns
         -------
-        np.array
+        np.ndarray
             A 2D square density matrix for the system's equilibrium
             state.
         """
@@ -790,7 +797,7 @@ class QuantumSystem:
                                      self.hamiltonian, self.temperature)
 
     @property
-    def time_evolution(self) -> np.array:
+    def time_evolution(self) -> np.ndarray:
 
         """
         Evaluates the density operator of the system at n_steps
@@ -800,11 +807,11 @@ class QuantumSystem:
         ------
         AttributeError
             If trying to access this property without having set
-            values for time_interval, timesteps, and decay_rate.
+            values for time_interval, timesteps, and deph_rate.
 
         Returns
         -------
-        evolution : np.array
+        evolution : np.ndarray
             An array of length corresponding to the number of
             timesteps the evolution is evaluated for. Each element
             is a tuple of the form (time, matrix, squared, distance),

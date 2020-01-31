@@ -7,7 +7,7 @@ from scipy import linalg
 import numpy as np
 
 
-def trace_matrix_squared(matrix: np.array) -> float:
+def trace_matrix_squared(matrix: np.ndarray) -> float:
 
     """
     Returns the trace of the square of an input matrix.
@@ -28,7 +28,7 @@ def trace_matrix_squared(matrix: np.array) -> float:
 
     return np.real(np.trace(np.matmul(matrix, matrix)))
 
-def trace_distance(A: np.array, B: np.array) -> float:
+def trace_distance(A: np.ndarray, B: np.ndarray) -> float:
 
     """
     Returns the measure of non-Markovianity of the system as
@@ -56,7 +56,7 @@ def trace_distance(A: np.array, B: np.array) -> float:
     diag = np.diag(np.absolute(eigv(A - B)))
     return 0.5 * np.trace(diag)
 
-def commutator(A: np.array, B: np.array, anti: bool = False) -> complex:
+def commutator(A: np.ndarray, B: np.ndarray, anti: bool = False) -> complex:
 
     """
     Returns either the commutator:
@@ -94,44 +94,44 @@ def commutator(A: np.array, B: np.array, anti: bool = False) -> complex:
 
     return np.matmul(A, B) - np.matmul(B, A)
 
-def eigv(A: np.array) -> np.array:
+def eigv(A: np.ndarray) -> np.ndarray:
 
     """
     Returns the eigenvalues of an input matrix.
 
     Parameters
     ----------
-    A : np.array of complex
+    A : np.ndarray of complex
         A square 2D array.
 
     Returns
     -------
-    np.array
+    np.ndarray
         An array of the eigenvalues of A.
     """
 
     return linalg.eig(A)[0]
 
-def eigs(A: np.array) -> np.array:
+def eigs(A: np.ndarray) -> np.ndarray:
 
     """
     Returns the eigenstates of an input matrix.
 
     Parameters
     ----------
-    A : np.array of complex
+    A : np.ndarray of complex
         A square 2D array.
 
     Returns
     -------
-    np.array
+    np.ndarray
         An array of the eigenstates of A, where the columns
         give the eigenstate for each eigenvalue.
     """
 
     return linalg.eig(A)[1]
 
-def basis_change(matrix: np.array, states: np.array) -> np.array:
+def basis_change(matrix: np.ndarray, states: np.ndarray) -> np.ndarray:
 
     """
     Transforms a matrix expressed in Liouville space into the basis
@@ -139,15 +139,15 @@ def basis_change(matrix: np.array, states: np.array) -> np.array:
 
     Parameters
     ----------
-    matrix : np.array
+    matrix : np.ndarray
         The matrix whose basis is to be transformed
-    states : np.array
+    states : np.ndarray
         The states in the basis into which 'matrix' will be
         transformed.
 
     Returns
     -------
-    np.array
+    np.ndarray
         The input matrix, basis tranformed.
     """
 
