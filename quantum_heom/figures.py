@@ -1,22 +1,29 @@
-"""Contains functions to plot the time evolution of the quantum system."""
+"""Contains functions to plot the dynamics and spectral densities
+of the quantum system.
+Functions:
+    plot_dynamics
+        Plot the dynamics of one or more QuantumSystem objects.
+    plot_spectral_density
+        Plot the spectral densities of one or more QuantumSystem
+        objects.
+    """
 
 import os
-import re
+from typing import Optional
 
 from math import ceil
 from mpl_toolkits import mplot3d
-from matplotlib.ticker import AutoMinorLocator, MultipleLocator
-import matplotlib.ticker as ticker
+from matplotlib.ticker import MultipleLocator
 import matplotlib.pyplot as plt
 import numpy as np
 
-# import quantum_heom.utilities as util
-
+from quantum_heom import bath
+from quantum_heom import evolution as evo
 from quantum_heom import utilities as util
+from quantum_heom.bath import SPECTRAL_DENSITIES
 from quantum_heom.evolution import TEMP_INDEP_MODELS, TEMP_DEP_MODELS
 
 TRACE_MEASURES = ['squared', 'distance']
-LINE_COLOURS = ['r', 'g', 'b', 'p']
 
 def plot_dynamics(systems, elements: [list, str] = None,
                   coherences: str = 'imag', trace_measure: list = None,
@@ -78,7 +85,7 @@ def plot_dynamics(systems, elements: [list, str] = None,
         for var, name in [(site_check, 'sites'),
                           (timestep_check, 'timesteps'),
                           (interval_check, 'time_interval')]:
-            assert var.count(var[0]) == len(var), ('For all systems passed the'
+            assert var.count(var[0]) == len(var), ('For all systems passed the '
                                                    + name + ' must be'
                                                    ' the same.')
     sites = systems[0].sites
@@ -124,7 +131,7 @@ def plot_dynamics(systems, elements: [list, str] = None,
     # Process and plot
     for sys in systems:
         time_evo = sys.time_evolution
-        processed = process_evo_data(time_evo, elements, trace_measure)
+        processed = evo.process_evo_data(time_evo, elements, trace_measure)
         times = processed[0]
         axes = _plot_data(axes, processed, sys, multiple, elements,
                           coherences, asymptote, view_3d)
@@ -156,8 +163,8 @@ def _plot_data(ax, processed, qsys, multiple: bool, elements: list,
         The matplotlib axes to be formatted.
     processed : tuple
         The processed time evolution data of the qsys QuantumSystem
-        as produced by the process_evo_data() method. Contains
-        times, matrix_data, and trace metrics (squared and
+        as produced by the evolution.process_evo_data() method.
+        Contains times, matrix_data, and trace metrics (squared and
         distance).
     qsys : QuantumSystem
         The system whose data is being plotted.
@@ -205,20 +212,41 @@ def _plot_data(ax, processed, qsys, multiple: bool, elements: list,
                 labels = {'local dephasing lindblad': 'Local Deph.',
                           'global thermalising lindblad': 'Global Therm.',
                           'local thermalising lindblad': 'Local Therm.',
-                          'HEOM': 'HEOM'}
-                # ['mediumblue', 'royalblue', 'lightsteelblue', 'deepskyblue']
+                          'HEOM': 'HEOM',
+                          'ohmic': 'Ohmic',
+                          'debye': 'Debye',
+                         }
                 lines = {'local dephasing lindblad':
-                         ['-', 'red', 'indianred', 'coral', 'lightcoral'],
+                         {'debye': ['-', 'red', 'indianred', 'coral',
+                                    'lightcoral'],
+                          'ohmic': ['-', 'lightcoral', 'coral', 'indianred',
+                                    'red'],
+                         },
                          'global thermalising lindblad':
-                         ['-', 'blueviolet', 'mediumpurple', 'violet',
-                          'thistle'],
+                         {'debye': ['-', 'blueviolet', 'mediumpurple', 'violet',
+                                    'thistle'],
+                          'ohmic': ['-', 'thistle', 'violet', 'mediumpurple',
+                                    'blueviolet'],
+                         },
                          'local thermalising lindblad':
-                         ['-', 'forestgreen', 'limegreen', 'springgreen',
-                          'lawngreen'],
-                         'HEOM': ['--', 'k', 'dimgray', 'silver', 'lightgrey']}
-                label += ' (' + labels[qsys.dynamics_model] + ')'
-                style = lines[qsys.dynamics_model][0]
-                colour = lines[qsys.dynamics_model][(idx % 4) + 1]
+                         {'debye': ['-', 'forestgreen', 'limegreen',
+                                    'springgreen', 'lawngreen'],
+                          'ohmic': ['-', 'lawngreen', 'springgreen',
+                                    'limegreen', 'forestgreen'],
+                         },
+                         # 'HEOM': ['--', 'k', 'dimgray', 'silver', 'lightgrey'],
+                         'HEOM':
+                         {'debye': ['--', 'mediumblue', 'royalblue',
+                                    'lightsteelblue', 'deepskyblue'],
+                          'ohmic': ['-', 'deepskyblue', 'lightsteelblue',
+                                    'royalblue', 'mediumblue'],
+                         },
+                        }
+                label += (' (' + labels[qsys.dynamics_model] + ', '
+                          + labels[qsys.spectral_density] + ')')
+                style = lines[qsys.dynamics_model][qsys.spectral_density][0]
+                colour = lines[qsys.dynamics_model]
+                colour = colour[qsys.spectral_density][(idx % 4) + 1]
             else:
                 style = '-'
                 colour = None
@@ -374,7 +402,9 @@ def save_figure_and_args(systems, plot_args: dict):
                'local thermalising lindblad': '_local_therm',
                'global thermalising lindblad': '_global_therm',
                'local dephasing lindblad': '_local_deph',
-               'HEOM': '_HEOM'
+               'HEOM': '_HEOM',
+               'ohmic': '_ohmic',
+               'debye': '_debye',
               }
     # date_stamp = util.date_stamp()  # avoid duplicates in filenames
     fig_dir = (os.getcwd()[:os.getcwd().find('quantum_HEOM')]
@@ -391,6 +421,8 @@ def save_figure_and_args(systems, plot_args: dict):
         dynamics = dynamics.count(dynamics[0]) == len(dynamics)
         temp = [sys.temperature for sys in systems]
         temp = temp.count(temp[0]) == len(temp)
+        spec = [sys.spectral_density for sys in systems]
+        spec = spec.count(spec[0]) == len(spec)
         # Include the constant arguments in the filename and highlight variables
         filename = fig_dir + str(systems[0].sites) + '_sites'
         if interactions:
@@ -405,6 +437,10 @@ def save_figure_and_args(systems, plot_args: dict):
             filename += '_' + systems[0].temperature + 'K'
         else:
             filename += '_variable_temp'
+        if spec:
+            filename += 'variable_spec_dens'
+        else:
+            filename += '_' + systems[0].spectral_density
         filename += '_elements'
         for elem in plot_args['elements']:
             filename += '_' + elem
@@ -418,74 +454,136 @@ def save_figure_and_args(systems, plot_args: dict):
     plt.savefig(filename + '.pdf')
     util.write_args_to_file(systems, plot_args, filename + '.txt')
 
-def process_evo_data(time_evolution: np.array, elements: [list, None],
-                     trace_measure: list):
+def plot_spectral_density(systems: list = None, models: list = None,
+                          debye: dict = None, ohmic: dict = None,
+                          save: bool = False):
 
     """
-    Processes a QuantumSystem's time evolution data as produced
-    by its time_evolution() method. Returns the time, matrix,
-    and trace measure (trace of the matrix squared, and trace
-    distance) as separate numpy arrays, ready for use in plotting.
+    Plots either the Debye or Ohmic - or both - spectral densities
+    as a function of frequency. Units of all the frequencies and
+    the cutoff frequency must be consistent; in rad s^-1.
 
     Parameters
     ----------
-    time_evolution : np.array
-        As produced by the QuantumSystem's time_evolution() method,
-        containing the time, density matrix, and trace measures
-        at each timestep in the evolution.
-    elements : list
-        The elements of the density matrix to extract and return,
-        in the format i.e. ['11', '21', ...]. Can also take the
-        value None.
-    trace_measure : list of str
-        The trace measures to extract from the time evolution data.
-        Must be a list containing either, both, or neither of
-        'squared', 'distance'.
-
-    Returns
-    -------
-    times : np.array of float
-        All the times in the evolution of the system.
-    matrix_data : dict of np.array
-        Contains {str: np.array} pairs where the str corresponds
-        to each of the elements of the density matrix specified
-        in elements (i.e. '21'), while the np.array contains all
-        the value of that matrix elements at each time step.
-        If elements is passed as None, matrix_data is returned as
-        None.
-    squared : np.array of float
-        The value of the trace of the density matrix squared at
-        each timestep, if 'squared' was specified in trace_measure.
-        If not specified, squared is returned as None.
-    squared : np.array of float
-        The value of the trace distance of the density matrix at
-        each timestep, if 'distance' was specified in
-        trace_measure. If not specified, distance is returned as
-        None.
+    systems : list of QuantumSystem
+        A list of systems whose spectral densities are to be
+        plotted. Optional; can just pass dictionaries containing
+        arguments for spectral densities manually.
+    models : list of str
+        Must specify if systems is passed as None. The spectral
+        density(s) model to plot. Must be a list containing either
+        or both of 'debye', 'ohmic'.
+    debye : dict
+        Must specify if systems is passed as None. A dictionary
+        containing the arguments used to define the Debye spectral
+        density. Must contain values under the keys 'frequencies',
+        'cutoff_freq' and 'scale_factor'. Check the docstring in
+        bath.py 's debye_spectral_density() function for details
+        on these arguments. If models contains both 'debye' and
+        'ohmic' and ohmic is passed as None, the arguments given in
+        debye will be used to plot the ohmic spctral density too.
+    ohmic : dict
+        Must specify if systems is passed as None. A dictionary
+        containing the arguments used to define the Ohmic spectral
+        density. Must contain values under the keys 'frequencies',
+        'cutoff_freq', 'scale_factor', and 'exponent'. Check the
+        docstring in bath.py 's ohmic_spectral_density() function
+        for details on these arguments.
+    save : bool
+        Whether or not to save the figure. Saves to the relative
+        directory quantum_HEOM/doc/figures/. Default is False.
     """
 
-    times = np.empty(len(time_evolution), dtype=float)
-    matrix_data = ({element: np.empty(len(time_evolution), dtype=complex)
-                    for element in elements} if elements else None)
-    squared = (np.empty(len(time_evolution), dtype=float)
-               if 'squared' in trace_measure else None)
-    distance = (np.empty(len(time_evolution), dtype=float)
-                if 'distance' in trace_measure else None)
-    for idx, (time, rho_t, squ, dist) in enumerate(time_evolution, start=0):
-        # Retrieve time
-        times[idx] = time * 1E15  # convert s --> fs
-        # Process density matrix data
-        if matrix_data is not None:
-            for element in elements:
-                n, m = int(element[0]) - 1, int(element[1]) - 1
-                matrix_data[element][idx] = rho_t[n][m]
-        # Process trace measure data
-        if squared is not None:
-            squared[idx] = squ
-        if distance is not None:
-            distance[idx] = dist
+    # PLOTTING
+    # Set up axes
+    gold_ratio, scaling = 1.61803, 8
+    figsize = (gold_ratio * scaling, scaling)
+    _, axes = plt.subplots(figsize=figsize)
+    # Plot systems if list of QuantumSystems is passed.
+    if systems is not None:
+        if not isinstance(systems, list):
+            systems = [systems]
+        for sys in systems:
+            cutoff = sys.cutoff_freq
+            frequencies = np.arange(0., cutoff * 10., cutoff / 100.)
+            specs = []
+            for freq in frequencies:
+                if sys.spectral_density == 'debye':
+                    label = 'Debye'
+                    specs.append(bath.debye_spectral_density(freq, cutoff,
+                                                             sys.scale_factor))
+                else:  # Ohmic
+                    label = 'Ohmic'
+                    specs.append(bath.ohmic_spectral_density(freq, cutoff,
+                                                             sys.ohmic_exponent,
+                                                             sys.scale_factor))
+            # Convert rad s^-1 --> rad ps^-1
+            frequencies *= 1e-12
+            specs = np.array(specs) * 1e-12
+            axes.plot(frequencies, specs, label=label)
+    # Plot if just specifications are passed.
+    else:
+        if isinstance(models, str):
+            models = [models]
+        assert all(i in SPECTRAL_DENSITIES for i in models)
+        assert debye is not None or ohmic is not None, (
+            'Must pass arguments for either debye or ohmic spectral densities.')
+        if models == ['debye']:
+            assert debye is not None, (
+                'Must pass arguments for Debye spectral density to plot it.')
+        if models == ['ohmic']:
+            assert ohmic is not None, (
+                'Must pass arguments for Ohmic spectral density to plot it.')
+        if len(models) == 2 and debye is None:
+            debye = ohmic
+        if len(models) == 2 and ohmic is None:
+            ohmic = debye
+        deb, ohm = [], []
+        if 'debye' in models:
+            frequencies = np.array(debye['frequencies'])
+            for freq in frequencies:
+                deb.append(bath.debye_spectral_density(freq,
+                                                       debye['cutoff_freq'],
+                                                       debye['scale_factor']))
+        if 'ohmic' in models:
+            frequencies = ohmic['frequencies']
+            for freq in frequencies:
+                ohm.append(bath.ohmic_spectral_density(freq,
+                                                       ohmic['cutoff_freq'],
+                                                       ohmic['exponent'],
+                                                       ohmic['scale_factor']))
+        frequencies *= 1e-12
+        if 'debye' in models:
+            deb = np.array(deb) * 1e-12
+            axes.plot(frequencies * 1e-12, deb, label='Debye')
+        if 'ohmic' in models:
+            ohm = np.array(ohm) * 1e-12
+            axes.plot(frequencies * 1e-12, ohm, label='Ohmic')
 
-    return times, matrix_data, squared, distance
+    # FORMATTING
+    # Format labels
+    axes.set_xlabel('$\\omega$ / $rad\\ ps^{-1}$', size=20)
+    axes.set_ylabel('J($\\omega$) / $rad\\ ps^{-1}$', size=20)
+    # Format x-axis
+    axes.set_xlim(frequencies[0], frequencies[-1])
+    upper_x_bound = list(axes.get_xticks())[5]
+    axes.xaxis.set_minor_locator(MultipleLocator(upper_x_bound / 20))
+    # Format y-axis
+    axes.set_ylim(bottom=0.)
+    upper_y_bound = list(axes.get_yticks())[5]
+    axes.yaxis.set_minor_locator(MultipleLocator(upper_y_bound / 20))
+    # Format tick size
+    axes.tick_params(axis='both', which='major', size=10, labelsize=17)
+    axes.tick_params(axis='both', which='minor', size=5)
+    # Other formatting
+    axes.legend(fontsize='x-large')
+    # Save figure as .pdf in quantum_HEOM/doc/figures directory
+    if save:
+        fig_dir = (os.getcwd()[:os.getcwd().find('quantum_HEOM')]
+                   + 'quantum_HEOM/doc/figures/')
+        filename = fig_dir +'spectral_density_comparison'
+        plt.savefig(filename + '.pdf')
+    plt.show()
 
 # UNUSED TITLE SETTINGS
 # title_size = '20'
@@ -498,7 +596,7 @@ def process_evo_data(time_evolution: np.array, elements: [list, None],
 # elif qsys.dynamics_model in TEMP_DEP_MODELS:
 #     title += ('T = ' + str(qsys.temperature) + ' K, ')
 #     title += ('$\\omega_c$ = ' + str(qsys.cutoff_freq * 1e-12)
-#               + ' $rad\\ ps^{-1}$, $f$ = ' + str(qsys.therm_sf * 1e-12)
+#               + ' $rad\\ ps^{-1}$, $f$ = ' + str(qsys.scale_factor * 1e-12)
 #               + ' $rad\\ ps^{-1})$')
 # if set_title:
 #     ax.set_title(title, size=title_size, pad=20)
