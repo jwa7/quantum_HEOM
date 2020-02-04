@@ -297,7 +297,7 @@ def time_evo_heom(dens_mat: np.ndarray, timesteps: int, time_interval: float,
 
     assert isinstance(dens_mat, np.ndarray), 'Input matrix must be a np.ndarray'
     dims = dens_mat.shape[0]
-    assert dims == dens_mat[1], 'Initial density matrix must be square.'
+    assert dims == dens_mat.shape[1], 'Initial density matrix must be square.'
     assert isinstance(timesteps, int), 'timesteps must be passed as an int.'
     assert isinstance(time_interval, float), 'time_interval must be a float.'
     assert (isinstance(hamiltonian, np.ndarray)
@@ -366,3 +366,72 @@ def time_evo_heom(dens_mat: np.ndarray, timesteps: int, time_interval: float,
             np.array(hsolver.exp_coeff),
             np.array(hsolver.exp_freq) * 2 * np.pi * 1e12  # ps^-1 -> rad s^-1
            )
+
+def process_evo_data(time_evolution: np.array, elements: [list, None],
+                     trace_measure: list):
+
+    """
+    Processes a QuantumSystem's time evolution data as produced
+    by its time_evolution() method. Returns the time, matrix,
+    and trace measure (trace of the matrix squared, and trace
+    distance) as separate numpy arrays, ready for use in plotting.
+
+    Parameters
+    ----------
+    time_evolution : np.array
+        As produced by the QuantumSystem's time_evolution() method,
+        containing the time, density matrix, and trace measures
+        at each timestep in the evolution.
+    elements : list
+        The elements of the density matrix to extract and return,
+        in the format i.e. ['11', '21', ...]. Can also take the
+        value None.
+    trace_measure : list of str
+        The trace measures to extract from the time evolution data.
+        Must be a list containing either, both, or neither of
+        'squared', 'distance'.
+
+    Returns
+    -------
+    times : np.array of float
+        All the times in the evolution of the system.
+    matrix_data : dict of np.array
+        Contains {str: np.array} pairs where the str corresponds
+        to each of the elements of the density matrix specified
+        in elements (i.e. '21'), while the np.array contains all
+        the value of that matrix elements at each time step.
+        If elements is passed as None, matrix_data is returned as
+        None.
+    squared : np.array of float
+        The value of the trace of the density matrix squared at
+        each timestep, if 'squared' was specified in trace_measure.
+        If not specified, squared is returned as None.
+    distance : np.array of float
+        The value of the trace distance of the density matrix at
+        each timestep, if 'distance' was specified in
+        trace_measure. If not specified, distance is returned as
+        None.
+    """
+
+    times = np.empty(len(time_evolution), dtype=float)
+    matrix_data = ({element: np.empty(len(time_evolution), dtype=complex)
+                    for element in elements} if elements else None)
+    squared = (np.empty(len(time_evolution), dtype=float)
+               if 'squared' in trace_measure else None)
+    distance = (np.empty(len(time_evolution), dtype=float)
+                if 'distance' in trace_measure else None)
+    for idx, (time, rho_t, squ, dist) in enumerate(time_evolution, start=0):
+        # Retrieve time
+        times[idx] = time * 1E15  # convert s --> fs
+        # Process density matrix data
+        if matrix_data is not None:
+            for element in elements:
+                n, m = int(element[0]) - 1, int(element[1]) - 1
+                matrix_data[element][idx] = rho_t[n][m]
+        # Process trace measure data
+        if squared is not None:
+            squared[idx] = squ
+        if distance is not None:
+            distance[idx] = dist
+
+    return times, matrix_data, squared, distance
