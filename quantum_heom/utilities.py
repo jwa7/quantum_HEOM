@@ -212,7 +212,7 @@ def elements_from_str(sites: int, elements: str) -> list:
                 for i, j in permutations(range(1, sites + 1), 2)]
     raise ValueError('elements argument passed as invalid value.')
 
-def types_of_elements(elements: list):
+def types_of_elements(elements):
 
     """
     Characterises whether all the elements passed in the input list
