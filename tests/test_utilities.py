@@ -5,6 +5,9 @@ import pytest
 
 import quantum_heom.utilities as util
 
+# -------------------------------------------------------------------
+# MATH-BASED FUNCTIONS
+# -------------------------------------------------------------------
 
 @pytest.mark.parametrize(
     'mat, ans',
@@ -51,6 +54,7 @@ def test_commutator_zero(mat_a, mat_b, ans):
 
     assert np.all(util.commutator(mat_a, mat_b) == ans)
 
+
 @pytest.mark.parametrize(
     'mat_a, mat_b, ans',
     [(np.array([[0, 0], [0, 0]]),
@@ -66,6 +70,27 @@ def test_anti_commutator(mat_a, mat_b, ans):
     """
 
     assert np.all(util.commutator(mat_a, mat_b, anti=True) == ans)
+
+
+def test_basis_change_identity():
+
+    """
+    Tests that the function maintains the expected behaviour that
+    the identity matrix (and multiples of) is invariant under
+    basis transformation.
+    """
+
+
+def test_basis_change():
+
+    """
+    Tests that the correct matrix is returned when performing a
+    basis change.
+    """
+
+# -------------------------------------------------------------------
+# OTHER FUNCTIONS
+# -------------------------------------------------------------------
 
 @pytest.mark.parametrize(
     'sites, els, exp',
@@ -84,3 +109,42 @@ def test_elements_from_str(sites, els, exp):
     """
 
     assert np.all(util.elements_from_str(sites, els) == exp)
+
+
+@pytest.mark.parametrize(
+    'elements, expected',
+    [(['11', '33', '99'], 'diagonals'),
+     (['12', '67', '28'], 'off-diagonals'),
+     (['11', '44', '98', '43'], 'both')])
+def test_types_of_elements_from_list(elements, expected):
+
+    """
+    Tests whether elements in list format (i.e. ['11', '21', ...]
+    etc) are correctly characterised.
+    """
+
+    assert util.types_of_elements(elements) == expected
+
+
+@pytest.mark.parametrize(
+    'elements, expected',
+    [('diagonals', 'diagonals'),
+     ('off-diagonals', 'off-diagonals'),
+     ('all', 'both')])
+def test_types_of_elements_from_list(elements, expected):
+
+    """
+    Tests whether elements in string format (i.e. 'all') are
+    correctly characterised.
+    """
+
+    assert util.types_of_elements(elements) == expected
+
+
+def test_types_of_elements_none_input():
+
+    """
+    Tests that None is returned if None is passed.
+    """
+
+    assert util.types_of_elements(None) is None
