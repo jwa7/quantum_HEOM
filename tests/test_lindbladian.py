@@ -117,6 +117,23 @@ def test_thermalising_lindblad_op():  #sites, state_a, state_b):
 #     assert np.all(lind.lindbladian_superop(sites, GAMMA,
 #                                            model='lcoadephasing lindblad') == exp)
 
+def test_lindbladian_superop_trace_preserving():
+
+    """
+    Tests that the Lindbladian superoperator preserves trace,
+    i.e. for each step in the density matrix evolution goverened
+    solely by the Lindbladian (no Hamiltonian dynamics) the trace
+    remains equal to 1.
+    """
+
+def test_lindbladian_superop_sum_eigenvalues():
+
+    """
+    Tests that the sum of the eigenvalues of the density matrix at
+    each step in its evolution remains constant for dynamics
+    goverened solely by the Lindbladian superoperator.
+    """
+
 # -------------------------------------------------------------------
 # RATE CONSTANT + SPECTRAL DENSITY + BOSE-EINSTEIN
 # -------------------------------------------------------------------
