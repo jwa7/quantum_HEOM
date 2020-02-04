@@ -10,6 +10,7 @@ from quantum_heom import heom
 from quantum_heom import lindbladian as lind
 from quantum_heom import utilities as util
 
+from quantum_heom.bath import SPECTRAL_DENSITIES
 from quantum_heom.evolution import (TEMP_INDEP_MODELS,
                                     TEMP_DEP_MODELS,
                                     DYNAMICS_MODELS)
@@ -55,7 +56,7 @@ class QuantumSystem:
         temperature : float
             The temperature of the thermal bath, in Kelvin. Default
             value is 298 K.
-        therm_sf : float
+        scale_factor : float
             The scale factor used to match thermalisation rates
             between dynamics models in units of rad s^-1. Default
             value is 11.87 rad ps^-1.
@@ -118,14 +119,24 @@ class QuantumSystem:
                 self.temperature = settings.get('temperature')
             else:
                 self.temperature = 298.  # K
-            if settings.get('therm_sf') is not None:
-                self.therm_sf = settings.get('therm_sf')
+            if settings.get('scale_factor') is not None:
+                self.scale_factor = settings.get('scale_factor')
             else:
-                self.therm_sf = 1.391 * 1e12  # rad s^-1
+                self.scale_factor = 1.391 * 1e12  # rad s^-1
             if settings.get('cutoff_freq') is not None:
                 self.cutoff_freq = settings.get('cutoff_freq')
             else:
                 self.cutoff_freq = 6.024 * 1e12  # rad s-1
+            if settings.get('spectral_density') is not None:
+                self.spectral_density = settings.get('spectral_density')
+            else:
+                self.spectral_density = 'debye'
+            if self.spectral_density == 'ohmic':
+                if settings.get('ohmic_exponent') is not None:
+                    self.ohmic_exponent = settings.get('ohmic_exponent')
+                else:
+                    # Default to normal Ohmic, rather than sub- or super-Ohmic.
+                    self.ohmic_exponent = 1.
         # SETTINGS FOR HEOM
         if self.dynamics_model == 'HEOM':
             if settings.get('matsubara_terms') is not None:
@@ -339,7 +350,7 @@ class QuantumSystem:
         """
 
         if self.dynamics_model in TEMP_INDEP_MODELS:
-            return self.deph_rate
+            return self._deph_rate
 
     @deph_rate.setter
     def deph_rate(self, deph_rate: float):
@@ -353,11 +364,40 @@ class QuantumSystem:
         self._deph_rate = deph_rate
 
     @property
-    def therm_sf(self) -> float:
+    def spectral_density(self) -> str:
 
         """
-        Get or set the scale factor used in matching thermalising
-        timescales between dynamics models, in units of rad s^-1.
+        Get or set the spectral density used to describe the
+        interaction of the system with bath modes.
+
+        Returns
+        -------
+        str
+            The spectral density beign used. Either 'debye' or
+            'ohmic'.
+        """
+
+        if self.dynamics_model in TEMP_DEP_MODELS:
+            return self._spectral_density
+
+    @spectral_density.setter
+    def spectral_density(self, spectral_density: str):
+
+        assert spectral_density in SPECTRAL_DENSITIES, (
+            'Must choose a spectral density from ' + str(SPECTRAL_DENSITIES)
+            + '. Other spectral densities not yet implemented in quantum_HEOM.')
+        if self.dynamics_model == 'HEOM' and spectral_density == 'ohmic':
+            raise NotImplementedError(
+                'Currently systems described by HEOM dynamics can only be'
+                ' evaluated for Debye spectral densities.')
+        self._spectral_density = spectral_density
+
+    @property
+    def scale_factor(self) -> float:
+
+        """
+        Get or set the scale factor used in scaling the spectral
+        density, in units of rad s^-1.
 
         Raises
         ------
@@ -372,17 +412,17 @@ class QuantumSystem:
         """
 
         if self.dynamics_model in TEMP_DEP_MODELS:
-            return self._therm_sf
+            return self._scale_factor
 
-    @therm_sf.setter
-    def therm_sf(self, therm_sf: float):
+    @scale_factor.setter
+    def scale_factor(self, scale_factor: float):
 
-        assert isinstance(therm_sf, (int, float)), (
-            'therm_sf must be passed as either an int or float')
-        if therm_sf < 0.:
+        assert isinstance(scale_factor, (int, float)), (
+            'scale_factor must be passed as either an int or float')
+        if scale_factor < 0.:
             raise ValueError('Scale factor must be a non-negative float in rad'
                              ' s^-1.')
-        self._therm_sf = therm_sf
+        self._scale_factor = scale_factor
 
     @property
     def cutoff_freq(self) -> float:
@@ -412,6 +452,37 @@ class QuantumSystem:
         if cutoff_freq <= 0.:
             raise ValueError('Cutoff frequency must be a positive float.')
         self._cutoff_freq = cutoff_freq
+
+    @property
+    def ohmic_exponent(self) -> float:
+
+        """
+        Get or set the exponent used in calculation of the Ohmic
+        spectral density. Spectral density is described as Ohmic
+        if the exponent is equal to 1, sub-Ohmic if < 1, and
+        super-Ohmic is > 1.
+
+        Returns
+        -------
+        float
+            The exponent used in calculation of the Ohmic spectral
+            density.
+
+        Raises
+        ------
+        ValueError
+            If trying to set the exponent to a non-postive float.
+        """
+
+        if (self.spectral_density == 'ohmic'
+                and self.dynamics_model in TEMP_DEP_MODELS):
+            return self._ohmic_exponent
+
+    @ohmic_exponent.setter
+    def ohmic_exponent(self, exponent):
+
+        if exponent > 0.:
+            self._ohmic_exponent = exponent
 
     @property
     def matsubara_terms(self) -> int:
@@ -473,7 +544,8 @@ class QuantumSystem:
                                  ' the number of matsubara terms')
             if isinstance(coeffs, list):
                 coeffs = np.array(coeffs)
-            check = [(i >= 0. and isinstance(i, float)) for i in coeffs]
+            check = [(i >= 0. and isinstance(i, (float, complex)))
+                     for i in coeffs]
             assert (isinstance(coeffs, np.ndarray)
                     and check.count(True) == len(check)), (
                         'matsubara_coeffs must be passed as a np.ndarray'
@@ -515,7 +587,8 @@ class QuantumSystem:
                                  ' the number of matsubara terms')
             if isinstance(freqs, list):
                 freqs = np.array(freqs)
-            check = [(i >= 0. and isinstance(i, float)) for i in freqs]
+            check = [(i >= 0. and isinstance(i, (float, complex)))
+                     for i in freqs]
             assert (isinstance(freqs, np.ndarray)
                     and check.count(True) == len(check)), (
                         'matsubara_freqs must be passed as a np.ndarray'
@@ -695,8 +768,10 @@ class QuantumSystem:
                                             self.dynamics_model,
                                             self.deph_rate,
                                             self.cutoff_freq,
-                                            self.therm_sf,
-                                            self.temperature)  # rad s^-1
+                                            self.scale_factor,
+                                            self.temperature,
+                                            self.spectral_density,
+                                            self.ohmic_exponent)  # rad s^-1
 
     @property
     def coupling_op(self) -> np.ndarray:
@@ -854,13 +929,15 @@ class QuantumSystem:
             temperature = (self.temperature * 1e-12
                            * (constants.k / constants.hbar))  # K ---> rad ps^-1
             time_interval = self.time_interval * 1e12  # s ---> ps
-            coup_strength = (self.therm_sf
+            coup_strength = (self.scale_factor
                              / (2 * np.pi * 1e12)) # rad s^-1 -> ps^-1
             cutoff_freq = (self.cutoff_freq
                            / (2 * np.pi * 1e12)) # rad s^-1 --> ps^-1
             if self.matsubara_freqs is not None:
                 matsubara_freqs = (self.matsubara_freqs * 1e-12
                                    / (2 * np.pi))  # rad s^-1 -> ps^-1
+            else:
+                matsubara_freqs = None
 
             tmp = evo.time_evo_heom(self.initial_density_matrix,
                                     self.timesteps,
