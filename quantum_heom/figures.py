@@ -120,13 +120,13 @@ def plot_dynamics(systems, elements: [list, str] = None,
     multiple = len(systems) > 1
     # Initialise axes
     if view_3d:  # 3D PLOT
-        gold_ratio, scaling = 1.61803, 15
-        figsize = (gold_ratio * scaling, scaling)
+        ratio, scaling = 1.8, 6
+        figsize = (ratio * scaling, scaling)
         axes = plt.figure(figsize=figsize)
         axes = plt.axes(projection='3d')
     else:  # 2D PLOT
-        gold_ratio, scaling = 1.61803, 8
-        figsize = (gold_ratio * scaling, scaling)
+        ratio, scaling = 1.7, 5
+        figsize = (ratio * scaling, scaling)
         _, axes = plt.subplots(figsize=figsize)
     # Process and plot
     for sys in systems:
@@ -136,18 +136,20 @@ def plot_dynamics(systems, elements: [list, str] = None,
         axes = _plot_data(axes, processed, sys, multiple, elements,
                           coherences, asymptote, view_3d)
         axes = _format_axes(axes, sys, elements, times, view_3d)
-    plt.show()
     # ----------------------------------------------------------------------
     # SAVE PLOT
     # ----------------------------------------------------------------------
     # Save the figure in a .pdf and the arguments used in a .txt
     if save:
-        plot_args = {'view_3d': view_3d,
-                     'elements': elements,
+        plot_args = {'elements': elements,
+                     'coherences': coherences,
                      'trace_measure': trace_measure,
                      'asymptote': asymptote,
-                     'save': save}
-        save_figure_and_args(systems, plot_args)
+                     'view_3d': view_3d,
+                     'save': save,
+                    }
+        save_figure_and_args(systems, plot_args, plot_type='dynamics')
+    plt.show()
 
 def _plot_data(ax, processed, qsys, multiple: bool, elements: list,
                coherences: str, asymptote: bool, view_3d: bool):
@@ -217,11 +219,7 @@ def _plot_data(ax, processed, qsys, multiple: bool, elements: list,
                           'debye': 'Debye',
                          }
                 lines = {'local dephasing lindblad':
-                         {'debye': ['-', 'red', 'indianred', 'coral',
-                                    'lightcoral'],
-                          'ohmic': ['-', 'lightcoral', 'coral', 'indianred',
-                                    'red'],
-                         },
+                         ['-', 'red', 'indianred', 'coral', 'lightcoral'],
                          'global thermalising lindblad':
                          {'debye': ['-', 'blueviolet', 'mediumpurple', 'violet',
                                     'thistle'],
@@ -237,16 +235,20 @@ def _plot_data(ax, processed, qsys, multiple: bool, elements: list,
                          # 'HEOM': ['--', 'k', 'dimgray', 'silver', 'lightgrey'],
                          'HEOM':
                          {'debye': ['--', 'mediumblue', 'royalblue',
-                                    'lightsteelblue', 'deepskyblue'],
-                          'ohmic': ['-', 'deepskyblue', 'lightsteelblue',
-                                    'royalblue', 'mediumblue'],
+                                    'lightsteelblue', 'deepskyblue']
                          },
                         }
-                label += (' (' + labels[qsys.dynamics_model] + ', '
-                          + labels[qsys.spectral_density] + ')')
-                style = lines[qsys.dynamics_model][qsys.spectral_density][0]
-                colour = lines[qsys.dynamics_model]
-                colour = colour[qsys.spectral_density][(idx % 4) + 1]
+                if qsys.dynamics_model == 'local dephasing lindblad':
+                    # Local dephasing model doesn't use a spectral density
+                    label += (' (' + labels[qsys.dynamics_model] + ')')
+                    style = lines[qsys.dynamics_model][0]
+                    colour = lines[qsys.dynamics_model][(idx % 4) + 1]
+                else:
+                    label += (' (' + labels[qsys.dynamics_model] + ', '
+                              + labels[qsys.spectral_density] + ')')
+                    style = lines[qsys.dynamics_model][qsys.spectral_density][0]
+                    colour = lines[qsys.dynamics_model]
+                    colour = colour[qsys.spectral_density][(idx % 4) + 1]
             else:
                 style = '-'
                 colour = None
@@ -287,13 +289,12 @@ def _plot_data(ax, processed, qsys, multiple: bool, elements: list,
     if distance is not None:
         args = ((zeros, distance) if view_3d else (distance,))
         ax.plot(times, *args, dashes=[3, 1], linewidth=linewidth,
-                c='gray', label='$0.5\\ tr|\\rho(t) - \\rho^{eq}|$')
+                c='gray', label='$0.5\\ tr\\ |\\rho(t) - \\rho^{eq}|$')
     if asymptote:
         asym = [1 / qsys.sites] * len(times)
         args = ((zeros, asym) if view_3d else (asym,))
         ax.plot(times, *args, ls='--', linewidth=linewidth, c='gray',
                 label='$y = \\frac{1}{N}$')
-
     return ax
 
 def _format_axes(ax, qsys, elements: [list, None], times: np.array,
@@ -308,7 +309,7 @@ def _format_axes(ax, qsys, elements: [list, None], times: np.array,
     ax : matplotlib.axes._subplots.AxesSubplot
         The matplotlib axes to be formatted.
     qsys : QuantumSystem
-        The system whose data is being plotted.
+        The quantum system whose data is being plotted.
     elements : list or None
         The elements of qsys's density matrix that have been
         plotted. Can be a list of form ['11', '21', ...] or
@@ -347,18 +348,21 @@ def _format_axes(ax, qsys, elements: [list, None], times: np.array,
         ax.yaxis.set_minor_locator(MultipleLocator(0.1))
         ax.zaxis.set_major_locator(MultipleLocator(0.5))
         ax.zaxis.set_minor_locator(MultipleLocator(0.1))
-        ax.tick_params(axis='both', which='major', size=10, labelsize=17)
+        ax.tick_params(axis='both', which='major', size=10, labelsize=20)
         ax.tick_params(axis='both', which='minor', size=5)
     else:
+        pad = 10
         # Set axes labels
         ax.legend(loc='upper right', fontsize='x-large')
-        ax.set_xlabel('Time / fs', size=label_size, labelpad=20)
+        ax.set_xlabel('Time / fs', size=label_size, labelpad=pad)
         if elem_types == 'both':
-            ax.set_ylabel('Amplitude', size=label_size, labelpad=20)
+            ax.set_ylabel('Amplitude', size=label_size, labelpad=pad)
         elif elem_types == 'diagonals':
-            ax.set_ylabel('Site Population', size=label_size, labelpad=20)
+            ax.set_ylabel('Site Population', size=label_size, labelpad=pad)
+        elif elem_types == 'off-diagonals':
+            ax.set_ylabel('Coherences', size=label_size, labelpad=pad)
         else:
-            ax.set_ylabel('Coherences', size=label_size, labelpad=20)
+            ax.set_ylabel('Trace Measure', size=label_size, labelpad=pad)
         ax.set_xlim(times[0], ceil((times[-1] - 1e-9) / 100) * 100)
         # Format axes ranges
         upper_bound = list(ax.get_xticks())[5]
@@ -372,12 +376,11 @@ def _format_axes(ax, qsys, elements: [list, None], times: np.array,
         # Format axes ticks
         ax.yaxis.set_major_locator(MultipleLocator(0.5))
         ax.yaxis.set_minor_locator(MultipleLocator(0.1))
-        ax.tick_params(axis='both', which='major', size=10, labelsize=17)
+        ax.tick_params(axis='both', which='major', size=10, labelsize=20)
         ax.tick_params(axis='both', which='minor', size=5)
-
     return ax
 
-def save_figure_and_args(systems, plot_args: dict):
+def save_figure_and_args(systems, plot_args: dict, plot_type: str):
 
     """
     Saves the figure to a descriptive filename in the relative
@@ -393,6 +396,9 @@ def save_figure_and_args(systems, plot_args: dict):
     plot_args : dict
         The arguments passed to the plot_dynamics() method,
         used to plot the dynamics of the systems.
+    plot_type : str
+        The type of plot in in the figure; either 'dynamics' or
+        'spectral_density'.
     """
 
     # Define some abbreviations of terms to use in file naming
@@ -409,6 +415,7 @@ def save_figure_and_args(systems, plot_args: dict):
     # date_stamp = util.date_stamp()  # avoid duplicates in filenames
     fig_dir = (os.getcwd()[:os.getcwd().find('quantum_HEOM')]
                + 'quantum_HEOM/doc/figures/')
+    fig_dir += plot_type + '_'
     if len(systems) == 1:
         filename = (fig_dir + str(systems[0].sites) + '_sites'
                     + abbrevs[systems[0].interaction_model]
@@ -434,16 +441,27 @@ def save_figure_and_args(systems, plot_args: dict):
         else:
             filename += '_variable_dynamics'
         if temp:
-            filename += '_' + systems[0].temperature + 'K'
+            filename += '_' + str(int(systems[0].temperature)) + 'K'
         else:
             filename += '_variable_temp'
         if spec:
             filename += 'variable_spec_dens'
         else:
-            filename += '_' + systems[0].spectral_density
+            for sys in systems:
+                try:
+                    filename += '_' + sys.spectral_density
+                except TypeError:
+                    continue
+                break
         filename += '_elements'
-        for elem in plot_args['elements']:
-            filename += '_' + elem
+        if 'dynamics' in filename:
+            for elem in plot_args['elements']:
+                filename += '_' + elem
+        elif 'spectral_density' in filename:
+            if plot_args['debye'] is not None:
+                filename += '-' + 'debye'
+            if plot_args['ohmic'] is not None:
+                filename += '-' + 'ohmic'
     # Create a file index number to avoid overwriting existing files
     filename += '_version_'
     index = 0
@@ -451,7 +469,7 @@ def save_figure_and_args(systems, plot_args: dict):
         index += 1
     filename += str(index)
     # Save the figure and write the argument info to file.
-    plt.savefig(filename + '.pdf')
+    plt.savefig(filename + '.pdf', bbox_inches='tight')
     util.write_args_to_file(systems, plot_args, filename + '.txt')
 
 def plot_spectral_density(systems: list = None, models: list = None,
@@ -461,7 +479,7 @@ def plot_spectral_density(systems: list = None, models: list = None,
     """
     Plots either the Debye or Ohmic - or both - spectral densities
     as a function of frequency. Units of all the frequencies and
-    the cutoff frequency must be consistent; in rad s^-1.
+    the cutoff frequency must be consistent; in rad ps^-1.
 
     Parameters
     ----------
@@ -477,7 +495,7 @@ def plot_spectral_density(systems: list = None, models: list = None,
         Must specify if systems is passed as None. A dictionary
         containing the arguments used to define the Debye spectral
         density. Must contain values under the keys 'frequencies',
-        'cutoff_freq' and 'scale_factor'. Check the docstring in
+        'cutoff_freq' and 'reorg_energy'. Check the docstring in
         bath.py 's debye_spectral_density() function for details
         on these arguments. If models contains both 'debye' and
         'ohmic' and ohmic is passed as None, the arguments given in
@@ -486,7 +504,7 @@ def plot_spectral_density(systems: list = None, models: list = None,
         Must specify if systems is passed as None. A dictionary
         containing the arguments used to define the Ohmic spectral
         density. Must contain values under the keys 'frequencies',
-        'cutoff_freq', 'scale_factor', and 'exponent'. Check the
+        'cutoff_freq', 'reorg_energy', and 'exponent'. Check the
         docstring in bath.py 's ohmic_spectral_density() function
         for details on these arguments.
     save : bool
@@ -496,7 +514,7 @@ def plot_spectral_density(systems: list = None, models: list = None,
 
     # PLOTTING
     # Set up axes
-    gold_ratio, scaling = 1.61803, 8
+    gold_ratio, scaling = 1.61803, 5
     figsize = (gold_ratio * scaling, scaling)
     _, axes = plt.subplots(figsize=figsize)
     # Plot systems if list of QuantumSystems is passed.
@@ -511,15 +529,13 @@ def plot_spectral_density(systems: list = None, models: list = None,
                 if sys.spectral_density == 'debye':
                     label = 'Debye'
                     specs.append(bath.debye_spectral_density(freq, cutoff,
-                                                             sys.scale_factor))
+                                                             sys.reorg_energy))
                 else:  # Ohmic
                     label = 'Ohmic'
                     specs.append(bath.ohmic_spectral_density(freq, cutoff,
                                                              sys.ohmic_exponent,
-                                                             sys.scale_factor))
-            # Convert rad s^-1 --> rad ps^-1
-            frequencies *= 1e-12
-            specs = np.array(specs) * 1e-12
+                                                             sys.reorg_energy))
+            specs = np.array(specs)
             axes.plot(frequencies, specs, label=label)
     # Plot if just specifications are passed.
     else:
@@ -544,14 +560,14 @@ def plot_spectral_density(systems: list = None, models: list = None,
             for freq in frequencies:
                 deb.append(bath.debye_spectral_density(freq,
                                                        debye['cutoff_freq'],
-                                                       debye['scale_factor']))
+                                                       debye['reorg_energy']))
         if 'ohmic' in models:
             frequencies = ohmic['frequencies']
             for freq in frequencies:
                 ohm.append(bath.ohmic_spectral_density(freq,
                                                        ohmic['cutoff_freq'],
                                                        ohmic['exponent'],
-                                                       ohmic['scale_factor']))
+                                                       ohmic['reorg_energy']))
         frequencies *= 1e-12
         if 'debye' in models:
             deb = np.array(deb) * 1e-12
@@ -579,10 +595,12 @@ def plot_spectral_density(systems: list = None, models: list = None,
     axes.legend(fontsize='x-large')
     # Save figure as .pdf in quantum_HEOM/doc/figures directory
     if save:
-        fig_dir = (os.getcwd()[:os.getcwd().find('quantum_HEOM')]
-                   + 'quantum_HEOM/doc/figures/')
-        filename = fig_dir +'spectral_density_comparison'
-        plt.savefig(filename + '.pdf')
+        plot_args = {'models': models,
+                     'debye': debye,
+                     'ohmic': ohmic,
+                     'save': save,
+                    }
+        save_figure_and_args(systems, plot_args, plot_type='spectral_density')
     plt.show()
 
 # UNUSED TITLE SETTINGS
@@ -596,7 +614,7 @@ def plot_spectral_density(systems: list = None, models: list = None,
 # elif qsys.dynamics_model in TEMP_DEP_MODELS:
 #     title += ('T = ' + str(qsys.temperature) + ' K, ')
 #     title += ('$\\omega_c$ = ' + str(qsys.cutoff_freq * 1e-12)
-#               + ' $rad\\ ps^{-1}$, $f$ = ' + str(qsys.scale_factor * 1e-12)
+#               + ' $rad\\ ps^{-1}$, $f$ = ' + str(qsys.reorg_energy * 1e-12)
 #               + ' $rad\\ ps^{-1})$')
 # if set_title:
 #     ax.set_title(title, size=title_size, pad=20)
