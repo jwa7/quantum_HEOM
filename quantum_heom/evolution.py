@@ -84,8 +84,9 @@ def equilibrium_state(dynamics_model: str, dims: int, hamiltonian: np.ndarray,
         system.
     hamiltonian : np.ndarray
         The system Hamiltonian for the open quantum system, with
-        dimensions (dims x dims). Only needs to be passed if
-        dynamics_model is a thermalising model.
+        dimensions (dims x dims), in units of rad ps^-1. Only
+        needs to be passed if dynamics_model is a thermalising
+        model.
     temperature : float
         The temperature of the bath, in Kelvin. Need only be
         passed if dynamics_model is a thermalising model.
@@ -103,15 +104,16 @@ def equilibrium_state(dynamics_model: str, dims: int, hamiltonian: np.ndarray,
         assert isinstance(hamiltonian, np.ndarray) and (
             hamiltonian.shape[0] == hamiltonian.shape[1] == dims), (
                 'Hamiltonian must be a square np.ndarray with same dimensions'
-                ' as specified in "dims".')
+                ' as specified in "dims", units of rad ps^-1')
         assert isinstance(temperature, float) and temperature > 0., (
-            'Must pass temperature as a positive float for thermalising models')
+            'Must pass temperature as a positive float for thermalising models'
+            ' in Kelvin.')
 
     if dynamics_model in TEMP_INDEP_MODELS:
         # Maximally-mixed state for dephasing model:
         return np.eye(dims, dtype=complex) * 1. / dims
     # Thermalising models; thermal equilibrium state
-    arg = linalg.expm(- hamiltonian * constants.hbar
+    arg = linalg.expm(- hamiltonian * 1e-12 * constants.hbar
                       / (constants.k * temperature))
     return np.divide(arg, np.trace(arg))
 
@@ -126,7 +128,10 @@ def evolve_matrix_one_step(dens_mat: np.ndarray, superop: np.ndarray,
         \\rho(t + dt) = exp(superop * dt) \\rho(t)
 
     Typically, 'superop' will be the sum of Hamiltonian and
-    Lindbladian superoperators.
+    Lindbladian superoperators. Assumes quantities passed in
+    correct and consistent units; i.e. that the superop is in
+    angular frequency units of rad ps^-1, and the time_interval
+    is in time units ps.
 
     Parameters
     ----------
@@ -170,7 +175,10 @@ def time_evo_lindblad(dens_mat: np.ndarray, superop: np.ndarray,
     multiple time steps for the Lindblad models. Returns an array
     containing the times, density matrices at each timestep, and
     the trace of the density matrix squared and/or the trace
-    distance at each step, if specified in 'trace_measure'.
+    distance at each step, if specified in 'trace_measure'. Assumes
+    quantities passed in correct and consistent units; i.e. that
+    the superop is in angular frequency units of rad ps^-1, and the
+    time_interval is in time units ps.
 
     Parameters
     ----------
@@ -178,25 +186,33 @@ def time_evo_lindblad(dens_mat: np.ndarray, superop: np.ndarray,
         The initial density matrix to evolve forward in time.
     superop : np.ndarray
         The superoperator that governs the dynamics of the quantum
-        system, typically formed from the sum of Hamiltonian and
-        Lindbladian superoperators.
+        system, in units of rad ps^-1. Typically formed from the
+        sum of Hamiltonian and Lindbladian superoperators.
     timesteps : int
         The number of timesteps over which to evaluate the density
         matrix.
     time_interval : float
         The step forward in time to which the density matrix
-        will be evolved.
+        will be evolved, in femtoseconds.
     dynamics_model : str
         The model used to describe the system dynamics. Must be one
         of 'local dephasing lindblad','local thermalising
         lindblad', 'global thermalising lindblad'.
     hamiltonian : np.ndarray
         The system Hamiltonian for the open quantum system, with
-        dimensions (dims x dims). Only needs to be passed if
-        dynamics_model is a thermalising model.
-    temperature : float
-        The temperature of the bath, in Kelvin. Need only be
+        dimensions (dims x dims), in rad ps^-1. Only needs to be
         passed if dynamics_model is a thermalising model.
+    temperature : float
+        The temperature of the bath, in K. Need only be passed if
+        dynamics_model is a thermalising model.
+
+    Returns
+    -------
+    np.array
+        An array where each element corresponds to a timestep in the
+        evolution of the density matrix, containing the following
+        info, respectively; time, density matrix at time, trace
+        squared, trace distance.
     """
 
     # Check inputs
@@ -229,13 +245,14 @@ def time_evo_lindblad(dens_mat: np.ndarray, superop: np.ndarray,
     evolution = np.empty(timesteps + 1, dtype=np.ndarray)
     evolution[0] = np.array([time, evolved, squared, distance])
     for step in range(1, timesteps + 1):
-        time += time_interval
+        time += time_interval * 1e-3  # fs --> ps  to match superop units
         evolved = evolve_matrix_one_step(evolved, superop, time_interval)
         squared = util.trace_matrix_squared(evolved)
         eq_state = equilibrium_state(dynamics_model, dims,
                                      hamiltonian, temperature)
         distance = util.trace_distance(evolved, eq_state)
-        evolution[step] = np.array([time, evolved, squared, distance])
+        # Add quantities in quantum_HEOM units; i.e. convert time back ps --> fs
+        evolution[step] = np.array([time * 1e3, evolved, squared, distance])
     return evolution
 
 def time_evo_heom(dens_mat: np.ndarray, timesteps: int, time_interval: float,
@@ -276,11 +293,11 @@ def time_evo_heom(dens_mat: np.ndarray, timesteps: int, time_interval: float,
         The number of bath terms to include in the HEOM evaluation
         of the system dynamics.
     mastsubara_terms : int
-        The number of matubara terms to include in the HEOM
+        The number of matsubara terms to include in the HEOM
         evaluation of the system dynamics.
     cutoff_freq : float
         The cutoff frequency used in calculating the spectral
-        density, in units of rad s^-1.
+        density, in units of ps^-1.
     matsubara_coeffs : np.ndarray
         The matsubara coefficients c_k used in calculating the
         spectral density for the HEOM approach. Must be in
@@ -289,10 +306,18 @@ def time_evo_heom(dens_mat: np.ndarray, timesteps: int, time_interval: float,
         HEOMSolver automatically generates them.
     matsubara_freqs: np.ndarray
         The matsubara frequencies v_k used in calculating the
-        spectral density for the HEOM approach, in units of rad
-        s^-1. Must be in order (smallest -> largest), where the
-        nth frequency corresponds to the nth matsubara term.
-        If None; QuTiP's HEOMSolver automatically generates them.
+        spectral density for the HEOM approach, in units of ps^-1.
+        Must be in order (smallest -> largest), where the nth
+        frequency corresponds to the nth matsubara term. If None;
+        QuTiP's HEOMSolver automatically generates them.
+
+    Returns
+    -------
+    np.array
+        An array where each element corresponds to a timestep in the
+        evolution of the density matrix, containing the following
+        info, respectively; time, density matrix at time, trace
+        squared, trace distance.
     """
 
     assert isinstance(dens_mat, np.ndarray), 'Input matrix must be a np.ndarray'
@@ -321,26 +346,28 @@ def time_evo_heom(dens_mat: np.ndarray, timesteps: int, time_interval: float,
     assert (isinstance(cutoff_freq, float) and cutoff_freq > 0.), (
         'Must provide the cutoff_freq as a positive float.')
     if matsubara_coeffs is not None:
-        check = [(i >= 0. and isinstance(i, float)) for i in matsubara_coeffs]
+        check = [(i >= 0. and isinstance(i, (float, complex)))
+                 for i in matsubara_coeffs]
         assert (isinstance(matsubara_coeffs, np.ndarray)
                 and check.count(True) == len(check)), (
                     'matsubara_coeffs must be passed as a np.ndarray with all'
                     ' elements as positive floats.')
     if matsubara_freqs is not None:
-        check = [(i >= 0. and isinstance(i, float)) for i in matsubara_freqs]
+        check = [(i >= 0. and isinstance(i, (float, complex)))
+                 for i in matsubara_freqs]
         assert (isinstance(matsubara_freqs, np.ndarray)
                 and check.count(True) == len(check)), (
                     'matsubara_freqs must be passed as a np.ndarray with all'
                     ' elements as positive floats.')
 
     # Build HEOM Solver
-    hsolver = HSolverDL(Qobj(hamiltonian),
+    hsolver = HSolverDL(Qobj(hamiltonian),   # rad ps^-1
                         Qobj(coupling_op),
-                        coup_strength,
-                        temperature,
+                        coup_strength,  # rad ps^-1
+                        temperature,   # rad ps^-1
                         bath_cutoff,
                         matsubara_terms,
-                        cutoff_freq,
+                        cutoff_freq,   # ps^-1
                         planck=1.0,
                         boltzmann=1.0,
                         renorm=False,
@@ -354,17 +381,18 @@ def time_evo_heom(dens_mat: np.ndarray, timesteps: int, time_interval: float,
     times = np.array(range(timesteps)) * time_interval
     result = hsolver.run(Qobj(dens_mat), times)
     # Convert time evolution data to quantum_HEOM format
+    times = times * 1e3  # ps --> fs
     evolution = np.empty(len(result.states), dtype=np.ndarray)
     eq_state = equilibrium_state('HEOM', dims, hamiltonian, temperature)
     for i in range(0, len(result.states)):
         dens_matrix = np.array(result.states[i]).T
-        evolution[i] = np.array([float(result.times[i]) * 1E-12,  # ps --> s
+        evolution[i] = np.array([float(result.times[i]),
                                  dens_matrix,
                                  util.trace_matrix_squared(dens_matrix),
                                  util.trace_distance(dens_matrix, eq_state)])
     return (evolution,
             np.array(hsolver.exp_coeff),
-            np.array(hsolver.exp_freq) * 2 * np.pi * 1e12  # ps^-1 -> rad s^-1
+            np.array(hsolver.exp_freq) * 2 * np.pi  # ps^-1 -> rad ps^-1
            )
 
 def process_evo_data(time_evolution: np.array, elements: [list, None],
@@ -422,7 +450,7 @@ def process_evo_data(time_evolution: np.array, elements: [list, None],
                 if 'distance' in trace_measure else None)
     for idx, (time, rho_t, squ, dist) in enumerate(time_evolution, start=0):
         # Retrieve time
-        times[idx] = time * 1E15  # convert s --> fs
+        times[idx] = time  # already in fs
         # Process density matrix data
         if matrix_data is not None:
             for element in elements:
