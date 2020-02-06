@@ -4,34 +4,62 @@ from scipy import constants
 import numpy as np
 
 INTERACTION_MODELS = ['nearest neighbour cyclic', 'nearest neighbour linear',
-                      'FMO']
+                      'FMO', 'spin-boson']
 
 
-def hamiltonian_matrix(dims: int, interaction_model: str,
+def system_hamiltonian(dims: int, interaction_model: str,
                        alpha_beta: tuple) -> np.ndarray:
 
     """
-    Builds an system Hamiltonian for the QuantumSystem,
-    in units of rad s^-1.
+    Builds an system Hamiltonian for the QuantumSystem, in units of
+    rad ps^-1. The FMO Hamiltonian is for 7-site systems only, and
+    has a form constructed using parameters from Adolphs, J.;
+    Renger, T. Biophysical Journal 2006, 91, 2778–2797. The spin-
+    boson model is only applicable to 2-site systems, and has the
+    form:
+
+    .. math::
+        H_{sys} = \\frac{\\alpha}{2} \\sigma_z
+                  + \\frac{\\beta}{2} \\sigma_x
+
+    as shown in J. Chem. Phys. 144, 044110 (2016);
+    https://doi.org/10.1063/1.4940218. The nearest neighbour models
+    are applicable to any number of sites and are given by:
+
+    .. math ::
+        H_{sys} = \\alpha I + \\beta A
+
+    where A is the adjacency matrix as built in the method
+    adjacency_matrix().
 
     Parameters
     ----------
+    dims : int
+        The dimensions of the Hamiltonian matrix to be constructed.
     interaction_model : str
         How to model the interactions between sites. Must be
-        one of ['nearest_neighbour_linear',
-        'nearest_neighbour_cyclic', 'FMO'].
+        one of ['nearest neighbour linear',
+        'nearest neighbour cyclic', 'FMO', 'spin-boson'].
+    alpha_beta : tuple of float
+        The (alpha, beta) values used to construct the nearest
+        neighbour and spin-boson models. Must be passed in units of
+        rad ps^-1. alpha corresponds to values of diagonal elements,
+        whilst beta corresponds to coupling strengths in the off-
+        diagonal elements.
 
     Returns
     -------
     np.ndarray
         An N x N 2D array Hamiltonian for the quantum system,
-        where N is the number of sites. In units of rad s^-1.
+        where N is the dimension (i.e number of sites). In units
+        of rad ps^-1.
     """
 
     assert dims > 1, 'Must pass dimensions greater than 2.'
     assert interaction_model in INTERACTION_MODELS, (
         'Must choose an interaction_model from ' + str(INTERACTION_MODELS))
-    if interaction_model.startswith('nearest'):
+    if (interaction_model.startswith('nearest')
+            or interaction_model == 'spin_boson'):
         assert isinstance(alpha_beta, tuple), ('Must pass alpha_beta as a'
                                                ' 2-element tuple.')
 
@@ -53,7 +81,8 @@ def hamiltonian_matrix(dims: int, interaction_model: str,
         #                   [6, 2, -1, -70, 320, 40, -2],
         #                   [-8, 13, -9, -19, 40, 360, 32],
         #                   [-4, 1, 17, -57, -2, 32, 260]])
-        return hamil * 2 * np.pi * constants.c * 100.  # cm^-1 --> rad s^-1
+        # Convert units cm^-1 --> rad s^-1
+        return hamil * 2 * np.pi * constants.c * 100. * 1e-12
 
     # Hamiltonian H = (alpha * I) + (beta * A) where A is the adjacency
     # matrix and I the identity.
@@ -61,7 +90,19 @@ def hamiltonian_matrix(dims: int, interaction_model: str,
                              'nearest neighbour cyclic']:
         alpha, beta = alpha_beta
         adjacency = adjacency_matrix(dims, interaction_model)
-        return (alpha * np.eye(dims)) + (beta * adjacency) # rad s^-1
+        return (alpha * np.eye(dims)) + (beta * adjacency) # rad ps^-1
+
+    # Hamiltonian H = (alpha * sigma_z) + (beta * sigma_x) where the sigma
+    # operators are Pauli matrices.
+    if interaction_model == 'spin-boson':
+        assert dims == 2, (
+            'The spin-boson model can currently only be applied to 2-site'
+            ' systems.')
+        sigma_z = np.array([[1, 0], [0, -1]])
+        sigma_x = np.array([[0, 1], [1, 0]])
+        alpha, beta = alpha_beta
+        return (alpha / 2) * sigma_z + (beta / 2) * sigma_z
+
     raise NotImplementedError('Other interaction models have not yet'
                               ' been implemented in quantum_HEOM.'
                               ' Choose from ' + str(INTERACTION_MODELS))
