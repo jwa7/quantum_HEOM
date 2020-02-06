@@ -175,7 +175,7 @@ def lindblad_superop_sum_element(l_op: np.ndarray) -> np.ndarray:
 
 def lindbladian_superop(dims: int, hamiltonian: np.ndarray,
                         dynamics_model: str, deph_rate: float = None,
-                        cutoff_freq: float = None, scale_factor: float = None,
+                        cutoff_freq: float = None, reorg_energy: float = None,
                         temperature: float = None, spectral_density: str = None,
                         exponent: float = None) -> np.ndarray:
 
@@ -193,7 +193,7 @@ def lindbladian_superop(dims: int, hamiltonian: np.ndarray,
         system.
     hamiltonian : np.ndarray
         The system Hamiltonian for the open quantum system, with
-        dimensions (dims x dims), in units of rad s^-1.
+        dimensions (dims x dims), in units of rad ps^-1.
     dynamics_model : str
         The model used to describe the system dynamics. Must be one
         of 'local dephasing lindblad','local thermalising
@@ -202,12 +202,12 @@ def lindbladian_superop(dims: int, hamiltonian: np.ndarray,
         The dephasing rate constant of the system, in s^-1.
     cutoff_freq : float
         The cutoff frequency at which the spectral density
-        evaluates to 1 (or the scale_factor value if f not equal
-        to 1), in units of rad s^-1. Must be a non-negative float.
+        evaluates to 1 (or the reorg_energy value if f not equal
+        to 1), in units of rad ps^-1. Must be a non-negative float.
         Only required for themalising Lindblad models.
-    scale_factor : float
+    reorg_energy : float
         The factor by which the spectral density should be scaled
-        by. Should be passed in units of rad s^-1. Must be a
+        by. Should be passed in units of rad ps^-1. Must be a
         non-negative float.Only required for themalising Lindblad
         models.
     temperature : float
@@ -219,7 +219,7 @@ def lindbladian_superop(dims: int, hamiltonian: np.ndarray,
     lindbladian : 2D np.ndarray of complex
         The (N^2 x N^2) lindbladian matrix that will dephase the
         off-diagonals of a vectorised N x N density matrix, in
-        units of rad s^-1.
+        units of rad ps^-1.
     """
 
     eigv, eigs = util.eigv(hamiltonian), util.eigs(hamiltonian)
@@ -232,10 +232,10 @@ def lindbladian_superop(dims: int, hamiltonian: np.ndarray,
             l_op = loc_deph_lindblad_op(dims, site_j)
             indiv_superop = lindblad_superop_sum_element(l_op)
             lindbladian += indiv_superop
-        return deph_rate * lindbladian
+        return deph_rate * lindbladian  # rad ps^-1
 
     # Check inputs for thermalising models
-    for var in [cutoff_freq, scale_factor, temperature, spectral_density]:
+    for var in [cutoff_freq, reorg_energy, temperature, spectral_density]:
         assert var is not None, (
             'Need to pass a cutoff frequency, scaling factor, temperature,'
             ' and spectral density for thermalising models.')
@@ -249,7 +249,7 @@ def lindbladian_superop(dims: int, hamiltonian: np.ndarray,
             omega_a, omega_b = eigv[state_a], eigv[state_b]
             k_a_to_b = bath.rate_constant_redfield(omega_a - omega_b,
                                                    cutoff_freq,
-                                                   scale_factor,
+                                                   reorg_energy,
                                                    temperature,
                                                    spectral_density,
                                                    exponent)
@@ -257,7 +257,7 @@ def lindbladian_superop(dims: int, hamiltonian: np.ndarray,
             indiv_superop = lindblad_superop_sum_element(l_op)
             lindbladian += k_a_to_b * indiv_superop
         lindbladian = util.basis_change(lindbladian, eigs)
-        return lindbladian
+        return lindbladian  # rad ps^-1
 
     if dynamics_model == 'local thermalising lindblad':
         # Lindblad operator evaluated for each pair (x, y), where x
@@ -268,14 +268,14 @@ def lindbladian_superop(dims: int, hamiltonian: np.ndarray,
         for unique, site_m in product(unique, range(dims)):
             k_omega = bath.rate_constant_redfield(unique,
                                                   cutoff_freq,
-                                                  scale_factor,
+                                                  reorg_energy,
                                                   temperature,
                                                   spectral_density,
                                                   exponent)
             l_op = loc_therm_lindblad_op(eigv, eigs, unique, site_m)
             indiv_superop = lindblad_superop_sum_element(l_op)
             lindbladian += k_omega * indiv_superop
-        return lindbladian
+        return lindbladian  # rad ps^-1
 
     raise NotImplementedError('Other lindblad dynamics models not yet'
                               ' implemented in quantum_HEOM. Choose from: '
