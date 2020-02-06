@@ -328,15 +328,25 @@ def write_args_to_file(systems, plot_args: dict, filename: str):
             f.write(arg_names[idx] + ' = ' + args + '\n')
         plot_args = re.sub(' +', ' ', str(plot_args))
         plot_args = plot_args.replace('\n', '')
-        f.write('# Arguments for plotting dynamics\n')
+        if 'dynamics' in filename:
+            f.write('# Arguments for plotting dynamics\n')
+        elif 'spectral_density' in filename:
+            f.write('# Arguments for plotting spectral density\n')
+        else:
+            raise ValueError('Incorrectly named files')
         f.write('plot_args = ' + plot_args + '\n')
         f.write('\n\n')
         f.write('# Use the arguments in the following way:\n')
-        f.write('from quantum_heom import QuantumSystem\n')
-        f.write('import figures as figs\n\n')
+        f.write('from quantum_heom.quantum_system import QuantumSystem\n')
+        f.write('from quantum_heom import figures as figs\n\n')
         for sys, arg in zip(sys_names, arg_names):
             f.write(sys + ' = QuantumSystem(**' + arg + ')\n')
-        f.write('figs.plot_dynamics([' + sys_names[0])
+        if 'dynamics' in filename:
+            f.write('figs.plot_dynamics([' + sys_names[0])
+        elif 'spectral_density' in filename:
+            f.write('figs.plot_spectral_density([' + sys_names[0])
+        else:
+            raise ValueError('Incorrectly named files')
         for idx in range(1, len(sys_names)):
             f.write(', ' + sys_names[idx])
         f.write('], **plot_args)\n')
