@@ -522,6 +522,9 @@ def plot_spectral_density(systems: list = None, models: list = None,
         if not isinstance(systems, list):
             systems = [systems]
         for sys in systems:
+            if sys.dynamics_model == 'local dephasing lindblad':
+                raise ValueError(
+                    'No spectral density used for local dephasing model.')
             cutoff = sys.cutoff_freq
             frequencies = np.arange(0., cutoff * 10., cutoff / 100.)
             specs = []
@@ -532,9 +535,11 @@ def plot_spectral_density(systems: list = None, models: list = None,
                                                              sys.reorg_energy))
                 else:  # Ohmic
                     label = 'Ohmic'
-                    specs.append(bath.ohmic_spectral_density(freq, cutoff,
-                                                             sys.ohmic_exponent,
-                                                             sys.reorg_energy))
+                    specs.append(bath.ohmic_spectral_density(freq,
+                                                             cutoff,
+                                                             sys.reorg_energy,
+                                                             sys.ohmic_exponent
+                                                             ))
             specs = np.array(specs)
             axes.plot(frequencies, specs, label=label)
     # Plot if just specifications are passed.
@@ -566,8 +571,8 @@ def plot_spectral_density(systems: list = None, models: list = None,
             for freq in frequencies:
                 ohm.append(bath.ohmic_spectral_density(freq,
                                                        ohmic['cutoff_freq'],
-                                                       ohmic['exponent'],
-                                                       ohmic['reorg_energy']))
+                                                       ohmic['reorg_energy'],
+                                                       ohmic['exponent']))
         frequencies *= 1e-12
         if 'debye' in models:
             deb = np.array(deb) * 1e-12
