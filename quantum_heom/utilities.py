@@ -38,7 +38,7 @@ def trace_distance(A: np.ndarray, B: np.ndarray) -> float:
     given by:
 
     .. math::
-        0.5 tr(|A - B|)
+        D = 0.5 tr(|A - B|)
 
     where $|A| = (A^\\dagger A)^{frac{1}{2}}$ and $\\A$ is
     the density matrix at time t, and $\\B$ is the equilibrium
