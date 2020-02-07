@@ -76,6 +76,7 @@ def glob_therm_lindblad_op(dims: int, state_a: int, state_b: int):
         operator in the eigenstate basis.
     """
 
+    assert dims > 1, 'Can only construct for dimensions greater than 1.'
     assert state_a >= 0, 'The state number must be a non-negative integer'
     assert state_b >= 0, 'The state number must be a non-negative integer'
     assert state_a <= dims - 1, ('The state number cannot be larger than the'
@@ -199,7 +200,7 @@ def lindbladian_superop(dims: int, hamiltonian: np.ndarray,
         of 'local dephasing lindblad','local thermalising
         lindblad', 'global thermalising lindblad'.
     deph_rate : float
-        The dephasing rate constant of the system, in s^-1.
+        The dephasing rate constant of the system, in rad ps^-1.
     cutoff_freq : float
         The cutoff frequency at which the spectral density
         evaluates to 1 (or the reorg_energy value if f not equal
@@ -247,12 +248,14 @@ def lindbladian_superop(dims: int, hamiltonian: np.ndarray,
         # eigenstates, in the eigenbasis.
         for state_a, state_b in permutations(range(dims), 2):
             omega_a, omega_b = eigv[state_a], eigv[state_b]
-            k_a_to_b = bath.rate_constant_redfield(omega_a - omega_b,
+            k_a_to_b = bath.rate_constant_redfield((omega_a - omega_b),
                                                    cutoff_freq,
                                                    reorg_energy,
                                                    temperature,
                                                    spectral_density,
                                                    exponent)
+            if k_a_to_b == 0.:  # deal with degenerate states
+                continue
             l_op = glob_therm_lindblad_op(dims, state_a, state_b)
             indiv_superop = lindblad_superop_sum_element(l_op)
             lindbladian += k_a_to_b * indiv_superop
