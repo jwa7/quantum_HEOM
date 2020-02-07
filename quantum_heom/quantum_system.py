@@ -162,12 +162,16 @@ class QuantumSystem:
             self.init_site_pop = settings.get('init_site_pop')
         else:
             self.init_site_pop = [1]
-        if (self.interaction_model.startswith('nearest')
-                or self.interaction_model == 'spin-boson'):
+        if self.interaction_model.startswith('nearest'):
             if settings.get('alpha_beta') is not None:
                 self.alpha_beta = settings.get('alpha_beta')
             else:
                 self.alpha_beta = (0., -15.5)  # rad ps^-1
+        if self.interaction_model == 'spin-boson':
+            if settings.get('epsi_delta') is not None:
+                self.epsi_delta = settings.get('epsi_delta')
+            else:
+                self.epsi_delta = (0., -31.0)
 
     @property
     def sites(self) -> int:
@@ -223,8 +227,11 @@ class QuantumSystem:
             raise ValueError('Must choose an interaction model from '
                              + str(INTERACTION_MODELS))
         if model == 'FMO':
-            assert self.sites == 7, ('If using the FMO Hamiltonian, the number'
-                                     ' of sites in the system must be set to 7')
+            assert self.sites == 7, (
+                'The FMO model is only valid for 7-site systems.')
+        if model == 'spin-boson':
+            assert self.sites == 2, (
+                'The spin-boson model is only valid for 2-site systems.')
         self._interaction_model = model
 
     @property
@@ -651,6 +658,8 @@ class QuantumSystem:
     @time_interval.setter
     def time_interval(self, time_interval: float):
 
+        if isinstance(time_interval, int):
+            time_interval = float(time_interval)
         assert isinstance(time_interval, float), ('time_interval must be'
                                                   ' passed as a float.')
         assert time_interval > 0., 'time_interval must be positive.'
@@ -694,10 +703,13 @@ class QuantumSystem:
 
         """
         Get or set the values of alpha and beta used to construct
-        the system Hamiltonian for 'nearest neighbour...' and
-        'spin-boson' interaction_models. Alpha sets the value of the
-        site energies (diagonals), while beta sets the strength of the
-        interaction between sites.
+        the system Hamiltonian for 'nearest neighbour' interaction
+        models. Alpha sets the value of the site energies
+        (diagonals), assuming all site energies are equal, while
+        beta sets the strength of the interaction between sites
+        (off-diagonals), also assumed to be of equal strength for
+        sites that interact (according to the adjacency matrix used
+        in the nearest neighbour model).
 
         Returns
         -------
@@ -706,8 +718,7 @@ class QuantumSystem:
             in Hamiltonian construction.
         """
 
-        if (self.interaction_model.startswith('nearest')
-                or self.interaction_model == 'spin-boson'):
+        if self.interaction_model.startswith('nearest'):
             return self._alpha_beta
 
     @alpha_beta.setter
@@ -717,6 +728,35 @@ class QuantumSystem:
                                                ' a tuple.')
         assert len(alpha_beta) == 2, 'Must pass as 2 float values in a tuple.'
         self._alpha_beta = alpha_beta
+
+    @property
+    def epsi_delta(self) -> tuple:
+
+        """
+        Get/set the values of epsilon and delta used to construct
+        the 'spin-boson' system Hamiltonian for a 2-site system.
+        Epsilon sets the value of the total system energy (i.e. the
+        sum of the energies of site 1 and 2), while delta sets the
+        tunnelling strength between the 2 sites.
+
+        Returns
+        -------
+        tuple of float
+            The values of alpha and beta (respectively) to use
+            in Hamiltonian construction.
+        """
+
+        if self.interaction_model == 'spin-boson':
+            return self._epsi_delta
+
+    @epsi_delta.setter
+    def epsi_delta(self, epsi_delta: tuple):
+
+        assert isinstance(epsi_delta, tuple), ('epsi_delta must be passed as'
+                                               ' a tuple.')
+        assert len(epsi_delta) == 2, 'Must pass as 2 float values in a tuple.'
+        assert self.sites == 2, 'spin-boson model only valid for 2-site systems'
+        self._epsi_delta = epsi_delta
 
     @property
     def hamiltonian(self) -> np.ndarray:
@@ -730,8 +770,8 @@ class QuantumSystem:
         site systems, and has the form:
 
         .. math::
-            H_{sys} = \\frac{\\alpha}{2} \\sigma_z
-                      + \\frac{\\beta}{2} \\sigma_x
+            H_{sys} = \\frac{\\epsilon}{2} \\sigma_z
+                      + \\frac{\\Delta}{2} \\sigma_x
 
         as shown in J. Chem. Phys. 144, 044110 (2016);
         https://doi.org/10.1063/1.4940218. The nearest neighbour models
@@ -752,7 +792,7 @@ class QuantumSystem:
         """
 
         return ham.system_hamiltonian(self.sites, self.interaction_model,
-                                      self.alpha_beta)
+                                      self.alpha_beta, self.epsi_delta)
 
     @property
     def hamiltonian_superop(self) -> np.ndarray:
@@ -925,11 +965,6 @@ class QuantumSystem:
 
         # LINDBLAD DYNAMICS
         if self.dynamics_model in LINDBLAD_MODELS:
-            #         quantum_HEOM units      UNITS REQUIRED FOR PROPAGATION:
-            # hbar  : J s rad^-1              J s rad^-1
-            # H_sup : rad s^-1                rad s^-1
-            # L_sup : s^-1                    s^-1
-            # dt    : s                       s
             superop = self.hamiltonian_superop + self.lindbladian_superop
             return evo.time_evo_lindblad(self.initial_density_matrix,
                                          superop,  # rad ps^-1
@@ -946,7 +981,7 @@ class QuantumSystem:
             # Quantity     quantum_HEOM  ---->  QuTiP       Conversion
             # -------------------------------------------------------------
             # hamiltonian:     rad ps^-1        rad ps^-1   -
-            # time:                   fs        ps          -
+            # time:                   fs        ps          * 1e-3
             # temperature:            K         rad ps^-1   * k / (hbar * 1e12)
             # coup_strength:   rad ps^-1        ps^-1       / 2pi
             # cutoff_freq:     rad ps^-1        ps^-1       / 2pi
@@ -956,6 +991,7 @@ class QuantumSystem:
             # matsu freqs:     rad ps^-1        ps^-1       / 2pi
 
             # Perform conversions
+            time_interval = self.time_interval * 1e-13  # fs --> ps
             temperature = (self.temperature * 1e-12
                            * (constants.k / constants.hbar))  # K ---> rad ps^-1
             time_interval = self.time_interval * 1e-3  # fs ---> ps
@@ -969,16 +1005,17 @@ class QuantumSystem:
 
             tmp = evo.time_evo_heom(self.initial_density_matrix,
                                     self.timesteps,
-                                    time_interval,
-                                    self.hamiltonian,
+                                    time_interval,  # ps
+                                    self.hamiltonian,  # rad ps^-1
                                     self.coupling_op,
-                                    coup_strength,
-                                    temperature,
+                                    coup_strength,  # ps^-1
+                                    temperature,  # rad ps^-1
                                     self.bath_cutoff,
                                     self.matsubara_terms,
-                                    cutoff_freq,
+                                    cutoff_freq,  # ps^-1
                                     self.matsubara_coeffs,
-                                    matsubara_freqs)
+                                    matsubara_freqs  # ps^-1
+                                   )
             # Unpack the data, retrieving the evolution data, and setting
             # the QuantumSystem's matsubara coefficients and frequencies
             # to those returned by the function (as set by QuTiP's HEOMSolver).
