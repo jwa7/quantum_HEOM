@@ -8,8 +8,87 @@ import numpy as np
 SPECTRAL_DENSITIES = ['debye', 'ohmic']
 
 
-def ohmic_spectral_density(omega: float, cutoff_freq: float, exponent: float,
-                           reorg_energy: float) -> float:
+def rate_constant_redfield(omega: float, cutoff_freq: float,
+                           reorg_energy: float, temperature: float,
+                           spectral_density: str, exponent: float = 1) -> float:
+
+    """
+    Calculates the rate constant for population transfer
+    between states separated by a frequency gap omega. For instance,
+    for a frequency gap omega = omega_i - omega_j,
+
+    .. math::
+        k_{\\omega}
+            = 2 ( (1 + n(\\omega) J(\\omega)
+                 + n(- \\omega) J(- \\omega))
+
+    where $n(\\omega_{ab})$ is the Bose-Einstein distribution
+    between eigenstates a and b separated by energy
+    $\\omega_{ab}$ and $J(\\omega_{ab})$ is the spectral density
+    at frequency $\\omega_{ab}$.
+
+    Parameters
+    ----------
+    omega : float
+        The frequency of the energy gap between states i and j.
+        Has the form omega = omega_i - omega_j. Must be in units of
+        rad ps^-1.
+    cutoff_freq : float
+        The cutoff frequency at which the spectral density
+        evaluates to 1 (or the reorg_energy value if f not equal
+        to 1), in units of rad ps^-1. Must be a non-negative float.
+    reorg_energy : float
+        The factor by which the spectral density should be scaled
+        by. Should be passed in units of rad ps^-1. Must be a
+        non-negative float.
+    temperature : float
+        The temperature at which the rate constant should be
+        evaluated, in units of Kelvin.
+    spectral_density : str
+        The spectral density to use in rate constant evaluation.
+        Choose from 'debye' or 'ohmic'.
+    exponent : float
+        If chosen the spectral density as 'ohmic', the exponent
+        must be specified.
+    """
+
+    assert cutoff_freq >= 0., (
+        'The cutoff freq must be a non-negative float, in units of rad ps^-1')
+    assert reorg_energy >= 0., (
+        'The scaling factor must be a positive float, in units of rad ps^-1')
+
+    if omega <= 0:
+        # Using an asymmetric spectral density only evaluated for positive omega
+        # Therefore the spectral density and rate is 0 for omega <= 0.
+        return 0.
+        # return (4 * reorg_energy * constants.k * temperature
+        #         / (constants.hbar * cutoff_freq * 1e12))  # rad ps^-1
+    if cutoff_freq == 0 or reorg_energy == 0:
+        return 0.  # avoids DivideByZero error.
+
+    if spectral_density == 'debye':
+        spec_omega_ij = debye_spectral_density(omega, cutoff_freq,
+                                               reorg_energy)
+        spec_omega_ji = debye_spectral_density(-omega, cutoff_freq,
+                                               reorg_energy)
+    elif spectral_density == 'ohmic':
+        spec_omega_ij = ohmic_spectral_density(omega, cutoff_freq,
+                                               reorg_energy, exponent)
+        spec_omega_ji = ohmic_spectral_density(-omega, cutoff_freq,
+                                               reorg_energy, exponent)
+    else:
+        raise NotImplementedError('Other spectral densities not yet'
+                                  ' implemented in quantum_HEOM')
+    n_omega_ij = bose_einstein_distrib(omega, temperature)
+    n_omega_ji = bose_einstein_distrib(-omega, temperature)
+    return (2
+            * ((spec_omega_ij * (1 + n_omega_ij))
+               + (spec_omega_ji * n_omega_ji)
+              )
+           )
+
+def ohmic_spectral_density(omega: float, cutoff_freq: float, reorg_energy: float,
+                           exponent: float) -> float:
 
     """
     Calculates the Ohmic spectral density for a given frequency
@@ -41,7 +120,7 @@ def ohmic_spectral_density(omega: float, cutoff_freq: float, exponent: float,
 
     assert cutoff_freq >= 0., (
         'The cutoff freq must be a non-negative float, in units of rad ps^-1')
-    assert reorg_energy > 0., (
+    assert reorg_energy >= 0., (
         'The scaling factor must be a positive float, in units of rad ps^-1')
 
     if omega <= 0 or cutoff_freq == 0:
@@ -91,8 +170,8 @@ def debye_spectral_density(omega: float, cutoff_freq: float,
 
     assert cutoff_freq >= 0., (
         'The cutoff freq must be a non-negative float, in units of rad ps^-1')
-    assert reorg_energy > 0., (
-        'The scaling factor must be a positive float, in units of rad ps^-1')
+    assert reorg_energy >= 0., (
+        'The scaling factor must be a non-negative float, in units of rad ps^-1')
 
     if omega <= 0 or cutoff_freq == 0:
         # Zero if omega < 0 as an asymmetric spectral density used.
@@ -100,82 +179,6 @@ def debye_spectral_density(omega: float, cutoff_freq: float,
         return 0.
     # Returned in units of rad ps^-1
     return 2 * reorg_energy * omega * cutoff_freq / (omega**2 + cutoff_freq**2)
-
-def rate_constant_redfield(omega: float, cutoff_freq: float,
-                           reorg_energy: float, temperature: float,
-                           spectral_density: str, exponent: float) -> float:
-
-    """
-    Calculates the rate constant for population transfer
-    between states separated by a frequency gap omega. For instance,
-    for a frequency gap omega = omega_i - omega_j,
-
-    .. math::
-        k_{\\omega}
-            = 2 J(\\omega) (1 + 2 n(\\omega)
-
-    where $n(\\omega_{ab})$ is the Bose-Einstein distribution
-    between eigenstates a and b separated by energy
-    $\\omega_{ab}$ and $J(\\omega_{ab})$ is the spectral density
-    at frequency $\\omega_{ab}$.
-
-    Parameters
-    ----------
-    omega : float
-        The frequency of the energy gap between states i and j.
-        Has the form omega = omega_i - omega_j. Must be in units of
-        rad ps^-1.
-    cutoff_freq : float
-        The cutoff frequency at which the spectral density
-        evaluates to 1 (or the reorg_energy value if f not equal
-        to 1), in units of rad ps^-1. Must be a non-negative float.
-    reorg_energy : float
-        The factor by which the spectral density should be scaled
-        by. Should be passed in units of rad ps^-1. Must be a
-        non-negative float.
-    temperature : float
-        The temperature at which the rate constant should be
-        evaluated, in units of Kelvin.
-    spectral_density : str
-        The spectral density to use in rate constant evaluation.
-        Choose from 'debye' or 'ohmic'.
-    exponent : float
-        If chosen the spectral density as 'ohmic', the exponent
-        must be specified.
-    """
-
-    assert cutoff_freq >= 0., (
-        'The cutoff freq must be a non-negative float, in units of rad ps^-1')
-    assert reorg_energy >= 0., (
-        'The scaling factor must be a positive float, in units of rad ps^-1')
-
-    if omega == 0:
-        # Using an asymmetric spectral density only evaluated for positive omega
-        # Therefore the spectral density and rate is 0 for omega <= 0.
-        return 0.
-    if cutoff_freq == 0:
-        return 0.  # avoids DivideByZero error.
-
-    if spectral_density == 'debye':
-        spec_omega_ij = debye_spectral_density(omega, cutoff_freq,
-                                               reorg_energy)
-        spec_omega_ji = debye_spectral_density(-omega, cutoff_freq,
-                                               reorg_energy)
-    elif spectral_density == 'ohmic':
-        spec_omega_ij = ohmic_spectral_density(omega, cutoff_freq, exponent,
-                                               reorg_energy)
-        spec_omega_ji = ohmic_spectral_density(-omega, cutoff_freq, exponent,
-                                               reorg_energy)
-    else:
-        raise NotImplementedError('Other spectral densities not yet'
-                                  ' implemented in quantum_HEOM')
-    n_omega_ij = bose_einstein_distrib(omega, temperature)
-    n_omega_ji = bose_einstein_distrib(-omega, temperature)
-    return (2
-            * ((spec_omega_ij * (1 + n_omega_ij))
-               + (spec_omega_ji * n_omega_ji)
-              )
-           )
 
 def bose_einstein_distrib(omega: float, temperature: float):
 
@@ -207,7 +210,10 @@ def bose_einstein_distrib(omega: float, temperature: float):
     assert temperature > 0., (
         'The temperature must be a positive float, in units of Kelvin')
 
-    if omega == 0.:
+
+    if omega <= 0. or np.round(omega, decimals=14) == 0.:
+        # Anything smaller than 1e-12 rad ps^-1 causes inf to be returned,
+        # which gives Nan values in Lindbladian superoperator later.
         return 0.  # avoids DivideByZero error.
     # Need to convert frequency from rad ps^-1 ---> rad s^-1
     return 1. / (np.exp(constants.hbar * omega * 1e12

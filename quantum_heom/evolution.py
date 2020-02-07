@@ -113,7 +113,7 @@ def equilibrium_state(dynamics_model: str, dims: int, hamiltonian: np.ndarray,
         # Maximally-mixed state for dephasing model:
         return np.eye(dims, dtype=complex) * 1. / dims
     # Thermalising models; thermal equilibrium state
-    arg = linalg.expm(- hamiltonian * 1e-12 * constants.hbar
+    arg = linalg.expm(- hamiltonian * 1e12 * constants.hbar
                       / (constants.k * temperature))
     return np.divide(arg, np.trace(arg))
 
@@ -193,7 +193,7 @@ def time_evo_lindblad(dens_mat: np.ndarray, superop: np.ndarray,
         matrix.
     time_interval : float
         The step forward in time to which the density matrix
-        will be evolved, in femtoseconds.
+        will be evolved, in fs.
     dynamics_model : str
         The model used to describe the system dynamics. Must be one
         of 'local dephasing lindblad','local thermalising
@@ -237,6 +237,8 @@ def time_evo_lindblad(dens_mat: np.ndarray, superop: np.ndarray,
             'Must provide the temperature of the system in order to'
             ' calculate the trace distance for thermalising models.')
 
+    # Convert time fs --> ps to match superoperator units
+    time_interval = time_interval * 1e-3
     # Produce time evolution data
     time, evolved = 0., dens_mat
     squared = util.trace_matrix_squared(evolved)
@@ -245,7 +247,7 @@ def time_evo_lindblad(dens_mat: np.ndarray, superop: np.ndarray,
     evolution = np.empty(timesteps + 1, dtype=np.ndarray)
     evolution[0] = np.array([time, evolved, squared, distance])
     for step in range(1, timesteps + 1):
-        time += time_interval * 1e-3  # fs --> ps  to match superop units
+        time += time_interval
         evolved = evolve_matrix_one_step(evolved, superop, time_interval)
         squared = util.trace_matrix_squared(evolved)
         eq_state = equilibrium_state(dynamics_model, dims,
@@ -378,15 +380,17 @@ def time_evo_heom(dens_mat: np.ndarray, timesteps: int, time_interval: float,
     if matsubara_freqs is not None:
         hsolver.exp_freq = matsubara_freqs
     # Run the simulation over the time interval.
-    times = np.array(range(timesteps)) * time_interval
+    times = np.array(range(timesteps)) * time_interval  # ps
     result = hsolver.run(Qobj(dens_mat), times)
-    # Convert time evolution data to quantum_HEOM format
-    times = times * 1e3  # ps --> fs
+    # Convert times and temperature to quantum_HEOM units
+    # times = times * 1e3  # ps --> fs
+    temperature = temperature * 1e12 * constants.hbar / constants.k
     evolution = np.empty(len(result.states), dtype=np.ndarray)
+    # equilibrium_state() method requires Hamiltonian in rad ps^-1 and T in K
     eq_state = equilibrium_state('HEOM', dims, hamiltonian, temperature)
     for i in range(0, len(result.states)):
         dens_matrix = np.array(result.states[i]).T
-        evolution[i] = np.array([float(result.times[i]),
+        evolution[i] = np.array([float(result.times[i]) * 1e3,  # ps --> fs
                                  dens_matrix,
                                  util.trace_matrix_squared(dens_matrix),
                                  util.trace_distance(dens_matrix, eq_state)])
