@@ -8,7 +8,8 @@ INTERACTION_MODELS = ['nearest neighbour cyclic', 'nearest neighbour linear',
 
 
 def system_hamiltonian(dims: int, interaction_model: str,
-                       alpha_beta: tuple) -> np.ndarray:
+                       alpha_beta: tuple = None,
+                       epsi_delta: tuple = None) -> np.ndarray:
 
     """
     Builds an system Hamiltonian for the QuantumSystem, in units of
@@ -19,8 +20,8 @@ def system_hamiltonian(dims: int, interaction_model: str,
     form:
 
     .. math::
-        H_{sys} = \\frac{\\alpha}{2} \\sigma_z
-                  + \\frac{\\beta}{2} \\sigma_x
+        H_{sys} = \\frac{\\epsilon}{2} \\sigma_z
+                  + \\frac{\\Delta}{2} \\sigma_x
 
     as shown in J. Chem. Phys. 144, 044110 (2016);
     https://doi.org/10.1063/1.4940218. The nearest neighbour models
@@ -41,11 +42,17 @@ def system_hamiltonian(dims: int, interaction_model: str,
         one of ['nearest neighbour linear',
         'nearest neighbour cyclic', 'FMO', 'spin-boson'].
     alpha_beta : tuple of float
-        The (alpha, beta) values used to construct the nearest
-        neighbour and spin-boson models. Must be passed in units of
-        rad ps^-1. alpha corresponds to values of diagonal elements,
-        whilst beta corresponds to coupling strengths in the off-
-        diagonal elements.
+        The (alpha, beta) values used to construct the system
+        Hamiltonian for 'nearest neighbour ...' models. Must be
+        passed in units of rad ps^-1. alpha corresponds to site
+        energies (diagonals), whilst beta corresponds to strengths
+        of coupling between sites (off-diagonals).
+    epsi_delta : tuple of float
+        The (epsi, delta) values used to construct the system
+        Hamiltonian for the 'spin-boson' model. Must be passed in
+        units of rad ps^-1. epsi corresponds to the total energy of
+        the 2-site system, whilst delta corresponds to strength of
+        tunnelling between sites.
 
     Returns
     -------
@@ -81,13 +88,16 @@ def system_hamiltonian(dims: int, interaction_model: str,
         #                   [6, 2, -1, -70, 320, 40, -2],
         #                   [-8, 13, -9, -19, 40, 360, 32],
         #                   [-4, 1, 17, -57, -2, 32, 260]])
-        # Convert units cm^-1 --> rad s^-1
+        # Convert units cm^-1 --> rad ps^-1
         return hamil * 2 * np.pi * constants.c * 100. * 1e-12
 
     # Hamiltonian H = (alpha * I) + (beta * A) where A is the adjacency
     # matrix and I the identity.
     if interaction_model in ['nearest neighbour linear',
                              'nearest neighbour cyclic']:
+        assert isinstance(alpha_beta, tuple), (
+            'Must pass alpha and beta values as a tuple for nearest neighbour'
+            ' models.')
         alpha, beta = alpha_beta
         adjacency = adjacency_matrix(dims, interaction_model)
         return (alpha * np.eye(dims)) + (beta * adjacency) # rad ps^-1
@@ -98,10 +108,13 @@ def system_hamiltonian(dims: int, interaction_model: str,
         assert dims == 2, (
             'The spin-boson model can currently only be applied to 2-site'
             ' systems.')
+        assert isinstance(epsi_delta, tuple), (
+            'Must pass epsi and delta values as a tuple for the spin-boson'
+            ' model.')
         sigma_z = np.array([[1, 0], [0, -1]])
         sigma_x = np.array([[0, 1], [1, 0]])
-        alpha, beta = alpha_beta
-        return (alpha / 2) * sigma_z + (beta / 2) * sigma_z
+        epsi, delta = epsi_delta
+        return (epsi / 2) * sigma_z + (delta / 2) * sigma_x
 
     raise NotImplementedError('Other interaction models have not yet'
                               ' been implemented in quantum_HEOM.'
