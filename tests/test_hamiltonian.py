@@ -16,7 +16,7 @@ import quantum_heom.hamiltonian as ham
                                      [1, 1]])),
      ]
 )
-def test_hamiltonian_matrix_correct(dims, model, alpha_beta, exp):
+def test_system_hamiltonian_correct(dims, model, alpha_beta, exp):
 
     """
     Tests that the correct Hamiltonian is constructed for nearest
@@ -24,7 +24,7 @@ def test_hamiltonian_matrix_correct(dims, model, alpha_beta, exp):
     """
 
     model = 'nearest neighbour ' + model
-    assert np.all(ham.hamiltonian_matrix(dims, model, alpha_beta) == exp)
+    assert np.all(ham.system_hamiltonian(dims, model, alpha_beta) == exp)
 
 @pytest.mark.parametrize(
     'dims, model, exp',
