@@ -112,7 +112,7 @@ def test_glob_therm_lindblad_op_errors(dims, state_a, state_b):
     """
 
     with pytest.raises(AssertionError):
-        bath.glob_therm_lindblad_op(dims, state_a, state_b)
+        lind.glob_therm_lindblad_op(dims, state_a, state_b)
 
 # -------------------------------------------------------------------
 # LOCAL THERMALISING LINDBLAD OPERATOR
@@ -132,8 +132,7 @@ def test_thermalising_lindblad_op():  #sites, state_a, state_b):
 #     'lindblad_op, expected',
 #     [(np.array([[1, 0],
 #                 [0, 0]]),
-#       )]
-# )
+#       )])
 # def test_lindblad_superop_sum_element(lindblad_op, expected):
 #
 #     """
