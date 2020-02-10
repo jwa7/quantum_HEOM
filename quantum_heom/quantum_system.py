@@ -25,14 +25,14 @@ class QuantumSystem:
 
     Parameters
     ----------
-    sites : int
+    sites : int (required)
         The number of sites in the system.
-    interaction_model : str
+    interaction_model : str (required)
         How to model the interactions between sites. Must be
         one of ['nearest neighbour linear',
         'nearest neighbour cyclic', 'FMO', 'spin-boson']. FMO is
         only valid for 7-site systems and spin-boson only for 2.
-    dynamics_model : str
+    dynamics_model : str (required)
         The model used to describe the system dynamics. Must
         be one of ['local dephasing lindblad', 'local thermalising
         lindblad', 'global thermalising lindblad', 'HEOM'].
@@ -44,6 +44,18 @@ class QuantumSystem:
             place twice as much initial population in 3 as in 4,
             pass [3, 3, 4]. Default value is [1], which populates
             only site 1.
+        alpha_beta : tuple of float
+            The values of alpha and beta (respectively) to use
+            in Hamiltonian construction. Alpha sets the value of
+            the site energies (diagonals), while beta sets the
+            strength of the interaction between sites. Default
+            value is (0., -15.5) in units of rad ps^-1.
+        epsi_delta : tuple of float
+            The (epsi, delta) values used to construct the system
+            Hamiltonian for the 'spin-boson' model. Must be passed in
+            units of rad ps^-1. epsi corresponds to the total energy of
+            the 2-site system, whilst delta corresponds to strength of
+            tunnelling between sites. Default is (0., -31.0).
         time_interval : float
             The time interval between timesteps at which the system
             density matrix is evaluated, in units of femtoseconds.
@@ -51,16 +63,25 @@ class QuantumSystem:
         timesteps : int
             The number of timesteps for which the time evolution
             of the system is evaluated. Default value is 500.
-        deph_rate : float
-            The dephasing rate constant of the system, in units of
-            rad ps^-1.
         temperature : float
             The temperature of the thermal bath, in Kelvin. Default
             value is 298 K.
+        spectral_density : str
+            The spectral density used to described the interaction
+            of the system with the bath modes. Must be either
+            'Debye' or 'Ohmic'. Systems with HEOM dynamics can
+            currently only be described by Ohmic spectral densities.
+        deph_rate : float
+            The dephasing rate constant of the system, in units of
+            rad ps^-1, used in the local dephasing lindblad model.
         reorg_energy : float
             The scale factor used to match thermalisation rates
             between dynamics models in units of rad ps^-1. Default
-            value is 11.87 rad ps^-1.
+            value is 11.87 rad ps^-1. Used in thermalising Lindblad
+            models.
+        coup_strength : float
+            The strength of interaction between system and bath, in
+            units of rad ps^-1 as used in HEOM dynamics.
         cutoff_freq : float
             The cutoff frequency used in calculating the spectral
             density, in rad ps^-1. Default value is 6.024 rad ps^-1.
@@ -74,7 +95,7 @@ class QuantumSystem:
             order (largest -> smallest), where the nth coefficient
             corresponds to the nth matsubara term. Default is None;
             QuTiP's HEOMSolver automatically generates them.
-        matsubara_freqs: np.ndarray
+        matsubara_freqs : np.ndarray
             The matsubara frequencies v_k used in calculating the
             spectral density for the HEOM approach, in units of rad
             ps^-1. Must be in order (smallest -> largest), where
@@ -84,21 +105,26 @@ class QuantumSystem:
         bath_cutoff : int
             The number of bath terms to include in the HEOM
             evaluation of the system dynamics. Default value is 20.
-        alpha_beta : tuple of float
-            The values of alpha and beta (respectively) to use
-            in Hamiltonian construction. Alpha sets the value of
-            the site energies (diagonals), while beta sets the
-            strength of the interaction between sites. Default
-            value is (0., -15.5) in units of rad ps^-1.
     """
 
     def __init__(self, sites, interaction_model, dynamics_model, **settings):
 
-        # INITIALISATION REQUIREMENTS
+        # SITES SETTINGS
         self.sites = sites
+        # INTERACTIONS SETTINGS
         self.interaction_model = interaction_model
+        if self.interaction_model.startswith('nearest'):
+            if settings.get('alpha_beta') is not None:
+                self.alpha_beta = settings.get('alpha_beta')
+            else:
+                self.alpha_beta = (0., -15.5)  # rad ps^-1
+        if self.interaction_model == 'spin-boson':
+            if settings.get('epsi_delta') is not None:
+                self.epsi_delta = settings.get('epsi_delta')
+            else:
+                self.epsi_delta = (0., -31.0)
+        # DYNAMICS SETTINGS
         self.dynamics_model = dynamics_model
-        # TIME-EVOLUTION SETTINGS
         if settings.get('time_interval'):
             self.time_interval = settings.get('time_interval')  # seconds
         else:
@@ -119,10 +145,6 @@ class QuantumSystem:
                 self.temperature = settings.get('temperature')
             else:
                 self.temperature = 298.  # Kelvin
-            if settings.get('reorg_energy') is not None:
-                self.reorg_energy = settings.get('reorg_energy')
-            else:
-                self.reorg_energy = 1.391  # rad ps^-1
             if settings.get('cutoff_freq') is not None:
                 self.cutoff_freq = settings.get('cutoff_freq')
             else:
@@ -137,7 +159,13 @@ class QuantumSystem:
                 else:
                     # Default to normal Ohmic, rather than sub- or super-Ohmic.
                     self.ohmic_exponent = 1.
-        # SETTINGS FOR HEOM
+        # SETTINGS FOR TEMP-DEPENDENT LINDBLAD MODELS
+        if 'thermalising' in self.dynamics_model:
+            if settings.get('reorg_energy') is not None:
+                self.reorg_energy = settings.get('reorg_energy')
+            else:
+                self.reorg_energy = 1.391  # rad ps^-1
+        # SETTINGS FOR HEOM (TEMP DEPENDENT)
         if self.dynamics_model == 'HEOM':
             if settings.get('matsubara_terms') is not None:
                 self.matsubara_terms = settings.get('matsubara_terms')
@@ -155,24 +183,16 @@ class QuantumSystem:
                 self.bath_cutoff = settings.get('bath_cutoff')
             else:
                 self.bath_cutoff = 20
+            if settings.get('coup_strength') is not None:
+                self.coup_strength = settings.get('coup_strength')
+            else:
+                self.coup_strength = 11  # rad ps^-1
             if settings.get('coupling_op') is not None:
                 self.coupling_op = settings.get('coupling_op')
-        # OTHER SETTINGS
-        if settings.get('init_site_pop') is not None:
-            self.init_site_pop = settings.get('init_site_pop')
-        else:
-            self.init_site_pop = [1]
-        if self.interaction_model.startswith('nearest'):
-            if settings.get('alpha_beta') is not None:
-                self.alpha_beta = settings.get('alpha_beta')
-            else:
-                self.alpha_beta = (0., -15.5)  # rad ps^-1
-        if self.interaction_model == 'spin-boson':
-            if settings.get('epsi_delta') is not None:
-                self.epsi_delta = settings.get('epsi_delta')
-            else:
-                self.epsi_delta = (0., -31.0)
 
+    # -------------------------------------------------------------------
+    # SITES + INITIAL DENSITY MATRIX FUNCTIONS
+    # -------------------------------------------------------------------
     @property
     def sites(self) -> int:
 
@@ -201,6 +221,58 @@ class QuantumSystem:
 
         self._sites = sites
 
+    @property
+    def init_site_pop(self) -> list:
+
+        """
+        Get or set the site populations in the initial denisty
+        matrix. Must be passed as a list of integers which indicate
+        the sites of the system that should be equally populated.
+
+        Raises
+        ------
+        ValueError
+            If invalid site numbers (i.e. less than 1 or greater
+            than the number of sites) are passed.
+
+        Returns
+        -------
+        list of int
+            The site numbers that will be initially and equally
+            populated.
+        """
+
+        return self._init_site_pop
+
+    @init_site_pop.setter
+    def init_site_pop(self, init_site_pop: list):
+
+        for site in init_site_pop:
+            if site < 1 or site > self.sites:
+                raise ValueError('Invalid site number.')
+        self._init_site_pop = init_site_pop
+
+    @property
+    def initial_density_matrix(self) -> np.ndarray:
+
+        """
+        Returns an N x N 2D array corresponding to the density
+        matrix of the system at time t=0, where N is the number
+        of sites. Site populations are split equally between the
+        sites specified in 'QuantumSystem.init_site_pop' setting.
+
+        Returns
+        -------
+        np.ndarray
+            N x N 2D array (where N is the number of sites)
+            for the initial density matrix.
+        """
+
+        return evo.initial_density_matrix(self.sites, self.init_site_pop)
+
+    # -------------------------------------------------------------------
+    # INTERACTIONS FUNCTIONS
+    # -------------------------------------------------------------------
     @property
     def interaction_model(self) -> str:
 
@@ -234,6 +306,124 @@ class QuantumSystem:
                 'The spin-boson model is only valid for 2-site systems.')
         self._interaction_model = model
 
+    @property
+    def hamiltonian(self) -> np.ndarray:
+
+        """
+        Builds an interaction Hamiltonian for the QuantumSystem,
+        in units of rad ps^-1. The FMO Hamiltonian is for 7-site
+        systems only, and has a form constructed using parameters
+        from Adolphs, J.; Renger, T. Biophysical Journal 2006, 91,
+        2778–2797. The spin-boson model is only applicable to 2-
+        site systems, and has the form:
+
+        .. math::
+            H_{sys} = \\frac{\\epsilon}{2} \\sigma_z
+                      + \\frac{\\Delta}{2} \\sigma_x
+
+        as shown in J. Chem. Phys. 144, 044110 (2016);
+        https://doi.org/10.1063/1.4940218. The nearest neighbour models
+        are applicable to any number of sites and are given by:
+
+        .. math ::
+            H_{sys} = \\alpha I + \\beta A
+
+        where A is the adjacency matrix as built in the method
+        adjacency_matrix().
+
+        Returns
+        -------
+        np.ndarray
+            An N x N 2D array that represents the interactions
+            between sites in the quantum system, where N is the
+            number of sites. In units of rad ps^-1.
+        """
+
+        return ham.system_hamiltonian(self.sites, self.interaction_model,
+                                      self.alpha_beta, self.epsi_delta)
+
+    @property
+    def hamiltonian_superop(self) -> np.ndarray:
+
+        """
+        Builds the Hamiltonian superoperator in rad ps^-1,
+        given by:
+
+        .. math::
+            H_{sup} = -i(H \\otimes I - I \\otimes H^{\\dagger})
+
+        Returns
+        -------
+        np.ndarray
+            The (N^2) x (N^2) 2D array representing the Hamiltonian
+            superoperator, in units of rad ps^-1.
+        """
+
+        return ham.hamiltonian_superop(self.hamiltonian)
+
+    @property
+    def alpha_beta(self) -> tuple:
+
+        """
+        Get or set the values of alpha and beta used to construct
+        the system Hamiltonian for 'nearest neighbour' interaction
+        models. Alpha sets the value of the site energies
+        (diagonals), assuming all site energies are equal, while
+        beta sets the strength of the interaction between sites
+        (off-diagonals), also assumed to be of equal strength for
+        sites that interact (according to the adjacency matrix used
+        in the nearest neighbour model).
+
+        Returns
+        -------
+        tuple of float
+            The values of alpha and beta (respectively) to use
+            in Hamiltonian construction.
+        """
+
+        if self.interaction_model.startswith('nearest'):
+            return self._alpha_beta
+
+    @alpha_beta.setter
+    def alpha_beta(self, alpha_beta: tuple):
+
+        assert isinstance(alpha_beta, tuple), ('alpha_beta must be passed as'
+                                               ' a tuple.')
+        assert len(alpha_beta) == 2, 'Must pass as 2 float values in a tuple.'
+        self._alpha_beta = alpha_beta
+
+    @property
+    def epsi_delta(self) -> tuple:
+
+        """
+        Get/set the values of epsilon and delta used to construct
+        the 'spin-boson' system Hamiltonian for a 2-site system.
+        Epsilon sets the value of the total system energy (i.e. the
+        sum of the energies of site 1 and 2), while delta sets the
+        tunnelling strength between the 2 sites.
+
+        Returns
+        -------
+        tuple of float
+            The values of alpha and beta (respectively) to use
+            in Hamiltonian construction.
+        """
+
+        if self.interaction_model == 'spin-boson':
+            return self._epsi_delta
+
+    @epsi_delta.setter
+    def epsi_delta(self, epsi_delta: tuple):
+
+        assert isinstance(epsi_delta, tuple), ('epsi_delta must be passed as'
+                                               ' a tuple.')
+        assert len(epsi_delta) == 2, 'Must pass as 2 float values in a tuple.'
+        assert self.sites == 2, 'spin-boson model only valid for 2-site systems'
+        self._epsi_delta = epsi_delta
+
+    # -------------------------------------------------------------------
+    # DYNAMICS PROPERTIES
+    # -------------------------------------------------------------------
     @property
     def dynamics_model(self) -> str:
 
@@ -273,88 +463,193 @@ class QuantumSystem:
         self._dynamics_model = model
 
     @property
-    def hbar(self):
+    def equilibrium_state(self) -> np.ndarray:
 
         """
-        Get the value of reduced Planck's constant of
-        1.0545718001391127e-34 J s rad^-1 in SI units.
+        Returns the equilibirum density matrix of the system. For
+        systems described by thermalising models, this is the
+        themal equilibirum state, given by:
+
+        .. math::
+            \\rho^{(eq)}
+                = \\frac{e^{- H / k_B T}}{tr(e^{- H / k_B T})}
+
+        however for the 'local dephasing lindblad' model, this is
+        the maximally mixed state:
+
+        .. math::
+            \\rho_{mm}^{eq}
+                = \\frac{1}{N} \\sum_{i=1}^N \\ket{i} \\bra{i}
+
+        where N is the dimension (i.e. number of sites) of the
+        system. This also corresponds to the thermal equilibrium
+        state in the infinite temperature limit.
+
+        Returns
+        -------
+        np.ndarray
+            A 2D square density matrix for the system's equilibrium
+            state.
+        """
+
+        return evo.equilibrium_state(self.dynamics_model, self.sites,
+                                     self.hamiltonian, self.temperature)
+
+    # -------------------------------------------------------------------
+    # TIME-EVOLUTION FUNCTIONS
+    # -------------------------------------------------------------------
+    @property
+    def time_interval(self) -> float:
+
+        """
+        Gets or sets the time interval value used in evaluating
+        the density matrix evolution, in femtoseconds.
 
         Returns
         -------
         float
-            The value of hbar in base SI units of J s rad^-1.
+            The time interval being used, in femtoseconds.
         """
 
-        return constants.hbar  # in J s rad^-1
+        return self._time_interval  # fs
+
+    @time_interval.setter
+    def time_interval(self, time_interval: float):
+
+        if isinstance(time_interval, int):
+            time_interval = float(time_interval)
+        assert isinstance(time_interval, float), ('time_interval must be'
+                                                  ' passed as a float.')
+        assert time_interval > 0., 'time_interval must be positive.'
+        self._time_interval = time_interval
 
     @property
-    def boltzmann(self) -> float:
+    def timesteps(self) -> int:
 
         """
-        Get the value of boltzmann's constant of 1.38064852e-23
-        J K^-1 in SI units.
-
-        Returns
-        -------
-        float
-            The value of Boltzmann's constant k in base SI units
-            of J K^-1.
-        """
-
-        return constants.k  # in J K^-1
-
-    @property
-    def temperature(self) -> float:
-
-        """
-        Get or set the temperature of the thermal bath in Kelvin.
+        Gets or sets the number of timesteps over which the
+        evolution of the QuantumSystem's density matrix should
+        be evaluated.
 
         Raises
         ------
         ValueError
-            If the temperature is being set to a negative value.
+            If the number of timesteps is being set to a non-
+            positive integer.
 
         Returns
         -------
-        float
-            The temperature of the system, in Kelvin.
+        int
+            The number of timesteps used in evaluation of the
+            QuantumSystem's evolution.
         """
 
-        if self.dynamics_model in TEMP_DEP_MODELS:
-            return self._temperature
+        return self._timesteps
 
-    @temperature.setter
-    def temperature(self, temperature: float):
+    @timesteps.setter
+    def timesteps(self, timesteps: int):
 
-        if temperature <= 0.:
-            raise ValueError('Temperature must be a positive float value'
-                             ' in Kelvin.')
-        self._temperature = temperature
+        if timesteps:
+            assert isinstance(timesteps, int), 'Must pass timesteps as an int'
+            if timesteps <= 0:
+                raise ValueError('Number of timesteps must be a positive'
+                                 ' integer')
+            self._timesteps = timesteps
 
     @property
-    def kT(self) -> float:
+    def time_evolution(self) -> np.ndarray:
 
         """
-        Returns the thermal energy, kT, of the QuantumSystem in
-        units of Joules, where k (=1.38064852e-23 J K^-1) is the
-        Boltzmann constant and T (in Kelvin) is the temperature
-        of the thermal bath.
+        Evaluates the density operator of the system at n_steps
+        forward in time, spaced by time_interval.
+
+        Raises
+        ------
+        AttributeError
+            If trying to access this property without having set
+            values for time_interval, timesteps, and deph_rate.
 
         Returns
         -------
-        float
-            The thermal energy of the system, in Joules.
+        evolution : np.ndarray
+            An array of length corresponding to the number of
+            timesteps the evolution is evaluated for. Each element
+            is a tuple of the form (time, matrix, squared, distance),
+            where 'time' is the time at which the density matrix
+            - 'matrix' - is evaluted, 'squared' is the trace of
+            'matrix' squared, and 'distance' is the trace distance
+            of 'matrix' from the system's equilibrium state.
         """
 
-        if self.dynamics_model in TEMP_DEP_MODELS:
-            return self.boltzmann * self.temperature
+        # LINDBLAD DYNAMICS
+        if self.dynamics_model in LINDBLAD_MODELS:
+            superop = self.hamiltonian_superop + self.lindbladian_superop
+            return evo.time_evo_lindblad(self.initial_density_matrix,
+                                         superop,  # rad ps^-1
+                                         self.timesteps,
+                                         self.time_interval, # fs
+                                         self.dynamics_model,
+                                         self.hamiltonian,  # rad ps^-1
+                                         self.temperature  # Kelvin
+                                        )
+        # HEOM DYNAMICS
+        if self.dynamics_model == 'HEOM':
 
+            # Units of temperature must match units of Hamiltonian
+            # Quantity     quantum_HEOM  ---->  QuTiP       Conversion
+            # -------------------------------------------------------------
+            # hamiltonian:     rad ps^-1        rad ps^-1   -
+            # time:                   fs        ps          * 1e-3
+            # temperature:            K         rad ps^-1   * k / (hbar * 1e12)
+            # coup_strength:   rad ps^-1        ps^-1       / 2pi
+            # cutoff_freq:     rad ps^-1        ps^-1       / 2pi
+            # planck:                           = 1.0
+            # boltzmann:                        = 1.0
+            # matsu coeffs:    unitless         unitless    -
+            # matsu freqs:     rad ps^-1        ps^-1       / 2pi
+
+            # Perform conversions
+            time_interval = self.time_interval * 1e-13  # fs --> ps
+            temperature = (self.temperature * 1e-12
+                           * (constants.k / constants.hbar))  # K ---> rad ps^-1
+            time_interval = self.time_interval * 1e-3  # fs ---> ps
+            coup_strength = self.reorg_energy / (2 * np.pi) # rad ps^-1 -> ps^-1
+            cutoff_freq = self.cutoff_freq / (2 * np.pi) # rad ps^-1 --> ps^-1
+            if self.matsubara_freqs is not None:
+                # rad ps^-1 -> ps^-1
+                matsubara_freqs = self.matsubara_freqs / (2 * np.pi)
+            else:
+                matsubara_freqs = None
+
+            tmp = evo.time_evo_heom(self.initial_density_matrix,
+                                    self.timesteps,
+                                    time_interval,  # ps
+                                    self.hamiltonian,  # rad ps^-1
+                                    self.coupling_op,
+                                    coup_strength,  # ps^-1
+                                    temperature,  # rad ps^-1
+                                    self.bath_cutoff,
+                                    self.matsubara_terms,
+                                    cutoff_freq,  # ps^-1
+                                    self.matsubara_coeffs,
+                                    matsubara_freqs  # ps^-1
+                                   )
+            # Unpack the data, retrieving the evolution data, and setting
+            # the QuantumSystem's matsubara coefficients and frequencies
+            # to those returned by the function (as set by QuTiP's HEOMSolver).
+            evolution, self.matsubara_coeffs, self.matsubara_freqs = tmp
+            return evolution
+
+    # -------------------------------------------------------------------
+    # LINDBLAD-SPECIFIC PROPERTIES
+    # -------------------------------------------------------------------
     @property
     def deph_rate(self) -> float:
 
         """
         Gets or sets the dephasing rate of the quantum system,
-        in units of rad ps^-1.
+        in units of rad ps^-1. Used in the local dephasing lindblad
+        model.
 
         Returns
         -------
@@ -378,126 +673,38 @@ class QuantumSystem:
         self._deph_rate = deph_rate
 
     @property
-    def spectral_density(self) -> str:
+    def lindbladian_superop(self) -> np.ndarray:
 
         """
-        Get or set the spectral density used to describe the
-        interaction of the system with bath modes.
+        Builds the Lindbladian superoperator for the system, either
+        using the local dephasing, local thermalising, or global
+        thermalising lindblad description of the dynamics.
 
         Returns
         -------
-        str
-            The spectral density beign used. Either 'debye' or
-            'ohmic'.
+        np.ndarray
+            The (N^2) x (N^2) 2D array representing the Lindbladian
+            superoperator, in rad ps^-1.
         """
 
-        if self.dynamics_model in TEMP_DEP_MODELS:
-            return self._spectral_density
+        # Assumes any deph_rate, cutoff_freq, reorg_energy in rad ps^-1
+        if self.dynamics_model in LINDBLAD_MODELS:
+            return lind.lindbladian_superop(self.sites,
+                                            self.hamiltonian,  # rad ps^-1
+                                            self.dynamics_model,
+                                            self.deph_rate,  # rad ps^-1
+                                            self.cutoff_freq,  # rad ps^-1
+                                            self.reorg_energy,  # rad ps^-1
+                                            self.temperature,  # Kelvin
+                                            self.spectral_density,
+                                            self.ohmic_exponent)  # rad ps^-1
+        raise ValueError(
+            'Can only build a Lindbladian superoperator for systems defined'
+            ' with Lindblad dynamics. Choose from ' + str(LINDBLAD_MODELS))
 
-    @spectral_density.setter
-    def spectral_density(self, spectral_density: str):
-
-        assert spectral_density in SPECTRAL_DENSITIES, (
-            'Must choose a spectral density from ' + str(SPECTRAL_DENSITIES)
-            + '. Other spectral densities not yet implemented in quantum_HEOM.')
-        if self.dynamics_model == 'HEOM' and spectral_density == 'ohmic':
-            raise NotImplementedError(
-                'Currently systems described by HEOM dynamics can only be'
-                ' evaluated for Debye spectral densities.')
-        self._spectral_density = spectral_density
-
-    @property
-    def reorg_energy(self) -> float:
-
-        """
-        Get or set the scale factor used in scaling the spectral
-        density, in units of rad ps^-1.
-
-        Raises
-        ------
-        ValueError
-            If the value being set is non-positive.
-
-        Returns
-        -------
-        float
-            The thermalisation scale factor being used, in units
-            of rad ps^-1.
-        """
-
-        if self.dynamics_model in TEMP_DEP_MODELS:
-            return self._reorg_energy
-
-    @reorg_energy.setter
-    def reorg_energy(self, reorg_energy: float):
-
-        assert isinstance(reorg_energy, (int, float)), (
-            'reorg_energy must be passed as either an int or float')
-        if reorg_energy < 0.:
-            raise ValueError('Scale factor must be a non-negative float in rad'
-                             ' s^-1.')
-        self._reorg_energy = reorg_energy
-
-    @property
-    def cutoff_freq(self) -> float:
-
-        """
-        Get or set the cutoff frequency used in calculating the
-        spectral density, in units of rad ps^-1.
-
-        Raises
-        ------
-        ValueError
-            If the cutoff frequency is being set to a non-positive
-            value.
-
-        Returns
-        -------
-        float
-            The cutoff frequency being used, in rad ps^-1.
-        """
-
-        if self.dynamics_model in TEMP_DEP_MODELS:
-            return self._cutoff_freq
-
-    @cutoff_freq.setter
-    def cutoff_freq(self, cutoff_freq: float):
-
-        if cutoff_freq <= 0.:
-            raise ValueError('Cutoff frequency must be a positive float.')
-        self._cutoff_freq = cutoff_freq
-
-    @property
-    def ohmic_exponent(self) -> float:
-
-        """
-        Get or set the exponent used in calculation of the Ohmic
-        spectral density. Spectral density is described as Ohmic
-        if the exponent is equal to 1, sub-Ohmic if < 1, and
-        super-Ohmic is > 1.
-
-        Returns
-        -------
-        float
-            The exponent used in calculation of the Ohmic spectral
-            density.
-
-        Raises
-        ------
-        ValueError
-            If trying to set the exponent to a non-postive float.
-        """
-
-        if (self.spectral_density == 'ohmic'
-                and self.dynamics_model in TEMP_DEP_MODELS):
-            return self._ohmic_exponent
-
-    @ohmic_exponent.setter
-    def ohmic_exponent(self, exponent):
-
-        if exponent > 0.:
-            self._ohmic_exponent = exponent
-
+    # -------------------------------------------------------------------
+    # HEOM-SPECIFIC PROPERTIES
+    # -------------------------------------------------------------------
     @property
     def matsubara_terms(self) -> int:
 
@@ -641,204 +848,51 @@ class QuantumSystem:
         self._bath_cutoff = bath_cutoff
 
     @property
-    def time_interval(self) -> float:
+    def coup_strength(self) -> np.ndarray:
 
         """
-        Gets or sets the time interval value used in evaluating
-        the density matrix evolution, in femtoseconds.
+        Get or set the strength of coupling between system and
+        bath, in units of rad ps^-1. Currently only a valid
+        quantity to define for systems described by a spin-boson
+        system Hamiltonian.
 
         Returns
         -------
         float
-            The time interval being used, in femtoseconds.
-        """
-
-        return self._time_interval  # fs
-
-    @time_interval.setter
-    def time_interval(self, time_interval: float):
-
-        if isinstance(time_interval, int):
-            time_interval = float(time_interval)
-        assert isinstance(time_interval, float), ('time_interval must be'
-                                                  ' passed as a float.')
-        assert time_interval > 0., 'time_interval must be positive.'
-        self._time_interval = time_interval
-
-    @property
-    def timesteps(self) -> int:
-
-        """
-        Gets or sets the number of timesteps over which the
-        evolution of the QuantumSystem's density matrix should
-        be evaluated.
+            The coupling strength between system and bath, in units
+            of rad ps^-1
 
         Raises
         ------
         ValueError
-            If the number of timesteps is being set to a non-
-            positive integer.
-
-        Returns
-        -------
-        int
-            The number of timesteps used in evaluation of the
-            QuantumSystem's evolution.
-        """
-
-        return self._timesteps
-
-    @timesteps.setter
-    def timesteps(self, timesteps: int):
-
-        if timesteps:
-            assert isinstance(timesteps, int), 'Must pass timesteps as an int'
-            if timesteps <= 0:
-                raise ValueError('Number of timesteps must be a positive'
-                                 ' integer')
-            self._timesteps = timesteps
-
-    @property
-    def alpha_beta(self) -> tuple:
-
-        """
-        Get or set the values of alpha and beta used to construct
-        the system Hamiltonian for 'nearest neighbour' interaction
-        models. Alpha sets the value of the site energies
-        (diagonals), assuming all site energies are equal, while
-        beta sets the strength of the interaction between sites
-        (off-diagonals), also assumed to be of equal strength for
-        sites that interact (according to the adjacency matrix used
-        in the nearest neighbour model).
-
-        Returns
-        -------
-        tuple of float
-            The values of alpha and beta (respectively) to use
-            in Hamiltonian construction.
-        """
-
-        if self.interaction_model.startswith('nearest'):
-            return self._alpha_beta
-
-    @alpha_beta.setter
-    def alpha_beta(self, alpha_beta: tuple):
-
-        assert isinstance(alpha_beta, tuple), ('alpha_beta must be passed as'
-                                               ' a tuple.')
-        assert len(alpha_beta) == 2, 'Must pass as 2 float values in a tuple.'
-        self._alpha_beta = alpha_beta
-
-    @property
-    def epsi_delta(self) -> tuple:
-
-        """
-        Get/set the values of epsilon and delta used to construct
-        the 'spin-boson' system Hamiltonian for a 2-site system.
-        Epsilon sets the value of the total system energy (i.e. the
-        sum of the energies of site 1 and 2), while delta sets the
-        tunnelling strength between the 2 sites.
-
-        Returns
-        -------
-        tuple of float
-            The values of alpha and beta (respectively) to use
-            in Hamiltonian construction.
+            If trying to set the coupling strength to a negative
+            float.
+        NotImplementedError
+            If trying to set the coupling strength for a system
+            other than one described by spin-boson interactions.
         """
 
         if self.interaction_model == 'spin-boson':
-            return self._epsi_delta
+            return self._coup_strength
+        raise NotImplementedError(
+            'Currently the coupling strength is only definable in the context'
+            ' of a 2-site system described by a spin-boson system Hamiltonian.')
 
-    @epsi_delta.setter
-    def epsi_delta(self, epsi_delta: tuple):
+    @coup_strength.setter
+    def coup_strength(self, coup_strength):
 
-        assert isinstance(epsi_delta, tuple), ('epsi_delta must be passed as'
-                                               ' a tuple.')
-        assert len(epsi_delta) == 2, 'Must pass as 2 float values in a tuple.'
-        assert self.sites == 2, 'spin-boson model only valid for 2-site systems'
-        self._epsi_delta = epsi_delta
-
-    @property
-    def hamiltonian(self) -> np.ndarray:
-
-        """
-        Builds an interaction Hamiltonian for the QuantumSystem,
-        in units of rad ps^-1. The FMO Hamiltonian is for 7-site
-        systems only, and has a form constructed using parameters
-        from Adolphs, J.; Renger, T. Biophysical Journal 2006, 91,
-        2778–2797. The spin-boson model is only applicable to 2-
-        site systems, and has the form:
-
-        .. math::
-            H_{sys} = \\frac{\\epsilon}{2} \\sigma_z
-                      + \\frac{\\Delta}{2} \\sigma_x
-
-        as shown in J. Chem. Phys. 144, 044110 (2016);
-        https://doi.org/10.1063/1.4940218. The nearest neighbour models
-        are applicable to any number of sites and are given by:
-
-        .. math ::
-            H_{sys} = \\alpha I + \\beta A
-
-        where A is the adjacency matrix as built in the method
-        adjacency_matrix().
-
-        Returns
-        -------
-        np.ndarray
-            An N x N 2D array that represents the interactions
-            between sites in the quantum system, where N is the
-            number of sites. In units of rad ps^-1.
-        """
-
-        return ham.system_hamiltonian(self.sites, self.interaction_model,
-                                      self.alpha_beta, self.epsi_delta)
-
-    @property
-    def hamiltonian_superop(self) -> np.ndarray:
-
-        """
-        Builds the Hamiltonian superoperator in rad ps^-1,
-        given by:
-
-        .. math::
-            H_{sup} = -i(H \\otimes I - I \\otimes H^{\\dagger})
-
-        Returns
-        -------
-        np.ndarray
-            The (N^2) x (N^2) 2D array representing the Hamiltonian
-            superoperator, in units of rad ps^-1.
-        """
-
-        return ham.hamiltonian_superop(self.hamiltonian)
-
-    @property
-    def lindbladian_superop(self) -> np.ndarray:
-
-        """
-        Builds the Lindbladian superoperator for the system, either
-        using the local dephasing, local thermalising, or global
-        thermalising lindblad description of the dynamics.
-
-        Returns
-        -------
-        np.ndarray
-            The (N^2) x (N^2) 2D array representing the Lindbladian
-            superoperator, in rad ps^-1.
-        """
-
-        # Assumes any deph_rate, cutoff_freq, reorg_energy in rad ps^-1
-        if self.dynamics_model in LINDBLAD_MODELS:
-            return lind.lindbladian_superop(self.sites,
-                                            self.hamiltonian,  # rad ps^-1
-                                            self.dynamics_model,
-                                            self.deph_rate,  # rad ps^-1
-                                            self.cutoff_freq,  # rad ps^-1
-                                            self.reorg_energy,  # rad ps^-1
-                                            self.temperature,  # Kelvin
-                                            self.spectral_density,
-                                            self.ohmic_exponent)  # rad ps^-1
+        if isinstance(coup_strength, int):
+            coup_strength = float(coup_strength)
+        assert isinstance(coup_strength, float), (
+            'The coupling strength between system and bath must be passed as'
+            ' a float.')
+        assert self.interaction_model == 'spin-boson', (
+            'Currently the coupling strength is only definable in the context'
+            ' of a 2-site system described by a spin-boson system Hamiltonian.')
+        if coup_strength < 0.:
+            raise ValueError(
+                'Must pass the coupling strength as a non-negative float.')
+        self._coup_strength = coup_strength
 
     @property
     def coupling_op(self) -> np.ndarray:
@@ -856,168 +910,154 @@ class QuantumSystem:
 
         return heom.system_bath_coupling_op(self.sites)
 
+    # -------------------------------------------------------------------
+    # BATH + THERMAL PROPERTIES
+    # -------------------------------------------------------------------
     @property
-    def initial_density_matrix(self) -> np.ndarray:
+    def temperature(self) -> float:
 
         """
-        Returns an N x N 2D array corresponding to the density
-        matrix of the system at time t=0, where N is the number
-        of sites. Site populations are split equally between the
-        sites specified in 'QuantumSystem.init_site_pop' setting.
-
-        Returns
-        -------
-        np.ndarray
-            N x N 2D array (where N is the number of sites)
-            for the initial density matrix.
-        """
-
-        return evo.initial_density_matrix(self.sites, self.init_site_pop)
-
-    @property
-    def init_site_pop(self) -> list:
-
-        """
-        Get or set the site populations in the initial denisty
-        matrix. Must be passed as a list of integers which indicate
-        the sites of the system that should be equally populated.
+        Get or set the temperature of the thermal bath in Kelvin.
 
         Raises
         ------
         ValueError
-            If invalid site numbers (i.e. less than 1 or greater
-            than the number of sites) are passed.
+            If the temperature is being set to a negative value.
 
         Returns
         -------
-        list of int
-            The site numbers that will be initially and equally
-            populated.
+        float
+            The temperature of the system, in Kelvin.
         """
 
-        return self._init_site_pop
+        if self.dynamics_model in TEMP_DEP_MODELS:
+            return self._temperature
 
-    @init_site_pop.setter
-    def init_site_pop(self, init_site_pop: list):
+    @temperature.setter
+    def temperature(self, temperature: float):
 
-        for site in init_site_pop:
-            if site < 1 or site > self.sites:
-                raise ValueError('Invalid site number.')
-        self._init_site_pop = init_site_pop
+        if temperature <= 0.:
+            raise ValueError('Temperature must be a positive float value'
+                             ' in Kelvin.')
+        self._temperature = temperature
 
     @property
-    def equilibrium_state(self) -> np.ndarray:
+    def cutoff_freq(self) -> float:
 
         """
-        Returns the equilibirum density matrix of the system. For
-        systems described by thermalising models, this is the
-        themal equilibirum state, given by:
-
-        .. math::
-            \\rho^{(eq)}
-                = \\frac{e^{- H / k_B T}}{tr(e^{- H / k_B T})}
-
-        however for the 'local dephasing lindblad' model, this is
-        the maximally mixed state:
-
-        .. math::
-            \\rho_{mm}^{eq}
-                = \\frac{1}{N} \\sum_{i=1}^N \\ket{i} \\bra{i}
-
-        where N is the dimension (i.e. number of sites) of the
-        system. This also corresponds to the thermal equilibrium
-        state in the infinite temperature limit.
-
-        Returns
-        -------
-        np.ndarray
-            A 2D square density matrix for the system's equilibrium
-            state.
-        """
-
-        return evo.equilibrium_state(self.dynamics_model, self.sites,
-                                     self.hamiltonian, self.temperature)
-
-    @property
-    def time_evolution(self) -> np.ndarray:
-
-        """
-        Evaluates the density operator of the system at n_steps
-        forward in time, spaced by time_interval.
+        Get or set the cutoff frequency used in calculating the
+        spectral density, in units of rad ps^-1.
 
         Raises
         ------
-        AttributeError
-            If trying to access this property without having set
-            values for time_interval, timesteps, and deph_rate.
+        ValueError
+            If the cutoff frequency is being set to a non-positive
+            value.
 
         Returns
         -------
-        evolution : np.ndarray
-            An array of length corresponding to the number of
-            timesteps the evolution is evaluated for. Each element
-            is a tuple of the form (time, matrix, squared, distance),
-            where 'time' is the time at which the density matrix
-            - 'matrix' - is evaluted, 'squared' is the trace of
-            'matrix' squared, and 'distance' is the trace distance
-            of 'matrix' from the system's equilibrium state.
+        float
+            The cutoff frequency being used, in rad ps^-1.
         """
 
-        # LINDBLAD DYNAMICS
-        if self.dynamics_model in LINDBLAD_MODELS:
-            superop = self.hamiltonian_superop + self.lindbladian_superop
-            return evo.time_evo_lindblad(self.initial_density_matrix,
-                                         superop,  # rad ps^-1
-                                         self.timesteps,
-                                         self.time_interval, # fs
-                                         self.dynamics_model,
-                                         self.hamiltonian,  # rad ps^-1
-                                         self.temperature  # Kelvin
-                                        )
-        # HEOM DYNAMICS
-        if self.dynamics_model == 'HEOM':
+        if self.dynamics_model in TEMP_DEP_MODELS:
+            return self._cutoff_freq
 
-            # Units of temperature must match units of Hamiltonian
-            # Quantity     quantum_HEOM  ---->  QuTiP       Conversion
-            # -------------------------------------------------------------
-            # hamiltonian:     rad ps^-1        rad ps^-1   -
-            # time:                   fs        ps          * 1e-3
-            # temperature:            K         rad ps^-1   * k / (hbar * 1e12)
-            # coup_strength:   rad ps^-1        ps^-1       / 2pi
-            # cutoff_freq:     rad ps^-1        ps^-1       / 2pi
-            # planck:                           = 1.0
-            # boltzmann:                        = 1.0
-            # matsu coeffs:    unitless         unitless    -
-            # matsu freqs:     rad ps^-1        ps^-1       / 2pi
+    @cutoff_freq.setter
+    def cutoff_freq(self, cutoff_freq: float):
 
-            # Perform conversions
-            time_interval = self.time_interval * 1e-13  # fs --> ps
-            temperature = (self.temperature * 1e-12
-                           * (constants.k / constants.hbar))  # K ---> rad ps^-1
-            time_interval = self.time_interval * 1e-3  # fs ---> ps
-            coup_strength = self.reorg_energy / (2 * np.pi) # rad ps^-1 -> ps^-1
-            cutoff_freq = self.cutoff_freq / (2 * np.pi) # rad ps^-1 --> ps^-1
-            if self.matsubara_freqs is not None:
-                # rad ps^-1 -> ps^-1
-                matsubara_freqs = self.matsubara_freqs / (2 * np.pi)
-            else:
-                matsubara_freqs = None
+        if cutoff_freq <= 0.:
+            raise ValueError('Cutoff frequency must be a positive float.')
+        self._cutoff_freq = cutoff_freq
 
-            tmp = evo.time_evo_heom(self.initial_density_matrix,
-                                    self.timesteps,
-                                    time_interval,  # ps
-                                    self.hamiltonian,  # rad ps^-1
-                                    self.coupling_op,
-                                    coup_strength,  # ps^-1
-                                    temperature,  # rad ps^-1
-                                    self.bath_cutoff,
-                                    self.matsubara_terms,
-                                    cutoff_freq,  # ps^-1
-                                    self.matsubara_coeffs,
-                                    matsubara_freqs  # ps^-1
-                                   )
-            # Unpack the data, retrieving the evolution data, and setting
-            # the QuantumSystem's matsubara coefficients and frequencies
-            # to those returned by the function (as set by QuTiP's HEOMSolver).
-            evolution, self.matsubara_coeffs, self.matsubara_freqs = tmp
-            return evolution
+    @property
+    def reorg_energy(self) -> float:
+
+        """
+        Get or set the scale factor used in scaling the spectral
+        density, in units of rad ps^-1.
+
+        Raises
+        ------
+        ValueError
+            If the value being set is non-positive.
+
+        Returns
+        -------
+        float
+            The thermalisation scale factor being used, in units
+            of rad ps^-1.
+        """
+
+        if self.dynamics_model in TEMP_DEP_MODELS:
+            return self._reorg_energy
+
+    @reorg_energy.setter
+    def reorg_energy(self, reorg_energy: float):
+
+        assert isinstance(reorg_energy, (int, float)), (
+            'reorg_energy must be passed as either an int or float')
+        if reorg_energy < 0.:
+            raise ValueError('Scale factor must be a non-negative float in rad'
+                             ' s^-1.')
+        self._reorg_energy = reorg_energy
+
+    @property
+    def spectral_density(self) -> str:
+
+        """
+        Get or set the spectral density used to describe the
+        interaction of the system with bath modes.
+
+        Returns
+        -------
+        str
+            The spectral density beign used. Either 'debye' or
+            'ohmic'.
+        """
+
+        if self.dynamics_model in TEMP_DEP_MODELS:
+            return self._spectral_density
+
+    @spectral_density.setter
+    def spectral_density(self, spectral_density: str):
+
+        assert spectral_density in SPECTRAL_DENSITIES, (
+            'Must choose a spectral density from ' + str(SPECTRAL_DENSITIES)
+            + '. Other spectral densities not yet implemented in quantum_HEOM.')
+        if self.dynamics_model == 'HEOM' and spectral_density == 'ohmic':
+            raise NotImplementedError(
+                'Currently systems described by HEOM dynamics can only be'
+                ' evaluated for Debye spectral densities.')
+        self._spectral_density = spectral_density
+
+    @property
+    def ohmic_exponent(self) -> float:
+
+        """
+        Get or set the exponent used in calculation of the Ohmic
+        spectral density. Spectral density is described as Ohmic
+        if the exponent is equal to 1, sub-Ohmic if < 1, and
+        super-Ohmic is > 1.
+
+        Returns
+        -------
+        float
+            The exponent used in calculation of the Ohmic spectral
+            density.
+
+        Raises
+        ------
+        ValueError
+            If trying to set the exponent to a non-postive float.
+        """
+
+        if (self.spectral_density == 'ohmic'
+                and self.dynamics_model in TEMP_DEP_MODELS):
+            return self._ohmic_exponent
+
+    @ohmic_exponent.setter
+    def ohmic_exponent(self, exponent):
+
+        if exponent > 0.:
+            self._ohmic_exponent = exponent
