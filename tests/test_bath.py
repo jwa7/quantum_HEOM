@@ -64,7 +64,26 @@ from quantum_heom import bath
 #     Tests that the redfield rate constant evaluates to zero when
 #     given certain inputs.
 #     """
+# -------------------------------------------------------------------
+# ANALYTICALLY-DERIVED DEPHASING RATE
+# -------------------------------------------------------------------
+@pytest.mark.parametrize(
+    'cutoff, reorg, temp, expected',
+    [(1, 1, 298, None),
+     (10, 11, 298, None),
+     (0.5, 0, 298, 0),
+     (4, 76, 77, None)])
+def test_dephasing_rate_correct(cutoff, reorg, temp, expected):
 
+    """
+    Tests that the analytically derived dephasing rate - as a
+    function of cutoff frequency, reorganisation energy, and
+    temperature - is correctly calulated.
+    """
+
+    if expected is None:
+        expected = 4 * reorg * c.k * temp / (c.hbar * cutoff * 1e12)
+    assert np.isclose(bath.dephasing_rate(cutoff, reorg, temp), expected)
 
 # -------------------------------------------------------------------
 # OHMIC
