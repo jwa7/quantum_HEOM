@@ -79,9 +79,6 @@ class QuantumSystem:
             between dynamics models in units of rad ps^-1. Default
             value is 11.87 rad ps^-1. Used in thermalising Lindblad
             models.
-        coup_strength : float
-            The strength of interaction between system and bath, in
-            units of rad ps^-1 as used in HEOM dynamics.
         cutoff_freq : float
             The cutoff frequency used in calculating the spectral
             density, in rad ps^-1. Default value is 6.024 rad ps^-1.
@@ -111,6 +108,10 @@ class QuantumSystem:
 
         # SITES SETTINGS
         self.sites = sites
+        if settings.get('init_site_pop') is not None:
+            self._init_site_pop = settings.get('init_site_pop')
+        else:
+            self._init_site_pop = [1]  # initial excitation on site 1
         # INTERACTIONS SETTINGS
         self.interaction_model = interaction_model
         if self.interaction_model.startswith('nearest'):
@@ -149,6 +150,10 @@ class QuantumSystem:
                 self.cutoff_freq = settings.get('cutoff_freq')
             else:
                 self.cutoff_freq = 6.024  # rad ps^-1
+            if settings.get('reorg_energy') is not None:
+                self.reorg_energy = settings.get('reorg_energy')
+            else:
+                self.reorg_energy = 1.391  # rad ps^-1
             if settings.get('spectral_density') is not None:
                 self.spectral_density = settings.get('spectral_density')
             else:
@@ -159,12 +164,6 @@ class QuantumSystem:
                 else:
                     # Default to normal Ohmic, rather than sub- or super-Ohmic.
                     self.ohmic_exponent = 1.
-        # SETTINGS FOR TEMP-DEPENDENT LINDBLAD MODELS
-        if 'thermalising' in self.dynamics_model:
-            if settings.get('reorg_energy') is not None:
-                self.reorg_energy = settings.get('reorg_energy')
-            else:
-                self.reorg_energy = 1.391  # rad ps^-1
         # SETTINGS FOR HEOM (TEMP DEPENDENT)
         if self.dynamics_model == 'HEOM':
             if settings.get('matsubara_terms') is not None:
@@ -183,12 +182,6 @@ class QuantumSystem:
                 self.bath_cutoff = settings.get('bath_cutoff')
             else:
                 self.bath_cutoff = 20
-            if settings.get('coup_strength') is not None:
-                self.coup_strength = settings.get('coup_strength')
-            else:
-                self.coup_strength = 11  # rad ps^-1
-            if settings.get('coupling_op') is not None:
-                self.coupling_op = settings.get('coupling_op')
 
     # -------------------------------------------------------------------
     # SITES + INITIAL DENSITY MATRIX FUNCTIONS
@@ -609,30 +602,20 @@ class QuantumSystem:
             # matsu freqs:     rad ps^-1        ps^-1       / 2pi
 
             # Perform conversions
-            time_interval = self.time_interval * 1e-13  # fs --> ps
             temperature = (self.temperature * 1e-12
                            * (constants.k / constants.hbar))  # K ---> rad ps^-1
-            time_interval = self.time_interval * 1e-3  # fs ---> ps
-            coup_strength = self.reorg_energy / (2 * np.pi) # rad ps^-1 -> ps^-1
-            cutoff_freq = self.cutoff_freq / (2 * np.pi) # rad ps^-1 --> ps^-1
-            if self.matsubara_freqs is not None:
-                # rad ps^-1 -> ps^-1
-                matsubara_freqs = self.matsubara_freqs / (2 * np.pi)
-            else:
-                matsubara_freqs = None
-
-            tmp = evo.time_evo_heom(self.initial_density_matrix,
-                                    self.timesteps,
-                                    time_interval,  # ps
+            tmp = evo.time_evo_heom(self.initial_density_matrix,  # dimensionless
+                                    self.timesteps,  # dimensionless
+                                    self.time_interval * 1e-3,  # fs --> ps
                                     self.hamiltonian,  # rad ps^-1
-                                    self.coupling_op,
-                                    coup_strength,  # ps^-1
+                                    self.coupling_op,  # dimensionless
+                                    self.reorg_energy,  # rad ps^-1
                                     temperature,  # rad ps^-1
-                                    self.bath_cutoff,
-                                    self.matsubara_terms,
-                                    cutoff_freq,  # ps^-1
-                                    self.matsubara_coeffs,
-                                    matsubara_freqs  # ps^-1
+                                    self.bath_cutoff,  # dimensionless
+                                    self.matsubara_terms,  # dimensionless
+                                    self.cutoff_freq,  # rad ps^-1
+                                    self.matsubara_coeffs,  # dimensionless
+                                    self.matsubara_freqs  # rad ps^-1
                                    )
             # Unpack the data, retrieving the evolution data, and setting
             # the QuantumSystem's matsubara coefficients and frequencies
@@ -690,8 +673,8 @@ class QuantumSystem:
         # Assumes any deph_rate, cutoff_freq, reorg_energy in rad ps^-1
         if self.dynamics_model in LINDBLAD_MODELS:
             return lind.lindbladian_superop(self.sites,
-                                            self.hamiltonian,  # rad ps^-1
                                             self.dynamics_model,
+                                            self.hamiltonian,  # rad ps^-1
                                             self.deph_rate,  # rad ps^-1
                                             self.cutoff_freq,  # rad ps^-1
                                             self.reorg_energy,  # rad ps^-1
@@ -848,53 +831,6 @@ class QuantumSystem:
         self._bath_cutoff = bath_cutoff
 
     @property
-    def coup_strength(self) -> np.ndarray:
-
-        """
-        Get or set the strength of coupling between system and
-        bath, in units of rad ps^-1. Currently only a valid
-        quantity to define for systems described by a spin-boson
-        system Hamiltonian.
-
-        Returns
-        -------
-        float
-            The coupling strength between system and bath, in units
-            of rad ps^-1
-
-        Raises
-        ------
-        ValueError
-            If trying to set the coupling strength to a negative
-            float.
-        NotImplementedError
-            If trying to set the coupling strength for a system
-            other than one described by spin-boson interactions.
-        """
-
-        if self.interaction_model == 'spin-boson':
-            return self._coup_strength
-        raise NotImplementedError(
-            'Currently the coupling strength is only definable in the context'
-            ' of a 2-site system described by a spin-boson system Hamiltonian.')
-
-    @coup_strength.setter
-    def coup_strength(self, coup_strength):
-
-        if isinstance(coup_strength, int):
-            coup_strength = float(coup_strength)
-        assert isinstance(coup_strength, float), (
-            'The coupling strength between system and bath must be passed as'
-            ' a float.')
-        assert self.interaction_model == 'spin-boson', (
-            'Currently the coupling strength is only definable in the context'
-            ' of a 2-site system described by a spin-boson system Hamiltonian.')
-        if coup_strength < 0.:
-            raise ValueError(
-                'Must pass the coupling strength as a non-negative float.')
-        self._coup_strength = coup_strength
-
-    @property
     def coupling_op(self) -> np.ndarray:
 
         """
@@ -936,7 +872,9 @@ class QuantumSystem:
     @temperature.setter
     def temperature(self, temperature: float):
 
-        if temperature <= 0.:
+        if isinstance(temperature, int):
+            temperature = float(temperature)
+        if temperature <= 0. or not isinstance(temperature, float):
             raise ValueError('Temperature must be a positive float value'
                              ' in Kelvin.')
         self._temperature = temperature
@@ -966,6 +904,8 @@ class QuantumSystem:
     @cutoff_freq.setter
     def cutoff_freq(self, cutoff_freq: float):
 
+        if isinstance(cutoff_freq, int):
+            cutoff_freq = float(cutoff_freq)
         if cutoff_freq <= 0.:
             raise ValueError('Cutoff frequency must be a positive float.')
         self._cutoff_freq = cutoff_freq
@@ -995,8 +935,10 @@ class QuantumSystem:
     @reorg_energy.setter
     def reorg_energy(self, reorg_energy: float):
 
-        assert isinstance(reorg_energy, (int, float)), (
-            'reorg_energy must be passed as either an int or float')
+        if isinstance(reorg_energy, int):
+            reorg_energy = float(reorg_energy)
+        assert isinstance(reorg_energy, float), (
+            'reorg_energy must be passed as a float')
         if reorg_energy < 0.:
             raise ValueError('Scale factor must be a non-negative float in rad'
                              ' s^-1.')
