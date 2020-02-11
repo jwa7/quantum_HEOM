@@ -1,6 +1,6 @@
 """Contains functions for calculating quantities related to the
-thermal bath; spectral densities, Bose-Einstein distribution,
-and Redfield rate constant."""
+thermal bath; spectral densities (Debye and Ohmic), Bose-Einstein
+distribution, and Redfield rate constant."""
 
 from scipy import constants
 import numpy as np
@@ -57,14 +57,11 @@ def rate_constant_redfield(omega: float, cutoff_freq: float,
     assert reorg_energy >= 0., (
         'The scaling factor must be a positive float, in units of rad ps^-1')
 
-    if omega <= 0:
+    if omega == 0 or cutoff_freq == 0 or reorg_energy == 0:
         # Using an asymmetric spectral density only evaluated for positive omega
         # Therefore the spectral density and rate is 0 for omega <= 0.
         return 0.
-        # return (4 * reorg_energy * constants.k * temperature
-        #         / (constants.hbar * cutoff_freq * 1e12))  # rad ps^-1
-    if cutoff_freq == 0 or reorg_energy == 0:
-        return 0.  # avoids DivideByZero error.
+        # return dephasing_rate(cutoff_freq, reorg_energy, temperature)
 
     if spectral_density == 'debye':
         spec_omega_ij = debye_spectral_density(omega, cutoff_freq,
@@ -87,8 +84,8 @@ def rate_constant_redfield(omega: float, cutoff_freq: float,
               )
            )
 
-def ohmic_spectral_density(omega: float, cutoff_freq: float, reorg_energy: float,
-                           exponent: float) -> float:
+def ohmic_spectral_density(omega: float, cutoff_freq: float,
+                           reorg_energy: float, exponent: float) -> float:
 
     """
     Calculates the Ohmic spectral density for a given frequency
@@ -173,7 +170,7 @@ def debye_spectral_density(omega: float, cutoff_freq: float,
     assert reorg_energy >= 0., (
         'The scaling factor must be a non-negative float, in units of rad ps^-1')
 
-    if omega <= 0 or cutoff_freq == 0:
+    if omega <= 0 or cutoff_freq == 0 or reorg_energy == 0:
         # Zero if omega < 0 as an asymmetric spectral density used.
         # Zero if omega = 0 or cutoff = 0 to avoid DivideByZero error.
         return 0.
@@ -210,7 +207,6 @@ def bose_einstein_distrib(omega: float, temperature: float):
     assert temperature > 0., (
         'The temperature must be a positive float, in units of Kelvin')
 
-
     if omega <= 0. or np.round(omega, decimals=14) == 0.:
         # Anything smaller than 1e-12 rad ps^-1 causes inf to be returned,
         # which gives Nan values in Lindbladian superoperator later.
@@ -218,3 +214,59 @@ def bose_einstein_distrib(omega: float, temperature: float):
     # Need to convert frequency from rad ps^-1 ---> rad s^-1
     return 1. / (np.exp(constants.hbar * omega * 1e12
                         / (constants.k * temperature)) - 1)
+
+def dephasing_rate(cutoff_freq: float, reorg_energy: float,
+                   temperature: float) -> float:
+
+    """
+    Calculates the dephasing rate for a QuantumSystem, given by the
+    limit of the Redfield rate equation as the frequency approaches
+    zero. Analytically it is given by:
+
+    .. math::
+        \\Gamma_{deph} = \\frac{4 \\lambda k_B T}{\\hbar \\omega_c}
+
+    where lambda is the reorganisation energy, \\omega_c is the
+    cutoff frequency, and T is the temperature. Derived using sympy
+    with the following:
+
+    >>> from sympy import *
+    >>> hbar, w, wc, lam, k, T = symbols('hbar w w_c \\lambda k T')
+    >>> limit(2 * ((1 + (1 / (exp(hbar * w / (k * T)) - 1)))
+                   * (2 * lam * w * wc / (w**2 + wc**2))
+                   + (1 / (exp(hbar * - w / (k * T))))
+                   * (2 * lam * -w * wc / ((-w)**2 + wc**2))),
+              w, 0, '+')
+
+    Parameters
+    ----------
+    cutoff_freq : float
+        The cutoff frequency used in evaluation of the spectral
+        density, in units of rad ps^-1. Must be a non-negative
+        float.
+    reorg_energy : float
+        The reorganisation energy used in evaluation of the
+        spectral density, in units of rad ps^-1. Must be a non-
+        negative float.
+    temperature : float
+        The temperature of the thermal bath, in units of K.
+
+    Returns
+    -------
+    float
+        The analytically-derived dephasing rate for the system
+        at a particular temperature, using a particular cutoff-
+        frequency, reorg energy. Returned in units of rad ps^-1.
+    """
+
+    assert cutoff_freq > 0., (
+        'The cutoff freq must be a positive float, in units of rad ps^-1')
+    assert reorg_energy >= 0., (
+        'The scaling factor must be a non-negative float, in units of rad ps^-1')
+    assert temperature > 0., (
+        'The temperature must be a positive float, in units of Kelvin')
+
+    if reorg_energy == 0:
+        return 0.
+    return (4 * reorg_energy * constants.k * temperature
+            / (constants.hbar * cutoff_freq * 1e12))
