@@ -16,6 +16,7 @@ from mpl_toolkits import mplot3d
 from matplotlib.ticker import MultipleLocator
 import matplotlib.pyplot as plt
 import numpy as np
+from scipy.optimize import curve_fit
 
 from quantum_heom import bath
 from quantum_heom import evolution as evo
@@ -289,7 +290,7 @@ def _plot_data(ax, processed, qsys, multiple: bool, elements: list,
     if distance is not None:
         args = ((zeros, distance) if view_3d else (distance,))
         ax.plot(times, *args, dashes=[3, 1], linewidth=linewidth,
-                c='gray', label='$0.5\\ tr\\ |\\rho(t) - \\rho^{eq}|$')
+                c='gray', label='Trace Distance')
     if asymptote:
         asym = [1 / qsys.sites] * len(times)
         args = ((zeros, asym) if view_3d else (asym,))
@@ -607,6 +608,72 @@ def plot_spectral_density(systems: list = None, models: list = None,
                     }
         save_figure_and_args(systems, plot_args, plot_type='spectral_density')
     plt.show()
+
+def fit_exponential_to_trace_distance(system, times: np.ndarray = None,
+                                      distances: np.ndarray = None) -> tuple:
+
+    """
+    Fits an exponential curve "a * exp(-x / b) + c" to time-
+    evolution trace-distance data, plotting the trace distances
+    and the fitted curve, as well as returning parameters a, b,
+    and c. Can just pass a QuantumSystem object instead of 'times'
+    and 'distances'
+
+    Parameters
+    ----------
+    times : np.ndarray of float
+        The times at which the trace-distances are evaluated.
+    distances : np.ndarray of float
+        The trace distances evaluated at each time in times.
+
+    Returns
+    -------
+    a : float
+        The 'a' parameter in the above general exponential formula,
+        in time units (i.e. the same units as 'times' is given in.)
+    b : float
+        The 'b' parameter in the above general exponential formula,
+        in inverse time units (i.e. the inverse units as 'times' is
+        given in.)
+    c : float
+        The 'c' parameter in the above general exponential formula,
+        in time units (i.e. the same units as 'times' is given in.)
+    """
+
+    if system is not None:
+        evo = system.time_evolution
+        times, distances = [], []
+        for step in evo:
+            times.append(step[0])
+            distances.append(step[3])
+    else:
+        assert (times is not None and distances is not None), (
+            'If not passing a QuantumSystem object, must pass times and'
+            ' distances.')
+    assert len(times) == len(distances), (
+        'times and distances must be arrays of equal length')
+
+    # Define general exponential curve
+    def exp_curve(time, a, b, c):
+        return a * np.exp(- time / b) + c
+    # Use scipy's curve fitting tool
+    popt, pcov = curve_fit(exp_curve, times, distances)
+    # Unpack fitting parameters
+    a, b, c = popt
+    fit = [exp_curve(t, a, b, c) for t in times]
+    # Plot trace distances and fitted curve
+    ratio, scaling = 1.7, 5
+    figsize = (ratio * scaling, scaling)
+    _, axes = plt.subplots(figsize=figsize)
+    axes.plot(times, distances, ls='--', c='gray', label='Trace Distance')
+    axes.plot(times, fit, ls='-', c='r', label='Fitted Curve')
+    if system is not None:
+        axes = _format_axes(axes, system, elements=None,
+                            times=times, view_3d=False)
+    axes.legend(loc='upper right', fontsize='x-large')
+    plt.show()
+    return a, b, c
+
 
 # UNUSED TITLE SETTINGS
 # title_size = '20'
