@@ -71,8 +71,13 @@ def test_anti_commutator(mat_a, mat_b, ans):
 
     assert np.all(util.commutator(mat_a, mat_b, anti=True) == ans)
 
-
-def test_basis_change_identity():
+@pytest.mark.parametrize(
+    'scaling, dims',
+    [(3, 2),
+     (7, 4),
+     (1, 6),
+     (0, 4)])
+def test_basis_change_identity(scaling, dims):
 
     """
     Tests that the function maintains the expected behaviour that
@@ -80,13 +85,60 @@ def test_basis_change_identity():
     basis transformation.
     """
 
+    liouville = [True, False]
+    for liou in liouville:
+        if liou:
+            assert np.all(util.basis_change(scaling * np.eye(dims**2),
+                                            np.eye(dims),
+                                            liou)
+                          == scaling * np.eye(dims**2))
+        else:
+            assert np.all(util.basis_change(scaling * np.eye(dims),
+                                            np.eye(dims),
+                                            liou)
+                          == scaling * np.eye(dims))
 
+# @pytest.mark.parametrize(
+#     'matrix, states, output',
+#     [(np.array([[1, 0], [0, 0]]), np.array)])
 def test_basis_change():
 
     """
     Tests that the correct matrix is returned when performing a
     basis change.
     """
+
+@pytest.mark.parametrize(
+    'matrix',
+    [np.array([[1, 2], [3, 4]]),
+     np.array([[100, -300], [2, 44]]),
+     np.eye(6)])
+def test_renormalise_matrix(matrix):
+
+    """
+    Asserts that the function correctly renormalises an input
+    matrix to have trace 1.
+    """
+
+    assert np.isclose(np.trace(util.renormalise_matrix(matrix)), 1.)
+
+
+@pytest.mark.parametrize(
+    'matrix',
+    [np.array([[1, 2], [3, -1]]),
+     np.array([[100, -300], [2, -100]]),
+     np.array([[100, -300, 66],
+               [2, -75, -100],
+               [8, -60, -25]])])
+def test_renormalise_matrix_invalid(matrix):
+
+    """
+    Asserts that the function correctly raises an error for an
+    invalid input matrix that has trace zero.
+    """
+
+    with pytest.raises(AssertionError):
+        util.renormalise_matrix(matrix)
 
 # -------------------------------------------------------------------
 # OTHER FUNCTIONS
