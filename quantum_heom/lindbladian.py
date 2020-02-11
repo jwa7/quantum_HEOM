@@ -174,11 +174,11 @@ def lindblad_superop_sum_element(l_op: np.ndarray) -> np.ndarray:
             - 0.5 * (np.kron(np.matmul(l_op_dag, l_op).conjugate(), iden)
                      + np.kron(iden, np.matmul(l_op_dag, l_op))))
 
-def lindbladian_superop(dims: int, hamiltonian: np.ndarray,
-                        dynamics_model: str, deph_rate: float = None,
+def lindbladian_superop(dims: int, dynamics_model: str,
+                        hamiltonian: np.ndarray = None, deph_rate: float = None,
                         cutoff_freq: float = None, reorg_energy: float = None,
                         temperature: float = None, spectral_density: str = None,
-                        exponent: float = None) -> np.ndarray:
+                        exponent: float = 1) -> np.ndarray:
 
     """
     Builds an (dims^2) x (dims^2) Lindbladian superoperator matrix
@@ -194,7 +194,8 @@ def lindbladian_superop(dims: int, hamiltonian: np.ndarray,
         system.
     hamiltonian : np.ndarray
         The system Hamiltonian for the open quantum system, with
-        dimensions (dims x dims), in units of rad ps^-1.
+        dimensions (dims x dims), in units of rad ps^-1. Need not
+        be passed if dynamics_model=='local dephasing lindblad'.
     dynamics_model : str
         The model used to describe the system dynamics. Must be one
         of 'local dephasing lindblad','local thermalising
@@ -223,7 +224,6 @@ def lindbladian_superop(dims: int, hamiltonian: np.ndarray,
         units of rad ps^-1.
     """
 
-    eigv, eigs = util.eigv(hamiltonian), util.eigs(hamiltonian)
     lindbladian = np.zeros((dims ** 2, dims ** 2), dtype=complex)
 
     if dynamics_model == 'local dephasing lindblad':
@@ -236,12 +236,15 @@ def lindbladian_superop(dims: int, hamiltonian: np.ndarray,
         return deph_rate * lindbladian  # rad ps^-1
 
     # Check inputs for thermalising models
-    for var in [cutoff_freq, reorg_energy, temperature, spectral_density]:
+    for var in [hamiltonian, cutoff_freq, reorg_energy, temperature,
+                spectral_density]:
         assert var is not None, (
-            'Need to pass a cutoff frequency, scaling factor, temperature,'
-            ' and spectral density for thermalising models.')
+            'Need to pass a hamiltonian, cutoff frequency, scaling factor,'
+            ' temperature, and spectral density for thermalising models.')
     if spectral_density == 'ohmic':
         assert exponent is not None, 'Need to pass the Ohmic exponent.'
+
+    eigv, eigs = util.eigv(hamiltonian), util.eigs(hamiltonian)
 
     if dynamics_model == 'global thermalising lindblad':
         # Lindblad operator constructed for each pair of different
@@ -258,15 +261,16 @@ def lindbladian_superop(dims: int, hamiltonian: np.ndarray,
                 continue
             l_op = glob_therm_lindblad_op(dims, state_a, state_b)
             indiv_superop = lindblad_superop_sum_element(l_op)
-            lindbladian += k_a_to_b * indiv_superop
-        lindbladian = util.basis_change(lindbladian, eigs)
+            indiv_superop = util.basis_change(indiv_superop, eigs, True)
+            indiv_superop *= k_a_to_b
+            lindbladian += indiv_superop
         return lindbladian  # rad ps^-1
 
     if dynamics_model == 'local thermalising lindblad':
         # Lindblad operator evaluated for each pair (x, y), where x
         # is a unique frequency gap between eigenstates of the Hamiltonian
         # and y is a site in the quantum system.
-        gaps = eigv - eigv.reshape(dims, 1)
+        gaps = eigv.reshape(dims, 1) - eigv
         unique = np.unique(gaps.flatten())  # NEED DECIMAL ROUNDING HERE?
         for unique, site_m in product(unique, range(dims)):
             k_omega = bath.rate_constant_redfield(unique,
