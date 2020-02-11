@@ -46,6 +46,10 @@ def trace_distance(A: np.ndarray, B: np.ndarray) -> float:
     thermal-based approaches, or the maximally mixed state for
     dephasing models in the infinite temperature limit.
 
+    Parameters
+    ----------
+    A
+
     Returns
     ------
     float
@@ -53,8 +57,32 @@ def trace_distance(A: np.ndarray, B: np.ndarray) -> float:
         equilibrium state.
     """
 
+
+
     diag = np.diag(np.absolute(eigv(A - B)))
     return 0.5 * np.trace(diag)
+
+def renormalise_matrix(matrix: np.ndarray) -> np.ndarray:
+
+    """
+    Takes a matrix adnd renormalises it to trace=1 by dividing
+    all elements by its trace.
+
+    Parameters
+    ----------
+    matrix : np.ndarray
+        The input matrix to renormalise
+
+    Returns
+    -------
+    np.ndarray
+        The renormalised matrix, with trace=1.
+    """
+
+    assert isinstance(matrix, np.ndarray), 'Must pass as numpy ndarray'
+    assert np.trace(matrix) != 0., 'Input matrix cannot have trace zero.'
+
+    return matrix / np.trace(matrix)
 
 def commutator(A: np.ndarray, B: np.ndarray, anti: bool = False) -> complex:
 
@@ -131,7 +159,8 @@ def eigs(A: np.ndarray) -> np.ndarray:
 
     return linalg.eig(A)[1]
 
-def basis_change(matrix: np.ndarray, states: np.ndarray) -> np.ndarray:
+def basis_change(matrix: np.ndarray, states: np.ndarray,
+                 liouville: bool = False) -> np.ndarray:
 
     """
     Transforms a matrix expressed in Liouville space into the basis
@@ -140,19 +169,44 @@ def basis_change(matrix: np.ndarray, states: np.ndarray) -> np.ndarray:
     Parameters
     ----------
     matrix : np.ndarray
-        The matrix whose basis is to be transformed
+        The matrix to be transformed. If in Liouville space, must
+        set 'liouville=True' and 'matrix' must have dimensions
+        N^2 x N^2. Otherwise, pass in N x N dimensions.
     states : np.ndarray
-        The states in the basis into which 'matrix' will be
-        transformed.
+        The Hilbert space of states in the basis into which
+        'matrix' will be transformed, of dimensions N x N. 'states'
+        must be orthogonal (i.e. that states^{dagger} states = I),
+        and each column must correspond to an eigenstate.
+    liouville : bool
+        Whether or not the input matrix 'matrix' is given in
+        Liouville space. If True, 'matrix' must be given in
+        dimensions N^2 x N^2 and 'states' as N x N. If False
+        (default), both 'matrix' and 'states' must be N x N.
 
     Returns
     -------
     np.ndarray
-        The input matrix, basis tranformed.
+        The input matrix transformed. Has dimensions N^2 x N^2 if
+        'matrix' passed in Liouville space, or N x N otherwise.
     """
 
-    transform = np.kron(states, states.conjugate())
-    return np.matmul(np.matmul(transform, matrix), transform.conj().T)
+    # Check 'matrix' and 'states' are square
+    assert (matrix.shape[0] == matrix.shape[1]
+            and states.shape[0] == states.shape[1]), (
+                'Input matrices must be square.')
+    assert isinstance(liouville, bool), 'Must pass liouville as a bool.'
+
+    # Perform transformation
+    if liouville:
+        assert matrix.shape[0] == states.shape[0]**2, (
+            'If providing an input matrix in Liouville space it must have'
+            ' dimensions N^2 x N^2, where the eigenstates matrix has dimensions'
+            ' N x N.')
+        states = np.kron(states, states.conjugate())
+    # Check for orthogonality
+    # assert np.allclose(np.matmul(states, states.conjugate().T),
+    #                    np.eye(matrix.shape[0]))
+    return np.matmul(states, np.matmul(matrix, states.conjugate().T))
 
 def elements_from_str(sites: int, elements: str) -> list:
 
