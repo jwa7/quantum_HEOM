@@ -112,10 +112,21 @@ def equilibrium_state(dynamics_model: str, dims: int, hamiltonian: np.ndarray,
     if dynamics_model in TEMP_INDEP_MODELS:
         # Maximally-mixed state for dephasing model:
         return np.eye(dims, dtype=complex) * 1. / dims
-    # Thermalising models; thermal equilibrium state
-    arg = linalg.expm(- hamiltonian * 1e12 * constants.hbar
-                      / (constants.k * temperature))
-    return np.divide(arg, np.trace(arg))
+
+    eigv, eigs = util.eigv(hamiltonian), util.eigs(hamiltonian)
+    eq_values = np.zeros_like(eigv)
+    for idx, _ in enumerate(eq_values):
+        eq_values[idx] = np.exp(- eigv[idx] * 1e12 * constants.hbar
+                                / (constants.k * temperature))
+    # Divide each exponentiated eigenvalue by the total sum.
+    # Forms a vector representation of the diagonalised equilibrium state,
+    # in the eigenbasis.
+    eq_values = eq_values / np.sum(eq_values)
+    # Diagonalize into a sqaure matrix
+    eq_values = np.diag(eq_values)
+    # Convert from the eigenbasis to site basis.
+    return util.basis_change(eq_values, eigs, False)
+
 
 def evolve_matrix_one_step(dens_mat: np.ndarray, superop: np.ndarray,
                            time_interval: float) -> np.ndarray:
@@ -231,10 +242,10 @@ def time_evo_lindblad(dens_mat: np.ndarray, superop: np.ndarray,
         ' distance.')
     if dynamics_model in TEMP_DEP_MODELS:
         assert isinstance(hamiltonian, np.ndarray), (
-            'Must provide the system Hamiltonian to calculate the trace'
-            ' distance for thermalising models.')
+            'Must provide the system Hamiltonian as a numpy ndarray to'
+            ' calculate the trace distance for thermalising models.')
         assert isinstance(temperature, float), (
-            'Must provide the temperature of the system in order to'
+            'Must provide the temperature as a positive float in order to'
             ' calculate the trace distance for thermalising models.')
 
     # Convert time fs --> ps to match superoperator units
@@ -249,6 +260,7 @@ def time_evo_lindblad(dens_mat: np.ndarray, superop: np.ndarray,
     for step in range(1, timesteps + 1):
         time += time_interval
         evolved = evolve_matrix_one_step(evolved, superop, time_interval)
+        # evolved = util.renormalise_matrix(evolved)
         squared = util.trace_matrix_squared(evolved)
         eq_state = equilibrium_state(dynamics_model, dims,
                                      hamiltonian, temperature)
@@ -259,7 +271,7 @@ def time_evo_lindblad(dens_mat: np.ndarray, superop: np.ndarray,
 
 def time_evo_heom(dens_mat: np.ndarray, timesteps: int, time_interval: float,
                   hamiltonian: np.ndarray, coupling_op: np.ndarray,
-                  coup_strength: float, temperature: float, bath_cutoff: int,
+                  reorg_energy: float, temperature: float, bath_cutoff: int,
                   matsubara_terms: int, cutoff_freq: float,
                   matsubara_coeffs: np.ndarray, matsubara_freqs: np.ndarray
                   ) -> tuple:
@@ -286,9 +298,10 @@ def time_evo_heom(dens_mat: np.ndarray, timesteps: int, time_interval: float,
         dimensions (dims x dims), in units of rad ps^-1.
     coupling_op : np.ndarray
         The coupling operator for the system-bath interaction.
-    coup_strength : float
-        The strength of coupling between sites in the system and
-        the bath modes, in units of ps^-1.
+    reorg_energy : float
+        The factor by which the spectral density should be scaled
+        by. Should be passed in units of rad ps^-1. Must be a
+        non-negative float.
     temperature : float
         The temperature of the bath, in units of rad ps^-1.
     bath_cutoff : int
@@ -337,7 +350,7 @@ def time_evo_heom(dens_mat: np.ndarray, timesteps: int, time_interval: float,
             and coupling_op.shape[0] == dims), (
                 'Must provide the coupling operator as a square np.ndarray'
                 ' with dimensions matching the density matrix.')
-    assert (isinstance(coup_strength, float) and coup_strength > 0.), (
+    assert (isinstance(reorg_energy, float) and reorg_energy > 0.), (
         'Must provide the coupling strength of the system as a positive float.')
     assert (isinstance(temperature, float) and temperature > 0.), (
         'Must provide the temperature of the system as a positive float.')
@@ -365,7 +378,7 @@ def time_evo_heom(dens_mat: np.ndarray, timesteps: int, time_interval: float,
     # Build HEOM Solver
     hsolver = HSolverDL(Qobj(hamiltonian),   # rad ps^-1
                         Qobj(coupling_op),
-                        coup_strength,  # rad ps^-1
+                        reorg_energy,  # rad ps^-1
                         temperature,   # rad ps^-1
                         bath_cutoff,
                         matsubara_terms,
@@ -382,8 +395,7 @@ def time_evo_heom(dens_mat: np.ndarray, timesteps: int, time_interval: float,
     # Run the simulation over the time interval.
     times = np.array(range(timesteps)) * time_interval  # ps
     result = hsolver.run(Qobj(dens_mat), times)
-    # Convert times and temperature to quantum_HEOM units
-    # times = times * 1e3  # ps --> fs
+    # Convert temperature back to quantum_HEOM units; rad ps^-1 --> Kelvin
     temperature = temperature * 1e12 * constants.hbar / constants.k
     evolution = np.empty(len(result.states), dtype=np.ndarray)
     # equilibrium_state() method requires Hamiltonian in rad ps^-1 and T in K
@@ -394,10 +406,7 @@ def time_evo_heom(dens_mat: np.ndarray, timesteps: int, time_interval: float,
                                  dens_matrix,
                                  util.trace_matrix_squared(dens_matrix),
                                  util.trace_distance(dens_matrix, eq_state)])
-    return (evolution,
-            np.array(hsolver.exp_coeff),
-            np.array(hsolver.exp_freq) * 2 * np.pi  # ps^-1 -> rad ps^-1
-           )
+    return (evolution, np.array(hsolver.exp_coeff), np.array(hsolver.exp_freq))
 
 def process_evo_data(time_evolution: np.array, elements: [list, None],
                      trace_measure: list):
