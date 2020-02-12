@@ -9,7 +9,7 @@ Functions:
     """
 
 import os
-from typing import Optional
+from itertools import product
 
 from math import ceil
 from mpl_toolkits import mplot3d
@@ -22,7 +22,6 @@ from quantum_heom import bath
 from quantum_heom import evolution as evo
 from quantum_heom import utilities as util
 from quantum_heom.bath import SPECTRAL_DENSITIES
-from quantum_heom.evolution import TEMP_INDEP_MODELS, TEMP_DEP_MODELS
 
 TRACE_MEASURES = ['squared', 'distance']
 
@@ -380,6 +379,97 @@ def _format_axes(ax, qsys, elements: [list, None], times: np.array,
         ax.tick_params(axis='both', which='major', size=10, labelsize=20)
         ax.tick_params(axis='both', which='minor', size=5)
     return ax
+
+def plot_comparison_publication(systems, save: bool = False):
+
+    """
+    Given a pre-initialised QuantumSystem object, plots a vertical
+    strip of 3 axes of time-evolution data for initial excitations
+    on site 1 (top), site 6 (middle), and a superposition of sites
+    1 and 6 (bottom). Formatting follows that of the comparitive
+    plots in Zhu and Rebentrost, dx.doi.org/10.1021/jp109559p,
+    J. Phys. Chem. B 2011, 115, 1531–1537.
+
+    Parameters
+    ----------
+    system : QuantumSystem
+        The QuantumSystem object for which the dynamics at
+        different initial excitations will be plotted.
+    save : bool
+        If True, saves a .pdf figure in the quantum_HEOM/doc/figures
+        relative directory of this package, as a .pdf file with a
+        descriptive filename.
+
+    """
+
+    # Set up axes, plot matrix data
+    _, axes = plt.subplots(3, len(systems), sharex=True, sharey=True)
+
+    for column, system in enumerate(systems):
+        assert system.sites == 7, 'Comparitive plots only for 7-sites'
+        assert system.interaction_model == 'FMO', (
+            'Comparitive plots for FMO systems')
+        # Obtain time-evolution data for the QuantumSystem with initial
+        # excitations on site 1, site 6, and site 1 + 6.
+        times = []
+        matrix_data = []
+        for init_excitation in [[1], [6], [1, 6]]:
+            system.init_site_pop = init_excitation
+            evol = system.time_evolution
+            elements = util.elements_from_str(7, 'diagonals')
+            tmp = evo.process_evo_data(evol, elements, [None])
+            time, matrix, _, _ = tmp
+            times.append(time)
+            matrix_data.append(matrix)
+
+        # Plot data
+        for i in range(3):
+            data = matrix_data[i]
+            for element, amps in data.items():
+                axes[i, column].plot(times[i], amps,
+                                     label='BChl ' + str(element[0]))
+            if column == 0 and i == 0:
+                axes[0, 0].legend()
+
+    # Format plot
+    colours = [(0, 0, 0), (1, 0, 0), (75/250, 97/250, 179/250),
+               (42/250, 142/250, 141/250), (213/250, 101/250, 172/250),
+               (137/250, 140/250, 50/250), (49/250, 46/250, 131/250)]
+    font = {'family': 'sans-serif', 'weight': 'bold', 'size': 22}
+    legendfont = {'family': 'calibri', 'weight': 'bold', 'size': 12}
+    axisfontsize = 18
+    line_thickness = 3
+    plt.rcParams['figure.dpi'] = 250
+
+    for i, j in product(range(3), range(len(systems))):
+        axes[i, j].set_aspect(1250)
+        axes[i, j].set_xlim(0, 2500)
+        axes[i, j].xaxis.set_minor_locator(MultipleLocator(250))
+        axes[i, j].yaxis.set_minor_locator(MultipleLocator(0.25))
+        axes[i, j].xaxis.set_major_locator(MultipleLocator(500))
+        axes[i, j].yaxis.set_major_locator(MultipleLocator(0.5))
+        axes[i, j].tick_params(which='both', top=True, right=True, width=2.)
+        axes[i, j].tick_params(which='major', length=6.)
+        axes[i, j].tick_params(which='minor', length=3.)
+        axes[i, j].spines['top'].set_linewidth(2.)
+        axes[i, j].spines['bottom'].set_linewidth(2.)
+        axes[i, j].spines['right'].set_linewidth(2.)
+        axes[i, j].spines['left'].set_linewidth(2.)
+        axes[i, j].set_prop_cycle(color=colours)
+        if i == 2:
+            axes[i, j].set_xlabel('Time / fs')
+        if j == 0:
+            axes[i, j].set_ylabel('Population')
+    # Save figure
+    if save:
+        abbr = {'local dephasing lindblad': '_loc_deph',
+                'global thermalising lindblad': '_glob_therm',
+                'local thermalising lindblad': '_loc_therm'}
+        fig_dir = (os.getcwd()[:os.getcwd().find('quantum_HEOM')]
+                   + 'quantum_HEOM/doc/figures/')
+        filename = fig_dir + 'FMO_comparisons.pdf'
+        plt.savefig(filename)
+    plt.show()
 
 def save_figure_and_args(systems, plot_args: dict, plot_type: str):
 
