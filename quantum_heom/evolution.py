@@ -260,7 +260,7 @@ def time_evo_lindblad(dens_mat: np.ndarray, superop: np.ndarray,
     for step in range(1, timesteps + 1):
         time += time_interval
         evolved = evolve_matrix_one_step(evolved, superop, time_interval)
-        # evolved = util.renormalise_matrix(evolved)
+        evolved = util.renormalise_matrix(evolved)
         squared = util.trace_matrix_squared(evolved)
         eq_state = equilibrium_state(dynamics_model, dims,
                                      hamiltonian, temperature)
@@ -403,7 +403,7 @@ def time_evo_heom(dens_mat: np.ndarray, timesteps: int, time_interval: float,
     for i in range(0, len(result.states)):
         dens_matrix = np.array(result.states[i]).T
         evolution[i] = np.array([float(result.times[i]) * 1e3,  # ps --> fs
-                                 dens_matrix,
+                                 util.renormalise_matrix(dens_matrix),
                                  util.trace_matrix_squared(dens_matrix),
                                  util.trace_distance(dens_matrix, eq_state)])
     return (evolution, np.array(hsolver.exp_coeff), np.array(hsolver.exp_freq))
