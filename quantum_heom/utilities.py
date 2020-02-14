@@ -208,6 +208,31 @@ def basis_change(matrix: np.ndarray, states: np.ndarray,
     #                    np.eye(matrix.shape[0]))
     return np.matmul(states, np.matmul(matrix, states.conjugate().T))
 
+def lowest_non_zero_eigv(eigv: np.ndarray) -> float:
+
+    """
+    Takes an array of eigenvalues, in units of rad ps^-1, and
+    returns the lowest non-zero eigenvalue in units of fs.
+
+    Parameters
+    ----------
+    eigv : np.ndarray
+        An array of eigenvalues, in rad ps^-1
+
+    Returns
+    -------
+    float
+        The lowest non-zero eigenvalue, in units of fs.
+    """
+
+    eigv = np.round(np.absolute(eigv), decimals=15)
+    mask = (a > 0)
+    min_eigv = min(a[mask])  # Take lowest non-zero eigenvalue
+    min_eigv *= 1e-3  # Convert rad ps^-1 --> fs rad fs^-1
+    lifetime = np.absolute(min_eigv)**-1  # Inverse; frequency ---> time
+    
+    return lifetime
+
 def elements_from_str(sites: int, elements: str) -> list:
 
     """
