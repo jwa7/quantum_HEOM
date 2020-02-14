@@ -22,6 +22,7 @@ from quantum_heom import bath
 from quantum_heom import evolution as evo
 from quantum_heom import utilities as util
 from quantum_heom.bath import SPECTRAL_DENSITIES
+from quantum_heom.lindbladian import LINDBLAD_MODELS
 
 TRACE_MEASURES = ['squared', 'distance']
 
@@ -125,7 +126,7 @@ def plot_dynamics(systems, elements: [list, str] = None,
         axes = plt.figure(figsize=figsize)
         axes = plt.axes(projection='3d')
     else:  # 2D PLOT
-        ratio, scaling = 1.7, 5
+        ratio, scaling = 1.7, 7
         figsize = (ratio * scaling, scaling)
         _, axes = plt.subplots(figsize=figsize)
     # Process and plot
@@ -135,7 +136,7 @@ def plot_dynamics(systems, elements: [list, str] = None,
         times = processed[0]
         axes = _plot_data(axes, processed, sys, multiple, elements,
                           coherences, asymptote, view_3d)
-        axes = _format_axes(axes, sys, elements, times, view_3d)
+        axes = _format_axes(axes, elements, times, view_3d)
     # ----------------------------------------------------------------------
     # SAVE PLOT
     # ----------------------------------------------------------------------
@@ -149,7 +150,8 @@ def plot_dynamics(systems, elements: [list, str] = None,
                      'save': save,
                     }
         save_figure_and_args(systems, plot_args, plot_type='dynamics')
-    plt.show()
+    # plt.show()
+    return axes
 
 def _plot_data(ax, processed, qsys, multiple: bool, elements: list,
                coherences: str, asymptote: bool, view_3d: bool):
@@ -193,6 +195,36 @@ def _plot_data(ax, processed, qsys, multiple: bool, elements: list,
         The input axes, but formatted.
     """
 
+    # Define label abbreviations and line colours used in multiple-system plots
+    labels = {'local dephasing lindblad': 'Loc. Deph.',
+              'global thermalising lindblad': 'Glob. Therm.',
+              'local thermalising lindblad': 'Loc. Therm.',
+              'HEOM': 'HEOM',
+              'spin-boson': 'Spin-Boson',
+              'ohmic': 'Ohmic',
+              'debye': 'Debye',
+             }
+    lines = {'local dephasing lindblad':
+             ['-', 'red', 'indianred', 'coral', 'lightcoral'],
+             'global thermalising lindblad':
+             {'debye': ['-', 'blueviolet', 'mediumpurple', 'violet',
+                        'thistle'],
+              'ohmic': ['-', 'thistle', 'violet', 'mediumpurple',
+                        'blueviolet'],
+             },
+             'local thermalising lindblad':
+             {'debye': ['-', 'forestgreen', 'limegreen',
+                        'springgreen', 'lawngreen'],
+              'ohmic': ['-', 'lawngreen', 'springgreen',
+                        'limegreen', 'forestgreen'],
+             },
+             # 'HEOM': ['--', 'k', 'dimgray', 'silver', 'lightgrey'],
+             'HEOM':
+             {'debye': ['--', 'mediumblue', 'royalblue',
+                        'lightsteelblue', 'deepskyblue']
+             },
+            }
+    lindblad_colours = ['red', 'gold', 'green', 'blue']
     # Unpack the processed data
     times, matrix_data, squared, distance = processed
     zeros = np.zeros(len(times), dtype=float)
@@ -204,6 +236,7 @@ def _plot_data(ax, processed, qsys, multiple: bool, elements: list,
         # PLOT MATRIX ELEMENTS
         # -------------------------------------------------------------------
         for idx, (elem, amplitudes) in enumerate(matrix_data.items(), start=0):
+            dashes = (None, None)
             # Configure the line's label
             if elem_types == 'diagonals':
                 label = ('BChl ' + elem[0] if qsys.interaction_model == 'FMO'
@@ -211,44 +244,28 @@ def _plot_data(ax, processed, qsys, multiple: bool, elements: list,
             else:
                 label = '$\\rho_{' + elem + '}$'
             if multiple:
-                labels = {'local dephasing lindblad': 'Local Deph.',
-                          'global thermalising lindblad': 'Global Therm.',
-                          'local thermalising lindblad': 'Local Therm.',
-                          'HEOM': 'HEOM',
-                          'ohmic': 'Ohmic',
-                          'debye': 'Debye',
-                         }
-                lines = {'local dephasing lindblad':
-                         ['-', 'red', 'indianred', 'coral', 'lightcoral'],
-                         'global thermalising lindblad':
-                         {'debye': ['-', 'blueviolet', 'mediumpurple', 'violet',
-                                    'thistle'],
-                          'ohmic': ['-', 'thistle', 'violet', 'mediumpurple',
-                                    'blueviolet'],
-                         },
-                         'local thermalising lindblad':
-                         {'debye': ['-', 'forestgreen', 'limegreen',
-                                    'springgreen', 'lawngreen'],
-                          'ohmic': ['-', 'lawngreen', 'springgreen',
-                                    'limegreen', 'forestgreen'],
-                         },
-                         # 'HEOM': ['--', 'k', 'dimgray', 'silver', 'lightgrey'],
-                         'HEOM':
-                         {'debye': ['--', 'mediumblue', 'royalblue',
-                                    'lightsteelblue', 'deepskyblue']
-                         },
-                        }
-                if qsys.dynamics_model == 'local dephasing lindblad':
+                # if qsys.dynamics_model == 'local dephasing lindblad':
+                if qsys.dynamics_model in LINDBLAD_MODELS:
                     # Local dephasing model doesn't use a spectral density
-                    label += (' (' + labels[qsys.dynamics_model] + ')')
-                    style = lines[qsys.dynamics_model][0]
-                    colour = lines[qsys.dynamics_model][(idx % 4) + 1]
+                    label += ' (' + labels[qsys.dynamics_model] + ')'
+                    if qsys.sites == 2:
+                        style = '-'
+                        colour = lindblad_colours[idx]
+                    else:
+                        style = lines[qsys.dynamics_model][0]
+                        colour = lines[qsys.dynamics_model][(idx % 4) + 1]
                 else:
-                    label += (' (' + labels[qsys.dynamics_model] + ', '
-                              + labels[qsys.spectral_density] + ')')
-                    style = lines[qsys.dynamics_model][qsys.spectral_density][0]
-                    colour = lines[qsys.dynamics_model]
-                    colour = colour[qsys.spectral_density][(idx % 4) + 1]
+                    if qsys.sites == 2:
+                        label += ' (' + labels[qsys.dynamics_model] + ')'
+                        style = '--'
+                        colour = lindblad_colours[idx]
+                        dashes = (3, 1)
+                    else:
+                        label += (' (' + labels[qsys.dynamics_model] + ', '
+                                  + labels[qsys.spectral_density] + ')')
+                        style = lines[qsys.dynamics_model][qsys.spectral_density][0]
+                        colour = lines[qsys.dynamics_model]
+                        colour = colour[qsys.spectral_density][(idx % 4) + 1]
             else:
                 style = '-'
                 colour = None
@@ -256,7 +273,7 @@ def _plot_data(ax, processed, qsys, multiple: bool, elements: list,
             if int(elem[0]) == int(elem[1]):  # diagonal; TAKE REAL
                 args = ((zeros, np.real(amplitudes))
                         if view_3d else (np.real(amplitudes),))
-                ax.plot(times, *args, ls=style, c=colour,
+                ax.plot(times, *args, ls=style, dashes=dashes, c=colour,
                         linewidth=linewidth, label=label)
             else:  # off-diagonal
                 if 'real' in coherences:
@@ -267,7 +284,7 @@ def _plot_data(ax, processed, qsys, multiple: bool, elements: list,
                         lab = 'Re(' + label + ')'
                     args = ((np.real(amplitudes), zeros)
                             if view_3d else (np.real(amplitudes),))
-                    ax.plot(times, *args, ls=style, c=colour,
+                    ax.plot(times, *args, ls=style, dashes=dashes, c=colour,
                             linewidth=linewidth, label=lab)
                 if 'imag' in coherences:
                     if multiple:
@@ -277,19 +294,31 @@ def _plot_data(ax, processed, qsys, multiple: bool, elements: list,
                         lab = 'Im(' + label + ')'
                     args = ((np.imag(amplitudes), zeros)
                             if view_3d else (np.imag(amplitudes),))
-                    ax.plot(times, *args, ls=style, c=colour,
+                    ax.plot(times, *args, ls=style, dashes=dashes, c=colour,
                             linewidth=linewidth, label=lab)
     # -------------------------------------------------------------------
     # PLOT TRACE METRICS
     # -------------------------------------------------------------------
     if squared is not None:
         args = ((zeros, squared) if view_3d else (squared,))
+        label = '$tr(\\rho^2)$'
+        if multiple:
+            label += ' (' + labels[qsys.dynamics_model] + ')'
+            colour = None
+        else:
+            colour = 'gray'
         ax.plot(times, *args, dashes=[1, 1], linewidth=linewidth,
-                c='gray', label='$tr(\\rho^2)$')
+                c=colour, label=label)
     if distance is not None:
         args = ((zeros, distance) if view_3d else (distance,))
+        label = 'Trace Distance'
+        if multiple:
+            label += ' (' + labels[qsys.dynamics_model] + ')'
+            colour = None
+        else:
+            colour = 'gray'
         ax.plot(times, *args, dashes=[3, 1], linewidth=linewidth,
-                c='gray', label='Trace Distance')
+                c=colour, label=label)
     if asymptote:
         asym = [1 / qsys.sites] * len(times)
         args = ((zeros, asym) if view_3d else (asym,))
@@ -297,8 +326,7 @@ def _plot_data(ax, processed, qsys, multiple: bool, elements: list,
                 label='$y = \\frac{1}{N}$')
     return ax
 
-def _format_axes(ax, qsys, elements: [list, None], times: np.array,
-                 view_3d: bool):
+def _format_axes(ax, elements: [list, None], times: np.array, view_3d: bool):
 
     """
     Formats pre-existing axis. For use by the plot_dynamics()
@@ -308,8 +336,6 @@ def _format_axes(ax, qsys, elements: [list, None], times: np.array,
     ----------
     ax : matplotlib.axes._subplots.AxesSubplot
         The matplotlib axes to be formatted.
-    qsys : QuantumSystem
-        The quantum system whose data is being plotted.
     elements : list or None
         The elements of qsys's density matrix that have been
         plotted. Can be a list of form ['11', '21', ...] or
@@ -467,8 +493,10 @@ def plot_comparison_publication(systems, save: bool = False):
                 'local thermalising lindblad': '_loc_therm'}
         fig_dir = (os.getcwd()[:os.getcwd().find('quantum_HEOM')]
                    + 'quantum_HEOM/doc/figures/')
-        filename = fig_dir + 'FMO_comparisons.pdf'
-        plt.savefig(filename)
+        filename = fig_dir + 'FMO_comparisons'
+        for system in systems:
+            filename += system.dynamics_model
+        plt.savefig(filename + '.pdf')
     plt.show()
 
 def save_figure_and_args(systems, plot_args: dict, plot_type: str):
@@ -496,6 +524,7 @@ def save_figure_and_args(systems, plot_args: dict, plot_type: str):
     abbrevs = {'nearest neighbour linear': '_near_neigh_lin',
                'nearest neighbour cyclic': '_near_neigh_cyc',
                'FMO': '_FMO',
+               'spin-boson': '_spin_boson',
                'local thermalising lindblad': '_local_therm',
                'global thermalising lindblad': '_global_therm',
                'local dephasing lindblad': '_local_deph',
@@ -544,15 +573,21 @@ def save_figure_and_args(systems, plot_args: dict, plot_type: str):
                 except TypeError:
                     continue
                 break
-        filename += '_elements'
-        if 'dynamics' in filename:
-            for elem in plot_args['elements']:
-                filename += '_' + elem
-        elif 'spectral_density' in filename:
-            if plot_args['debye'] is not None:
-                filename += '-' + 'debye'
-            if plot_args['ohmic'] is not None:
-                filename += '-' + 'ohmic'
+        if plot_args['elements'] not in [None, [None]]:
+            filename += '_elements'
+            if 'dynamics' in filename:
+                for elem in plot_args['elements']:
+                    filename += '_' + elem
+            elif 'spectral_density' in filename:
+                if plot_args['debye'] is not None:
+                    filename += '_debye'
+                if plot_args['ohmic'] is not None:
+                    filename += '_ohmic'
+        else:
+            if 'squared' in plot_args['trace_measure']:
+                filename += '_trace_sqaured'
+            elif 'distance' in plot_args['trace_measure']:
+                filename += '_trace_distance'
     # Create a file index number to avoid overwriting existing files
     filename += '_version_'
     index = 0
@@ -744,13 +779,21 @@ def fit_exponential_to_trace_distance(system, times: np.ndarray = None,
         'times and distances must be arrays of equal length')
 
     # Define general exponential curve
-    def exp_curve(time, a, b, c):
-        return a * np.exp(- time / b) + c
-    # Use scipy's curve fitting tool
-    popt, pcov = curve_fit(exp_curve, times, distances)
-    # Unpack fitting parameters
-    a, b, c = popt
-    fit = [exp_curve(t, a, b, c) for t in times]
+    if system.dynamics_model in LINDBLAD_MODELS:
+        def exp_curve(time, a, c):
+            eigv = util.eigv(system.lindbladian_superop)
+            b = util.lowest_non_zero_eigv(eigv)
+            return a * np.exp(- time / b) + c
+        popt, pcov = curve_fit(exp_curve, times, distances)
+        a, c = popt
+        fit = [exp_curve(t, a, c) for t in times]
+    else:
+        def exp_curve(time, a, b, c):
+            return a * np.exp(- time / b) + c
+        popt, pcov = curve_fit(exp_curve, times, distances)
+        a, b, c = popt
+        fit = [exp_curve(t, a, b, c) for t in times]
+
     # Plot trace distances and fitted curve
     ratio, scaling = 1.7, 5
     figsize = (ratio * scaling, scaling)
@@ -758,10 +801,12 @@ def fit_exponential_to_trace_distance(system, times: np.ndarray = None,
     axes.plot(times, distances, ls='--', c='gray', label='Trace Distance')
     axes.plot(times, fit, ls='-', c='r', label='Fitted Curve')
     if system is not None:
-        axes = _format_axes(axes, system, elements=None,
-                            times=times, view_3d=False)
+        axes = _format_axes(axes, elements=None, times=times, view_3d=False)
     axes.legend(loc='upper right', fontsize='x-large')
     plt.show()
+
+    if system.dynamics_model in LINDBLAD_MODELS:
+        return a, c
     return a, b, c
 
 
