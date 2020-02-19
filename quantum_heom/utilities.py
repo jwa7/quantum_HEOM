@@ -31,7 +31,7 @@ def trace_matrix_squared(matrix: np.ndarray) -> float:
 def trace_distance(A: np.ndarray, B: np.ndarray) -> float:
 
     """
-    Returns the measure of non-Markovianity of the system as
+    Returns the trace distance between 2 quantum states (matrices)
     defined in H.-P. BREUER, E.-M. LAINE, AND J. PIILO, Measure
     for the Degree of Non-Markovian Behavior of Quantum Processes
     in Open Systems, Phys. Rev. Lett., 103 (2009), p. 210401,
@@ -41,23 +41,23 @@ def trace_distance(A: np.ndarray, B: np.ndarray) -> float:
         D = 0.5 tr(|A - B|)
 
     where $|A| = (A^\\dagger A)^{frac{1}{2}}$ and $\\A$ is
-    the density matrix at time t, and $\\B$ is the equilibrium
-    density matrix; either the thermal equilibrium state for
-    thermal-based approaches, or the maximally mixed state for
-    dephasing models in the infinite temperature limit.
+    the density matrix at time t, and $\\B$ is a reference density
+    matrix i.e. the equilibrium state.
 
     Parameters
     ----------
-    A
+    A : np.ndarray
+        The first array to use in calculation of the trace distance
+    B : np.ndarray
+        The second or reference array to use in calculation of the
+        trace distance.
 
     Returns
     ------
     float
         The trace distance of the density matrix relative to the
-        equilibrium state.
+        reference state.
     """
-
-
 
     diag = np.diag(np.absolute(eigv(A - B)))
     return 0.5 * np.trace(diag)
@@ -208,7 +208,7 @@ def basis_change(matrix: np.ndarray, states: np.ndarray,
     #                    np.eye(matrix.shape[0]))
     return np.matmul(states, np.matmul(matrix, states.conjugate().T))
 
-def lowest_non_zero_eigv(eigv: np.ndarray) -> float:
+def lowest_non_zero_eigv(eigvals: np.ndarray) -> float:
 
     """
     Takes an array of eigenvalues, in units of rad ps^-1, and
@@ -216,7 +216,7 @@ def lowest_non_zero_eigv(eigv: np.ndarray) -> float:
 
     Parameters
     ----------
-    eigv : np.ndarray
+    eigvals : np.ndarray
         An array of eigenvalues, in rad ps^-1
 
     Returns
@@ -225,12 +225,12 @@ def lowest_non_zero_eigv(eigv: np.ndarray) -> float:
         The lowest non-zero eigenvalue, in units of fs.
     """
 
-    eigv = np.round(np.absolute(eigv), decimals=15)
-    mask = (a > 0)
-    min_eigv = min(a[mask])  # Take lowest non-zero eigenvalue
-    min_eigv *= 1e-3  # Convert rad ps^-1 --> fs rad fs^-1
+    eigvals = np.round(np.absolute(eigvals), decimals=15)
+    mask = (eigvals > 0)
+    min_eigv = min(eigvals[mask])  # Take lowest non-zero eigenvalue
+    min_eigv *= 1e-3  # Convert rad ps^-1 --> rad fs^-1
     lifetime = np.absolute(min_eigv)**-1  # Inverse; frequency ---> time
-    
+
     return lifetime
 
 def elements_from_str(sites: int, elements: str) -> list:
