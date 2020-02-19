@@ -393,7 +393,7 @@ def time_evo_heom(dens_mat: np.ndarray, timesteps: int, time_interval: float,
     if matsubara_freqs is not None:
         hsolver.exp_freq = matsubara_freqs
     # Run the simulation over the time interval.
-    times = np.array(range(timesteps)) * time_interval  # ps
+    times = np.array(range(timesteps + 1)) * time_interval  # ps
     result = hsolver.run(Qobj(dens_mat), times)
     # Convert temperature back to quantum_HEOM units; rad ps^-1 --> Kelvin
     temperature = temperature * 1e12 * constants.hbar / constants.k
