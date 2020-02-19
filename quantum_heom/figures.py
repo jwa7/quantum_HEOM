@@ -25,6 +25,14 @@ from quantum_heom.bath import SPECTRAL_DENSITIES
 from quantum_heom.lindbladian import LINDBLAD_MODELS
 
 TRACE_MEASURES = ['squared', 'distance']
+LEGEND_LABELS = {'local dephasing lindblad': 'Loc. Deph.',
+                 'global thermalising lindblad': 'Glob. Therm.',
+                 'local thermalising lindblad': 'Loc. Therm.',
+                 'HEOM': 'HEOM',
+                 'spin-boson': 'Spin-Boson',
+                 'ohmic': 'Ohmic',
+                 'debye': 'Debye',
+                }
 
 def plot_dynamics(systems, elements: [list, str] = None,
                   coherences: str = 'imag', trace_measure: list = None,
@@ -136,7 +144,7 @@ def plot_dynamics(systems, elements: [list, str] = None,
         times = processed[0]
         axes = _plot_data(axes, processed, sys, multiple, elements,
                           coherences, asymptote, view_3d)
-        axes = _format_axes(axes, elements, times, view_3d)
+        axes = _format_axes(axes, elements, trace_measure, times, view_3d)
     # ----------------------------------------------------------------------
     # SAVE PLOT
     # ----------------------------------------------------------------------
@@ -195,15 +203,7 @@ def _plot_data(ax, processed, qsys, multiple: bool, elements: list,
         The input axes, but formatted.
     """
 
-    # Define label abbreviations and line colours used in multiple-system plots
-    labels = {'local dephasing lindblad': 'Loc. Deph.',
-              'global thermalising lindblad': 'Glob. Therm.',
-              'local thermalising lindblad': 'Loc. Therm.',
-              'HEOM': 'HEOM',
-              'spin-boson': 'Spin-Boson',
-              'ohmic': 'Ohmic',
-              'debye': 'Debye',
-             }
+    # Define line colours used in multiple-system plots
     lines = {'local dephasing lindblad':
              ['-', 'red', 'indianred', 'coral', 'lightcoral'],
              'global thermalising lindblad':
@@ -247,7 +247,7 @@ def _plot_data(ax, processed, qsys, multiple: bool, elements: list,
                 # if qsys.dynamics_model == 'local dephasing lindblad':
                 if qsys.dynamics_model in LINDBLAD_MODELS:
                     # Local dephasing model doesn't use a spectral density
-                    label += ' (' + labels[qsys.dynamics_model] + ')'
+                    label += ' (' + LEGEND_LABELS[qsys.dynamics_model] + ')'
                     if qsys.sites == 2:
                         style = '-'
                         colour = lindblad_colours[idx]
@@ -256,13 +256,14 @@ def _plot_data(ax, processed, qsys, multiple: bool, elements: list,
                         colour = lines[qsys.dynamics_model][(idx % 4) + 1]
                 else:
                     if qsys.sites == 2:
-                        label += ' (' + labels[qsys.dynamics_model] + ')'
+                        label += ' (' + LEGEND_LABELS[qsys.dynamics_model] + ')'
                         style = '--'
                         colour = lindblad_colours[idx]
                         dashes = (3, 1)
                     else:
-                        label += (' (' + labels[qsys.dynamics_model] + ', '
-                                  + labels[qsys.spectral_density] + ')')
+                        label += (' (' + LEGEND_LABELS[qsys.dynamics_model]
+                                  + ', ' + LEGEND_LABELS[qsys.spectral_density]
+                                  + ')')
                         style = lines[qsys.dynamics_model][qsys.spectral_density][0]
                         colour = lines[qsys.dynamics_model]
                         colour = colour[qsys.spectral_density][(idx % 4) + 1]
@@ -303,7 +304,7 @@ def _plot_data(ax, processed, qsys, multiple: bool, elements: list,
         args = ((zeros, squared) if view_3d else (squared,))
         label = '$tr(\\rho^2)$'
         if multiple:
-            label += ' (' + labels[qsys.dynamics_model] + ')'
+            label += ' (' + LEGEND_LABELS[qsys.dynamics_model] + ')'
             colour = None
         else:
             colour = 'gray'
@@ -313,7 +314,7 @@ def _plot_data(ax, processed, qsys, multiple: bool, elements: list,
         args = ((zeros, distance) if view_3d else (distance,))
         label = 'Trace Distance'
         if multiple:
-            label += ' (' + labels[qsys.dynamics_model] + ')'
+            label += ' (' + LEGEND_LABELS[qsys.dynamics_model] + ')'
             colour = None
         else:
             colour = 'gray'
@@ -326,7 +327,8 @@ def _plot_data(ax, processed, qsys, multiple: bool, elements: list,
                 label='$y = \\frac{1}{N}$')
     return ax
 
-def _format_axes(ax, elements: [list, None], times: np.array, view_3d: bool):
+def _format_axes(ax, elements: [list, None], trace_measure: list,
+                 times: np.array, view_3d: bool):
 
     """
     Formats pre-existing axis. For use by the plot_dynamics()
@@ -340,6 +342,9 @@ def _format_axes(ax, elements: [list, None], times: np.array, view_3d: bool):
         The elements of qsys's density matrix that have been
         plotted. Can be a list of form ['11', '21', ...] or
         just passed as None if no elements have been plotted.
+    trace_measure : list of str
+        The trace measures being plotted. Either or both of
+        'squared' and/or 'distance'.
     times : np.array of float
         Array of times over which the dynamics of qsys have
         plotted.
@@ -378,9 +383,10 @@ def _format_axes(ax, elements: [list, None], times: np.array, view_3d: bool):
         ax.tick_params(axis='both', which='minor', size=5)
     else:
         pad = 10
-        # Set axes labels
         ax.legend(loc='upper right', fontsize='x-large')
+        # Label x-axis
         ax.set_xlabel('Time / fs', size=label_size, labelpad=pad)
+        # Label y-axis
         if elem_types == 'both':
             ax.set_ylabel('Amplitude', size=label_size, labelpad=pad)
         elif elem_types == 'diagonals':
@@ -388,9 +394,22 @@ def _format_axes(ax, elements: [list, None], times: np.array, view_3d: bool):
         elif elem_types == 'off-diagonals':
             ax.set_ylabel('Coherences', size=label_size, labelpad=pad)
         else:
-            ax.set_ylabel('Trace Measure', size=label_size, labelpad=pad)
-        ax.set_xlim(times[0], ceil((times[-1] - 1e-9) / 100) * 100)
+            assert trace_measure is not None, (
+                'If not plotting any elements of the density matrix you must'
+                ' provide a trace measure to plot.')
+            if 'squared' in trace_measure and 'distance' in trace_measure:
+                ax.set_ylabel('Trace Measure', size=label_size, labelpad=pad)
+            elif 'squared' in trace_measure:
+                ax.set_ylabel('$tr(\\rho^2)$', size=label_size, labelpad=pad)
+            elif 'distance' in trace_measure:
+                ax.set_ylabel('Trace Distance', size=label_size, labelpad=pad)
+            else:
+                raise ValueError(
+                    'Invalid input for trace measures. Must pass as a list'
+                    ' containing either or both of "squared" and/or'
+                    ' "distance".')
         # Format axes ranges
+        ax.set_xlim(times[0], ceil((times[-1] - 1e-9) / 100) * 100)
         upper_bound = list(ax.get_xticks())[5]
         ax.xaxis.set_minor_locator(MultipleLocator(upper_bound / 20))
         if elem_types == 'both':
@@ -640,8 +659,8 @@ def plot_spectral_density(systems: list = None, models: list = None,
 
     # PLOTTING
     # Set up axes
-    gold_ratio, scaling = 1.61803, 5
-    figsize = (gold_ratio * scaling, scaling)
+    ratio, scaling = 1.61803, 5
+    figsize = (ratio * scaling, scaling)
     _, axes = plt.subplots(figsize=figsize)
     # Plot systems if list of QuantumSystems is passed.
     if systems is not None:
@@ -801,7 +820,8 @@ def fit_exponential_to_trace_distance(system, times: np.ndarray = None,
     axes.plot(times, distances, ls='--', c='gray', label='Trace Distance')
     axes.plot(times, fit, ls='-', c='r', label='Fitted Curve')
     if system is not None:
-        axes = _format_axes(axes, elements=None, times=times, view_3d=False)
+        axes = _format_axes(axes, elements=None, trace_measure='distance',
+                            times=times, view_3d=False)
     axes.legend(loc='upper right', fontsize='x-large')
     plt.show()
 
@@ -809,6 +829,72 @@ def fit_exponential_to_trace_distance(system, times: np.ndarray = None,
         return a, c
     return a, b, c
 
+def comparative_trace_distance(systems, reference):
+
+    """
+    Takes 2 QuantumSystem objects and plots the trace distance
+    between their density matrices at each timestep in their
+    time-evolutions. Systems must be the same dimensions and have
+    been initialised with time-evolution for the same number of
+    timesteps and time interval.
+
+    Parameters
+    ----------
+    systems : list of QuantumSystem
+        The QuantumSystem objects whose density matrices at each
+        timestep will be compared to the reference QuantumSystem.
+    reference : QuantumSystem
+        The reference QuantumSystem to compare each system against.
+
+    Returns
+    -------
+    comp_distances : np.ndarray of np.ndarray of float
+        An array containing the trace distances at each timestep
+        for each QuantumSystem in 'systems' with reference to the
+        reference QuantumSystem.
+    comp_averages : np.ndarray of float
+        The average trace distance over the time evolution period
+        for each of the QuantumSystems passed in 'systems' compared
+        to the reference system.
+    """
+
+    if not isinstance(systems, list):
+        systems = [systems]
+    for system in systems:
+        assert system.sites == reference.sites, (
+            'Both QuantumSystem objects must have the same dimensions')
+        assert system.timesteps == reference.timesteps, (
+            'The time evolution of both QuantumSystems must be evaluated for'
+            ' the same number of timesteps')
+        assert system.time_interval == reference.time_interval, (
+            'The time evolution of both QuantumSystems must be evaluated for'
+            ' the same number of timesteps')
+
+    # Set up axes
+    ratio, scaling = 1.61803, 5
+    figsize = (ratio * scaling, scaling)
+    _, axes = plt.subplots(figsize=figsize)
+
+    # QuantumSystem.time_evolution = (time, matrix, squared, distance)
+    evo_ref = reference.time_evolution
+    times = [step[0] for step in evo_ref]
+    comp_distances = np.empty(len(systems), dtype=np.ndarray)
+    comp_averages = np.empty(len(systems), dtype=float)
+    for sys_idx, sys in enumerate(systems):
+        evo_sys = sys.time_evolution
+        distances = np.empty(len(evo_sys), dtype=float)
+        for idx, step in enumerate(evo_sys):
+            mat_sys = step[1]
+            mat_ref = evo_ref[idx][1]
+            distances[idx] = util.trace_distance(mat_sys, mat_ref)
+        comp_distances[sys_idx] = distances
+        comp_averages[sys_idx] = np.sum(distances) / len(distances)
+        axes.plot(times, distances, label=LEGEND_LABELS[sys.dynamics_model])
+    axes = _format_axes(axes, elements=None, trace_measure=['distance'],
+                        times=times, view_3d=False)
+    plt.show()
+
+    return comp_distances, comp_averages
 
 # UNUSED TITLE SETTINGS
 # title_size = '20'
