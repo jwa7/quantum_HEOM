@@ -63,7 +63,7 @@ def integrate_trace_distance(systems, reference) -> list:
             distances[idx] = util.trace_distance(mat_sys, mat_ref)
         # Integrate function times vs distances
         integ_dists[sys_idx] = integrate.trapz(distances, times)
-    return integ_dists
+    return integ_dists / reference.timesteps
 
 
 def integrate_distance_fxn_variable(systems, reference, var_name, var_values):
@@ -114,6 +114,12 @@ def integrate_distance_fxn_variable(systems, reference, var_name, var_values):
     assert var_name != 'time_interval', (
         'Variable cannot be the number of timesteps.')
 
+    axes_labels = {'alpha': '$\\alpha \\ rad \\ ps^{-1}$',
+                   'beta': '$\\beta \\ rad \ ps^{-1}$',
+                   'epsi': '$\\epsilon \ rad \ ps^{-1}$',
+                   'delta': '$\\Delta \ rad \ ps^{-1}$',
+                   }
+
 
     _, axes = plt.subplots()
     for sys_idx, system in enumerate(systems):
@@ -139,7 +145,7 @@ def integrate_distance_fxn_variable(systems, reference, var_name, var_values):
                 setattr(system, var_name, value)
                 setattr(reference, var_name, value)
             integ_dists[idx] = integrate_trace_distance(system, reference)
-        axes.plot(var_values, integ_dists, label='System {}'.format(sys_idx))
+        axes.plot(var_values, integ_dists, label='System ' + str(sys_idx + 1))
     axes.set_xlabel(var_name)
     axes.set_ylabel('Integrated Trace Distance')
     axes.legend()
