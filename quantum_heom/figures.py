@@ -27,6 +27,7 @@ from scipy.optimize import curve_fit
 
 from quantum_heom import bath
 from quantum_heom import evolution as evo
+from quantum_heom import metadata as meta
 from quantum_heom import utilities as util
 from quantum_heom.bath import SPECTRAL_DENSITIES
 from quantum_heom.lindbladian import LINDBLAD_MODELS
@@ -152,6 +153,9 @@ def plot_dynamics(systems, elements: [list, str] = None,
         axes = _plot_data(axes, processed, sys, multiple, elements,
                           coherences, asymptote, view_3d)
         axes = _format_axes(axes, elements, trace_measure, times, view_3d)
+        if (sys.interaction_model == 'FMO'
+            and np.all([i in sys.init_site_pop for i in [1, 6]])):
+            axes.set_ylim(bottom=0., top=0.5)
     # ----------------------------------------------------------------------
     # SAVE PLOT
     # ----------------------------------------------------------------------
@@ -231,7 +235,10 @@ def _plot_data(ax, processed, qsys, multiple: bool, elements: list,
                         'lightsteelblue', 'deepskyblue']
              },
             }
-    lindblad_colours = ['red', 'gold', 'green', 'blue']
+    spin_boson_colours = {'11': 'red',
+                          '12': 'orange',
+                          '21': 'green',
+                          '22': 'blue'}
     # Unpack the processed data
     times, matrix_data, squared, distance = processed
     zeros = np.zeros(len(times), dtype=float)
@@ -257,7 +264,7 @@ def _plot_data(ax, processed, qsys, multiple: bool, elements: list,
                     label += ' (' + LEGEND_LABELS[qsys.dynamics_model] + ')'
                     if qsys.sites == 2:
                         style = '-'
-                        colour = lindblad_colours[idx]
+                        colour = spin_boson_colours[elem]
                     else:
                         style = lines[qsys.dynamics_model][0]
                         colour = lines[qsys.dynamics_model][(idx % 4) + 1]
@@ -265,7 +272,7 @@ def _plot_data(ax, processed, qsys, multiple: bool, elements: list,
                     if qsys.sites == 2:
                         label += ' (' + LEGEND_LABELS[qsys.dynamics_model] + ')'
                         style = '--'
-                        colour = lindblad_colours[idx]
+                        colour = spin_boson_colours[elem]
                         dashes = (3, 1)
                     else:
                         label += (' (' + LEGEND_LABELS[qsys.dynamics_model]
@@ -277,6 +284,8 @@ def _plot_data(ax, processed, qsys, multiple: bool, elements: list,
             else:
                 style = '-'
                 colour = None
+                if qsys.sites == 2:
+                    colour = spin_boson_colours[elem]
             # Plot matrix elements
             if int(elem[0]) == int(elem[1]):  # diagonal; TAKE REAL
                 args = ((zeros, np.real(amplitudes))
@@ -438,7 +447,7 @@ def plot_comparison_publication(systems, save: bool = False):
     Given a pre-initialised QuantumSystem object, plots a vertical
     strip of 3 axes of time-evolution data for initial excitations
     on site 1 (top), site 6 (middle), and a superposition of sites
-    1 and 6 (bottom). Formatting follows that of the comparitive
+    1 and 6 (bottom). Formatting follows that of the comparative
     plots in Zhu and Rebentrost, dx.doi.org/10.1021/jp109559p,
     J. Phys. Chem. B 2011, 115, 1531–1537.
 
@@ -454,11 +463,21 @@ def plot_comparison_publication(systems, save: bool = False):
 
     """
 
+    if not isinstance(systems, list):
+        systems = [systems]
+
+    # Set some formatting parameters
+    colours = [(0, 0, 0), (1, 0, 0), (75/250, 97/250, 179/250),
+               (42/250, 142/250, 141/250), (213/250, 101/250, 172/250),
+               (137/250, 140/250, 50/250), (49/250, 46/250, 131/250)]
+
     # Set up axes, plot matrix data
-    _, axes = plt.subplots(3, len(systems), sharex=True, sharey=True)
+    figsize = (10, 5)
+    _, axes = plt.subplots(3, len(systems), sharex=True, sharey=True,
+                           figsize=figsize)
 
     for column, system in enumerate(systems):
-        assert system.sites == 7, 'Comparitive plots only for 7-sites'
+        assert system.sites == 7, 'Comparative plots only for 7-sites'
         assert system.interaction_model == 'FMO', (
             'Comparitive plots for FMO systems')
         # Obtain time-evolution data for the QuantumSystem with initial
@@ -477,16 +496,15 @@ def plot_comparison_publication(systems, save: bool = False):
         # Plot data
         for i in range(3):
             data = matrix_data[i]
-            for element, amps in data.items():
-                axes[i, column].plot(times[i], amps,
-                                     label='BChl ' + str(element[0]))
+            for el_no, (element, amps) in enumerate(data.items()):
+                idx = (i) if len(systems) == 1 else (i, column)
+                axes[idx].plot(times[i], amps, c=colours[el_no],
+                               label='BChl ' + str(element[0]))
             if column == 0 and i == 0:
-                axes[0, 0].legend()
+                idx = (0) if len(systems) == 1 else (0, 0)
+                axes[idx].legend(loc='upper right', fontsize='small')
 
     # Format plot
-    colours = [(0, 0, 0), (1, 0, 0), (75/250, 97/250, 179/250),
-               (42/250, 142/250, 141/250), (213/250, 101/250, 172/250),
-               (137/250, 140/250, 50/250), (49/250, 46/250, 131/250)]
     font = {'family': 'sans-serif', 'weight': 'bold', 'size': 22}
     legendfont = {'family': 'calibri', 'weight': 'bold', 'size': 12}
     axisfontsize = 18
@@ -494,24 +512,28 @@ def plot_comparison_publication(systems, save: bool = False):
     plt.rcParams['figure.dpi'] = 250
 
     for i, j in product(range(3), range(len(systems))):
-        axes[i, j].set_aspect(1250)
-        axes[i, j].set_xlim(0, 2500)
-        axes[i, j].xaxis.set_minor_locator(MultipleLocator(250))
-        axes[i, j].yaxis.set_minor_locator(MultipleLocator(0.25))
-        axes[i, j].xaxis.set_major_locator(MultipleLocator(500))
-        axes[i, j].yaxis.set_major_locator(MultipleLocator(0.5))
-        axes[i, j].tick_params(which='both', top=True, right=True, width=2.)
-        axes[i, j].tick_params(which='major', length=6.)
-        axes[i, j].tick_params(which='minor', length=3.)
-        axes[i, j].spines['top'].set_linewidth(2.)
-        axes[i, j].spines['bottom'].set_linewidth(2.)
-        axes[i, j].spines['right'].set_linewidth(2.)
-        axes[i, j].spines['left'].set_linewidth(2.)
-        axes[i, j].set_prop_cycle(color=colours)
+        idx = (i) if len(systems) == 1 else (i, j)
+        # axes[idx].set_aspect(1250)
+        axes[idx].set_xlim(0, 2500)
+        axes[idx].xaxis.set_minor_locator(MultipleLocator(250))
+        axes[idx].yaxis.set_minor_locator(MultipleLocator(0.25))
+        axes[idx].xaxis.set_major_locator(MultipleLocator(500))
+        axes[idx].yaxis.set_major_locator(MultipleLocator(0.5))
+        axes[idx].tick_params(which='both', top=True, right=True, width=2.)
+        axes[idx].tick_params(which='major', length=6.)
+        axes[idx].tick_params(which='minor', length=3.)
+        axes[idx].spines['top'].set_linewidth(2.)
+        axes[idx].spines['bottom'].set_linewidth(2.)
+        axes[idx].spines['right'].set_linewidth(2.)
+        axes[idx].spines['left'].set_linewidth(2.)
+        axes[idx].set_prop_cycle(color=colours)
+        if i == 0 or i == 1:
+            axes[idx].set_ylim(bottom=0., top=1.)
         if i == 2:
-            axes[i, j].set_xlabel('Time / fs')
+            axes[idx].set_xlabel('Time / fs')
+            axes[idx].set_ylim(bottom=0., top=0.5)
         if j == 0:
-            axes[i, j].set_ylabel('Population')
+            axes[idx].set_ylabel('Population')
     # Save figure
     if save:
         abbr = {'local dephasing lindblad': '_loc_deph',
@@ -599,21 +621,24 @@ def _save_figure_and_args(systems, plot_args: dict, plot_type: str):
                 except TypeError:
                     continue
                 break
-        if plot_args['elements'] not in [None, [None]]:
-            filename += '_elements'
-            if 'dynamics' in filename:
-                for elem in plot_args['elements']:
-                    filename += '_' + elem
-            elif 'spectral_density' in filename:
-                if plot_args['debye'] is not None:
-                    filename += '_debye'
-                if plot_args['ohmic'] is not None:
-                    filename += '_ohmic'
-        else:
-            if 'squared' in plot_args['trace_measure']:
-                filename += '_trace_sqaured'
-            elif 'distance' in plot_args['trace_measure']:
-                filename += '_trace_distance'
+        try:
+            if plot_args['elements'] not in [None, [None]]:
+                filename += '_elements'
+                if 'dynamics' in filename:
+                    for elem in plot_args['elements']:
+                        filename += '_' + elem
+                elif 'spectral_density' in filename:
+                    if plot_args['debye'] is not None:
+                        filename += '_debye'
+                    if plot_args['ohmic'] is not None:
+                        filename += '_ohmic'
+            else:
+                if 'squared' in plot_args['trace_measure']:
+                    filename += '_trace_sqaured'
+                elif 'distance' in plot_args['trace_measure']:
+                    filename += '_trace_distance'
+        except KeyError:
+            pass
     # Create a file index number to avoid overwriting existing files
     filename += '_version_'
     index = 0
@@ -661,7 +686,8 @@ def plot_spectral_density(systems: list = None, models: list = None,
         for details on these arguments.
     save : bool
         Whether or not to save the figure. Saves to the relative
-        directory quantum_HEOM/doc/figures/. Default is False.
+        directory quantum_HEOM/doc/figures/ with a descriptive
+        filename. Default is False.
     """
 
     # PLOTTING
@@ -855,17 +881,6 @@ def comparative_trace_distance(systems, reference):
         timestep will be compared to the reference QuantumSystem.
     reference : QuantumSystem
         The reference QuantumSystem to compare each system against.
-
-    Returns
-    -------
-    comp_distances : np.ndarray of np.ndarray of float
-        An array containing the trace distances at each timestep
-        for each QuantumSystem in 'systems' with reference to the
-        reference QuantumSystem.
-    comp_averages : np.ndarray of float
-        The average trace distance over the time evolution period
-        for each of the QuantumSystems passed in 'systems' compared
-        to the reference system.
     """
 
     if not isinstance(systems, list):
@@ -888,8 +903,6 @@ def comparative_trace_distance(systems, reference):
     # QuantumSystem.time_evolution = (time, matrix, squared, distance)
     evo_ref = reference.time_evolution
     times = [step[0] for step in evo_ref]
-    comp_distances = np.empty(len(systems), dtype=np.ndarray)
-    comp_averages = np.empty(len(systems), dtype=float)
     for sys_idx, sys in enumerate(systems):
         evo_sys = sys.time_evolution
         distances = np.empty(len(evo_sys), dtype=float)
@@ -897,11 +910,104 @@ def comparative_trace_distance(systems, reference):
             mat_sys = step[1]
             mat_ref = evo_ref[idx][1]
             distances[idx] = util.trace_distance(mat_sys, mat_ref)
-        comp_distances[sys_idx] = distances
-        comp_averages[sys_idx] = np.sum(distances) / len(distances)
         axes.plot(times, distances, label=LEGEND_LABELS[sys.dynamics_model])
     axes = _format_axes(axes, elements=None, trace_measure=['distance'],
                         times=times, view_3d=False)
     plt.show()
 
-    return comp_distances, comp_averages
+def integrate_distance_fxn_variable(systems, reference, var_name,
+                                    var_values, save):
+
+    """
+    Plots the integrated trace distance of each QuantumSystem
+    in 'systems' with respect to the 'reference' QuantumSystem
+    as a function of the variable passed.
+
+    Parameters
+    ----------
+    systems : list of QuantumSystem
+        The QuantumSystem objects whose trace distance with respect
+        to the reference QuantumSystem at each timestep will be
+        evaluated.
+    reference : QuantumSystem
+        The reference QuantumSystem object.
+    var_name : str
+        The string name of the QuantumSystem's attribute to vary.
+        Must be a valid name as used in a QuantumSystem's
+        initialisation. Exception is in the case of system
+        Hamiltonian parameters; 'alpha' or 'beta' (for nearest
+        neighbour models), or 'epsi' or 'delta' (for spin-boson)
+        can be passed as variable names.
+    var_values : list
+        A list of values to set the QuantumSystem's attribute given
+        in var_name. Must be valid values for that attribute.
+    save : bool
+        Whether or not to save the figure. Saves to the relative
+        directory quantum_HEOM/doc/figures/ with a descriptive
+        filename. Default is False.
+    """
+
+    if not isinstance(systems, list):
+        systems = [systems]
+    for system in systems:
+        assert system.sites == reference.sites, (
+            'All QuantumSystem objects must have the same dimensions')
+        assert system.timesteps == reference.timesteps, (
+            'The time evolution of all QuantumSystems must be evaluated for'
+            ' the same number of timesteps')
+        assert system.time_interval == reference.time_interval, (
+            'The time evolution of all QuantumSystems must be evaluated for'
+            ' the same number of timesteps')
+        try:
+            assert hasattr(system, var_name), (
+                'Invalid attribute name.')
+        except AssertionError:
+            assert var_name in ['alpha', 'beta', 'epsi', 'delta']
+    assert var_name != 'timesteps', (
+        'Variable cannot be the number of timesteps.')
+    assert var_name != 'time_interval', (
+        'Variable cannot be the number of timesteps.')
+
+    xaxis_labels = {'alpha': '$\\alpha \\ / \\ rad \\ ps^{-1}$',
+                    'beta': '$\\beta \\ / \\ rad \\ ps^{-1}$',
+                    'epsi': '$\\epsilon \\ / \\ rad \\ ps^{-1}$',
+                    'delta': '$\\Delta \\ / \\ rad \\ ps^{-1}$',
+                    }
+    _, axes = plt.subplots()
+    for sys_idx, system in enumerate(systems):
+        integ_dists = np.empty(len(var_values))
+        for idx, value in enumerate(var_values):
+            if var_name == 'alpha':
+                setattr(system, 'alpha_beta', (value, system.alpha_beta[1]))
+                setattr(reference, 'alpha_beta',
+                        (value, reference.alpha_beta[1]))
+            elif var_name == 'beta':
+                setattr(system, 'alpha_beta', (system.alpha_beta[0], value))
+                setattr(reference, 'alpha_beta',
+                        (reference.alpha_beta[0], value))
+            elif var_name == 'epsi':
+                setattr(system, 'epsi_delta', (value, system.epsi_delta[1]))
+                setattr(reference, 'epsi_delta',
+                        (value, reference.epsi_delta[1]))
+            elif var_name == 'delta':
+                setattr(system, 'epsi_delta', (system.epsi_delta[0], value))
+                setattr(reference, 'epsi_delta',
+                        (reference.epsi_delta[0], value))
+            else:
+                setattr(system, var_name, value)
+                setattr(reference, var_name, value)
+            integ_dists[idx] = meta.integrate_trace_distance(system, reference)
+        # label = 'System ' + str(sys_idx + 1)
+        label = LEGEND_LABELS[system.dynamics_model]
+        axes.plot(var_values, integ_dists, label=label)
+    axes.set_xlabel(xaxis_labels[var_name])
+    axes.set_ylabel('Integrated Trace Distance')
+    axes.legend()
+    if save:
+        plot_args = {'var_name': var_name,
+                     'var_values': var_values,
+                     'save': save,
+                    }
+        _save_figure_and_args(systems + [reference], plot_args,
+                              plot_type='integ_trace_dist')
+    plt.show()
