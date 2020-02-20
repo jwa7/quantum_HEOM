@@ -6,6 +6,13 @@ Functions:
     plot_spectral_density
         Plot the spectral densities of one or more QuantumSystem
         objects.
+    fit_exponential_to_trace_distance
+        Fits an exponential curve to the trace distance of a
+        QuantumSystem object.
+    plot_comparative_trace_distance
+        Plots the trace distance of one or more QuantumSystem
+        objects with respect to a reference QuantumSystem
+        object.
     """
 
 import os
@@ -157,7 +164,7 @@ def plot_dynamics(systems, elements: [list, str] = None,
                      'view_3d': view_3d,
                      'save': save,
                     }
-        save_figure_and_args(systems, plot_args, plot_type='dynamics')
+        _save_figure_and_args(systems, plot_args, plot_type='dynamics')
     # plt.show()
     return axes
 
@@ -518,7 +525,7 @@ def plot_comparison_publication(systems, save: bool = False):
         plt.savefig(filename + '.pdf')
     plt.show()
 
-def save_figure_and_args(systems, plot_args: dict, plot_type: str):
+def _save_figure_and_args(systems, plot_args: dict, plot_type: str):
 
     """
     Saves the figure to a descriptive filename in the relative
@@ -750,7 +757,7 @@ def plot_spectral_density(systems: list = None, models: list = None,
                      'ohmic': ohmic,
                      'save': save,
                     }
-        save_figure_and_args(systems, plot_args, plot_type='spectral_density')
+        _save_figure_and_args(systems, plot_args, plot_type='spectral_density')
     plt.show()
 
 def fit_exponential_to_trace_distance(system, times: np.ndarray = None,
@@ -765,6 +772,9 @@ def fit_exponential_to_trace_distance(system, times: np.ndarray = None,
 
     Parameters
     ----------
+    system : QuantumSystem
+        The system whose trace distance will be plotted and have a
+        curve fitted to.
     times : np.ndarray of float
         The times at which the trace-distances are evaluated.
     distances : np.ndarray of float
@@ -862,12 +872,12 @@ def comparative_trace_distance(systems, reference):
         systems = [systems]
     for system in systems:
         assert system.sites == reference.sites, (
-            'Both QuantumSystem objects must have the same dimensions')
+            'All QuantumSystem objects must have the same dimensions')
         assert system.timesteps == reference.timesteps, (
-            'The time evolution of both QuantumSystems must be evaluated for'
+            'The time evolution of all QuantumSystems must be evaluated for'
             ' the same number of timesteps')
         assert system.time_interval == reference.time_interval, (
-            'The time evolution of both QuantumSystems must be evaluated for'
+            'The time evolution of all QuantumSystems must be evaluated for'
             ' the same number of timesteps')
 
     # Set up axes
@@ -895,19 +905,3 @@ def comparative_trace_distance(systems, reference):
     plt.show()
 
     return comp_distances, comp_averages
-
-# UNUSED TITLE SETTINGS
-# title_size = '20'
-# title = ('Time evolution of a ' + qsys.interaction_model + ' '
-#          + str(qsys.sites) + '-site system modelled with '
-#          + qsys.dynamics_model + ' dynamics. \n(')
-# if qsys.dynamics_model in TEMP_INDEP_MODELS:
-#     title += ('$\\Gamma_{deph}$ = ' + str(qsys.decay_rate * 1E-12)
-#               + ' $ps^{-1})$')
-# elif qsys.dynamics_model in TEMP_DEP_MODELS:
-#     title += ('T = ' + str(qsys.temperature) + ' K, ')
-#     title += ('$\\omega_c$ = ' + str(qsys.cutoff_freq * 1e-12)
-#               + ' $rad\\ ps^{-1}$, $f$ = ' + str(qsys.reorg_energy * 1e-12)
-#               + ' $rad\\ ps^{-1})$')
-# if set_title:
-#     ax.set_title(title, size=title_size, pad=20)
