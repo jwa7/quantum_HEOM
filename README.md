@@ -79,3 +79,27 @@ Local Thermalising Lindblad:
 HEOM:
 
 *
+
+## Troubleshooting
+
+### *ModuleNotFoundError*
+
+**Example**: ``ModuleNotFoundError: No module named 'quantum_heom'``
+
+Whether working in an ipython kernel or a jupyter notebook, run the following codeblock:
+
+```
+import os
+import sys
+ROOT_DIR = os.getcwd()[:os.getcwd().rfind('quantum_HEOM')]
+if ROOT_DIR not in sys.path: 
+	sys.path.append(ROOT_DIR + 'quantum_HEOM')
+```
+
+The *quantum_HEOM* module should now be in your path. Import modules using this as the top directory. For example, to import the *QuantumSystem* class from the ``quantum_HEOM/quantum_heom/quantum_system`` module, run the import in the following format:
+
+`` from quantum_heom.quantum_system import QuantumSystem``
+
+or to import the figures module:
+
+`` from quantum_heom import figures as figs``
