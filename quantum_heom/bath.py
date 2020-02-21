@@ -60,8 +60,8 @@ def rate_constant_redfield(omega: float, cutoff_freq: float,
     if omega == 0 or cutoff_freq == 0 or reorg_energy == 0:
         # Using an asymmetric spectral density only evaluated for positive omega
         # Therefore the spectral density and rate is 0 for omega <= 0.
-        # return 0.
-        return dephasing_rate(cutoff_freq, reorg_energy, temperature)
+        return 11.
+        # return dephasing_rate(cutoff_freq, reorg_energy, temperature)
 
     if spectral_density == 'debye':
         spec_omega_ij = debye_spectral_density(omega, cutoff_freq,
