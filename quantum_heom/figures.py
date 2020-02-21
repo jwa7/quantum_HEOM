@@ -500,6 +500,10 @@ def plot_comparison_publication(systems, save: bool = False):
                 idx = (i) if len(systems) == 1 else (i, column)
                 axes[idx].plot(times[i], amps, c=colours[el_no],
                                label='BChl ' + str(element[0]))
+                if i == 0 or i == 1:
+                    axes[idx].set_ylim(bottom=0., top=1.)
+                if i == 2:
+                    axes[idx].set_ylim(bottom=0., top=0.5)
             if column == 0 and i == 0:
                 idx = (0) if len(systems) == 1 else (0, 0)
                 axes[idx].legend(loc='upper right', fontsize='small')
@@ -531,7 +535,7 @@ def plot_comparison_publication(systems, save: bool = False):
             axes[idx].set_ylim(bottom=0., top=1.)
         if i == 2:
             axes[idx].set_xlabel('Time / fs')
-            axes[idx].set_ylim(bottom=0., top=0.5)
+            axes[idx].set_ylim(bottom=0., top=1.)
         if j == 0:
             axes[idx].set_ylabel('Population')
     # Save figure
@@ -637,7 +641,7 @@ def _save_figure_and_args(systems, plot_args: dict, plot_type: str):
                     filename += '_trace_sqaured'
                 elif 'distance' in plot_args['trace_measure']:
                     filename += '_trace_distance'
-        except KeyError:
+        except:
             pass
     # Create a file index number to avoid overwriting existing files
     filename += '_version_'
@@ -865,7 +869,7 @@ def fit_exponential_to_trace_distance(system, times: np.ndarray = None,
         return a, c
     return a, b, c
 
-def comparative_trace_distance(systems, reference):
+def comparative_trace_distance(systems, reference, save: bool = False):
 
     """
     Takes 2 QuantumSystem objects and plots the trace distance
@@ -881,6 +885,10 @@ def comparative_trace_distance(systems, reference):
         timestep will be compared to the reference QuantumSystem.
     reference : QuantumSystem
         The reference QuantumSystem to compare each system against.
+    save : bool
+        Whether or not to save the figure. Saves to the relative
+        directory quantum_HEOM/doc/figures/ with a descriptive
+        filename. Default is False.
     """
 
     if not isinstance(systems, list):
@@ -913,6 +921,10 @@ def comparative_trace_distance(systems, reference):
         axes.plot(times, distances, label=LEGEND_LABELS[sys.dynamics_model])
     axes = _format_axes(axes, elements=None, trace_measure=['distance'],
                         times=times, view_3d=False)
+
+    if save:
+        _save_figure_and_args(systems + [reference], plot_args=None,
+                              plot_type='comparative_trace_dist')
     plt.show()
 
 def integrate_distance_fxn_variable(systems, reference, var_name,
