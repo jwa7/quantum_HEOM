@@ -1,6 +1,5 @@
 """Contains general use utility functions."""
 
-import re
 from itertools import permutations, product
 
 from scipy import linalg
@@ -364,79 +363,3 @@ def convert_args_to_latex(file: str) -> list:
                 line = line.replace('_', '\_')
                 args.append(line)
     return args
-
-def write_args_to_file(systems, plot_args: dict, filename: str):
-
-    """
-    Writes a file of name 'filename' that contains the arguments
-    used to define a QuantumSystem object and plot its dynamics.
-
-    Parameters
-    ----------
-    systems : list of QuantumSystem
-        The QuantumSystem objects whose dynamics have been plotted.
-    plot_args : dict
-        The arguments passed to the plot_dynamics() method,
-        used to plot the dynamics of the systems.
-    filename : str
-        The absolute path of the file to be created.
-    """
-
-    # Define names of all systems plotted and args used to be written to file
-    sys_names, arg_names = [], []
-    for i in range(1, len(systems) + 1):
-        sys_names.append('q' + str(i))
-        arg_names.append('args' + str(i))
-    # Write file header
-    with open(filename, 'w+') as f:
-        f.write('-------------------------------------------------------\n')
-        f.write('Arguments for reproducing figure in file of name:\n')
-        f.write(filename.replace('.txt', '.pdf') + '\n')
-        f.write('-------------------------------------------------------\n')
-        f.write('\n')
-    # Write args to file as Python copyable text
-    with open(filename, 'a+') as f:
-        f.write('-------------------------------------------------------\n')
-        f.write('ARGS IN PYTHON-FUNCTIONAL CODE:\n')
-        f.write('-------------------------------------------------------\n')
-        for idx, sys in enumerate(systems):
-            args = re.sub(' +', ' ', str(sys.__dict__).replace("\'_", "\'"))
-            args = args.replace('\n', '')
-            f.write('# Args for initialising QuantumSystem '
-                    + str(idx + 1) + '\n')
-            f.write(arg_names[idx] + ' = ' + args + '\n')
-        plot_args = re.sub(' +', ' ', str(plot_args))
-        plot_args = plot_args.replace('\n', '')
-        if 'dynamics' in filename:
-            f.write('# Arguments for plotting dynamics\n')
-        elif 'spectral_density' in filename:
-            f.write('# Arguments for plotting spectral density\n')
-        else:
-            raise ValueError('Incorrectly named files')
-        f.write('plot_args = ' + plot_args + '\n')
-        f.write('\n\n')
-        f.write('# Use the arguments in the following way:\n')
-        f.write('from quantum_heom.quantum_system import QuantumSystem\n')
-        f.write('from quantum_heom import figures as figs\n\n')
-        for sys, arg in zip(sys_names, arg_names):
-            f.write(sys + ' = QuantumSystem(**' + arg + ')\n')
-        if 'dynamics' in filename:
-            f.write('figs.plot_dynamics([' + sys_names[0])
-        elif 'spectral_density' in filename:
-            f.write('figs.plot_spectral_density([' + sys_names[0])
-        else:
-            raise ValueError('Incorrectly named files')
-        for idx in range(1, len(sys_names)):
-            f.write(', ' + sys_names[idx])
-        f.write('], **plot_args)\n')
-        f.write('-------------------------------------------------------\n')
-        f.write('\n')
-    # Write args to file as LaTeX-renderable text
-    with open(filename, 'a+') as f:
-        args = convert_args_to_latex(filename)
-        f.write('-------------------------------------------------------\n')
-        f.write('ARGS IN LATEX-RENDERABLE FORMAT:\n')
-        f.write('-------------------------------------------------------\n')
-        for arg in args:
-            f.write(arg + '\n')
-        f.write('-------------------------------------------------------\n')
