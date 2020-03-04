@@ -252,6 +252,7 @@ def lindbladian_superop(dims: int, dynamics_model: str,
         for state_a, state_b in permutations(range(dims), 2):
             omega_a, omega_b = eigv[state_a], eigv[state_b]
             k_a_to_b = bath.rate_constant_redfield((omega_a - omega_b),
+                                                   deph_rate,
                                                    cutoff_freq,
                                                    reorg_energy,
                                                    temperature,
@@ -274,6 +275,7 @@ def lindbladian_superop(dims: int, dynamics_model: str,
         unique = np.unique(gaps.flatten())  # NEED DECIMAL ROUNDING HERE?
         for unique, site_m in product(unique, range(dims)):
             k_omega = bath.rate_constant_redfield(unique,
+                                                  deph_rate,
                                                   cutoff_freq,
                                                   reorg_energy,
                                                   temperature,
