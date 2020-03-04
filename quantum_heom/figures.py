@@ -16,6 +16,7 @@ Functions:
     """
 
 import os
+import re
 from itertools import product
 
 from math import ceil
@@ -41,6 +42,8 @@ LEGEND_LABELS = {'local dephasing lindblad': 'Loc. Deph.',
                  'ohmic': 'Ohmic',
                  'debye': 'Debye',
                 }
+PLOT_TYPES = ['dynamics', 'spectral_density', 'compare_tr_dist',
+              'fit_expo_tr_dist', 'integ_tr_dist_fxn_var', 'publication']
 
 def plot_dynamics(systems, elements: [list, str] = None,
                   coherences: str = 'imag', trace_measure: list = None,
@@ -125,7 +128,7 @@ def plot_dynamics(systems, elements: [list, str] = None,
     elif trace_measure is None:
         trace_measure = [trace_measure]
     elif isinstance(trace_measure, list):
-        assert all(item in TRACE_MEASURES for item in trace_measure)
+        assert all(item in TRACE_MEASURES + [None] for item in trace_measure)
     # Check view_3d, asymptote, save
     assert isinstance(view_3d, bool), 'view_3d must be passed as a bool'
     assert isinstance(asymptote, bool), 'asymptote must be passed as a bool'
@@ -137,12 +140,12 @@ def plot_dynamics(systems, elements: [list, str] = None,
     multiple = len(systems) > 1
     # Initialise axes
     if view_3d:  # 3D PLOT
-        ratio, scaling = 1.8, 6
+        ratio, scaling = 1.6, 5
         figsize = (ratio * scaling, scaling)
         axes = plt.figure(figsize=figsize)
         axes = plt.axes(projection='3d')
     else:  # 2D PLOT
-        ratio, scaling = 1.7, 7
+        ratio, scaling = 1.6, 5
         figsize = (ratio * scaling, scaling)
         _, axes = plt.subplots(figsize=figsize)
     # Process and plot
@@ -154,7 +157,7 @@ def plot_dynamics(systems, elements: [list, str] = None,
                           coherences, asymptote, view_3d)
         axes = _format_axes(axes, elements, trace_measure, times, view_3d)
         if (sys.interaction_model == 'FMO'
-            and np.all([i in sys.init_site_pop for i in [1, 6]])):
+                and np.all([i in sys.init_site_pop for i in [1, 6]])):
             axes.set_ylim(bottom=0., top=0.5)
     # ----------------------------------------------------------------------
     # SAVE PLOT
@@ -168,7 +171,9 @@ def plot_dynamics(systems, elements: [list, str] = None,
                      'view_3d': view_3d,
                      'save': save,
                     }
-        _save_figure_and_args(systems, plot_args, plot_type='dynamics')
+        plot_type = 'dynamics'
+        assert plot_type in PLOT_TYPES
+        _save_figure_and_args(systems, plot_type=plot_type, plot_args=plot_args)
     # plt.show()
     return axes
 
@@ -377,14 +382,15 @@ def _format_axes(ax, elements: [list, None], trace_measure: list,
     # Get the types of elements; 'diagonals', 'off-diagonals', or 'both'
     elem_types = util.types_of_elements(elements)
     # Define parameters
-    label_size = '25'
+    axes_label_size = '15'
+    tick_size = 15
     # Apply formatting
     if view_3d:
         # Set axes labels
-        ax.legend(loc='center left', fontsize='x-large')
-        ax.set_xlabel('Time / fs', size=label_size, labelpad=30)
-        ax.set_ylabel('Coherences', size=label_size, labelpad=30)
-        ax.set_zlabel('Site Population', size=label_size, labelpad=10)
+        ax.legend(loc='center left', fontsize='large')
+        ax.set_xlabel('Time / fs', size=axes_label_size, labelpad=30)
+        ax.set_ylabel('Coherences', size=axes_label_size, labelpad=30)
+        ax.set_zlabel('Site Population', size=axes_label_size, labelpad=10)
         ax.view_init(20, -50)
         # Format axes ranges
         upper_bound = list(ax.get_xticks())[5]
@@ -395,30 +401,33 @@ def _format_axes(ax, elements: [list, None], trace_measure: list,
         ax.yaxis.set_minor_locator(MultipleLocator(0.1))
         ax.zaxis.set_major_locator(MultipleLocator(0.5))
         ax.zaxis.set_minor_locator(MultipleLocator(0.1))
-        ax.tick_params(axis='both', which='major', size=10, labelsize=20)
-        ax.tick_params(axis='both', which='minor', size=5)
+        ax.tick_params(axis='both', which='major', size=8, labelsize=tick_size)
+        ax.tick_params(axis='both', which='minor', size=4)
     else:
         pad = 10
-        ax.legend(loc='upper right', fontsize='x-large')
+        ax.legend(loc='upper right', fontsize='large')
         # Label x-axis
-        ax.set_xlabel('Time / fs', size=label_size, labelpad=pad)
+        ax.set_xlabel('Time / fs', size=axes_label_size, labelpad=pad)
         # Label y-axis
         if elem_types == 'both':
-            ax.set_ylabel('Amplitude', size=label_size, labelpad=pad)
+            ax.set_ylabel('Amplitude', size=axes_label_size, labelpad=pad)
         elif elem_types == 'diagonals':
-            ax.set_ylabel('Site Population', size=label_size, labelpad=pad)
+            ax.set_ylabel('Site Population', size=axes_label_size, labelpad=pad)
         elif elem_types == 'off-diagonals':
-            ax.set_ylabel('Coherences', size=label_size, labelpad=pad)
+            ax.set_ylabel('Coherences', size=axes_label_size, labelpad=pad)
         else:
             assert trace_measure is not None, (
                 'If not plotting any elements of the density matrix you must'
                 ' provide a trace measure to plot.')
             if 'squared' in trace_measure and 'distance' in trace_measure:
-                ax.set_ylabel('Trace Measure', size=label_size, labelpad=pad)
+                ax.set_ylabel('Trace Measure', size=axes_label_size,
+                              labelpad=pad)
             elif 'squared' in trace_measure:
-                ax.set_ylabel('$tr(\\rho^2)$', size=label_size, labelpad=pad)
+                ax.set_ylabel('$tr(\\rho^2)$', size=axes_label_size,
+                              labelpad=pad)
             elif 'distance' in trace_measure:
-                ax.set_ylabel('Trace Distance', size=label_size, labelpad=pad)
+                ax.set_ylabel('Trace Distance', size=axes_label_size,
+                              labelpad=pad)
             else:
                 raise ValueError(
                     'Invalid input for trace measures. Must pass as a list'
@@ -426,8 +435,9 @@ def _format_axes(ax, elements: [list, None], trace_measure: list,
                     ' "distance".')
         # Format axes ranges
         ax.set_xlim(times[0], ceil((times[-1] - 1e-9) / 100) * 100)
-        upper_bound = list(ax.get_xticks())[5]
-        ax.xaxis.set_minor_locator(MultipleLocator(upper_bound / 20))
+        # upper_bound = list(ax.get_xticks())[-1]
+        # ax.xaxis.set_minor_locator(MultipleLocator(upper_bound / 20))
+        ax.xaxis.set_minor_locator(MultipleLocator(100))
         if elem_types == 'both':
             ax.set_ylim(top=1., bottom=-0.5)
         elif elem_types == 'diagonals' or elem_types is None:
@@ -437,9 +447,397 @@ def _format_axes(ax, elements: [list, None], trace_measure: list,
         # Format axes ticks
         ax.yaxis.set_major_locator(MultipleLocator(0.5))
         ax.yaxis.set_minor_locator(MultipleLocator(0.1))
-        ax.tick_params(axis='both', which='major', size=10, labelsize=20)
-        ax.tick_params(axis='both', which='minor', size=5)
+        ax.tick_params(axis='both', which='major', size=8, labelsize=tick_size)
+        ax.tick_params(axis='both', which='minor', size=4)
     return ax
+
+def plot_spectral_density(systems: list = None, models: list = None,
+                          debye: dict = None, ohmic: dict = None,
+                          save: bool = False):
+
+    """
+    Plots either the Debye or Ohmic - or both - spectral densities
+    as a function of frequency, over a frequency range 10 times the
+    cutoff frequency. Units of all the frequencies and the cutoff
+    frequency must be in rad ps^-1.
+
+    Parameters
+    ----------
+    systems : list of QuantumSystem
+        A list of systems whose spectral densities are to be
+        plotted. Optional; can just pass dictionaries containing
+        arguments for spectral densities manually.
+    models : list of str
+        Must specify if systems is passed as None. The spectral
+        density(s) model to plot. Must be a list containing either
+        or both of 'debye', 'ohmic'.
+    debye : dict
+        Must specify if systems is passed as None. A dictionary
+        containing the arguments used to define the Debye spectral
+        density. Must contain values under the keys 'frequencies',
+        'cutoff_freq' and 'reorg_energy'. Check the docstring in
+        bath.py 's debye_spectral_density() function for details
+        on these arguments. If models contains both 'debye' and
+        'ohmic' and ohmic is passed as None, the arguments given in
+        debye will be used to plot the ohmic spctral density too.
+    ohmic : dict
+        Must specify if systems is passed as None. A dictionary
+        containing the arguments used to define the Ohmic spectral
+        density. Must contain values under the keys 'frequencies',
+        'cutoff_freq', 'reorg_energy', and 'exponent'. Check the
+        docstring in bath.py 's ohmic_spectral_density() function
+        for details on these arguments.
+    save : bool
+        Whether or not to save the figure. Saves to the relative
+        directory quantum_HEOM/doc/figures/ with a descriptive
+        filename. Default is False.
+    """
+
+    # PLOTTING
+    # Set up axes
+    ratio, scaling = 1.6, 5
+    figsize = (ratio * scaling, scaling)
+    _, axes = plt.subplots(figsize=figsize)
+    # Plot systems if list of QuantumSystems is passed.
+    if systems is not None:
+        if not isinstance(systems, list):
+            systems = [systems]
+        for sys in systems:
+            if sys.dynamics_model == 'local dephasing lindblad':
+                raise ValueError(
+                    'No spectral density used for local dephasing model.')
+            cutoff = sys.cutoff_freq
+            frequencies = np.arange(0., cutoff * 10., cutoff / 100.)
+            specs = []
+            for freq in frequencies:
+                if sys.spectral_density == 'debye':
+                    label = 'Debye'
+                    specs.append(bath.debye_spectral_density(freq, cutoff,
+                                                             sys.reorg_energy))
+                else:  # Ohmic
+                    label = 'Ohmic'
+                    specs.append(bath.ohmic_spectral_density(freq,
+                                                             cutoff,
+                                                             sys.reorg_energy,
+                                                             sys.ohmic_exponent
+                                                             ))
+            specs = np.array(specs)
+            axes.plot(frequencies, specs, label=label)
+    # Plot if just specifications are passed.
+    else:
+        if isinstance(models, str):
+            models = [models]
+        assert all(i in SPECTRAL_DENSITIES for i in models)
+        assert debye is not None or ohmic is not None, (
+            'Must pass arguments for either debye or ohmic spectral densities.')
+        if models == ['debye']:
+            assert debye is not None, (
+                'Must pass arguments for Debye spectral density to plot it.')
+        if models == ['ohmic']:
+            assert ohmic is not None, (
+                'Must pass arguments for Ohmic spectral density to plot it.')
+        if len(models) == 2 and debye is None:
+            debye = ohmic
+        if len(models) == 2 and ohmic is None:
+            ohmic = debye
+        deb, ohm = [], []
+        if 'debye' in models:
+            frequencies = np.array(debye['frequencies'])
+            for freq in frequencies:
+                deb.append(bath.debye_spectral_density(freq,
+                                                       debye['cutoff_freq'],
+                                                       debye['reorg_energy']))
+        if 'ohmic' in models:
+            frequencies = ohmic['frequencies']
+            for freq in frequencies:
+                ohm.append(bath.ohmic_spectral_density(freq,
+                                                       ohmic['cutoff_freq'],
+                                                       ohmic['reorg_energy'],
+                                                       ohmic['exponent']))
+        frequencies *= 1e-12
+        if 'debye' in models:
+            deb = np.array(deb) * 1e-12
+            axes.plot(frequencies * 1e-12, deb, label='Debye')
+        if 'ohmic' in models:
+            ohm = np.array(ohm) * 1e-12
+            axes.plot(frequencies * 1e-12, ohm, label='Ohmic')
+
+    # FORMATTING
+    # Format labels
+    axes.set_xlabel('$\\omega$ / rad ps$^{-1}$', size=20)
+    axes.set_ylabel('J($\\omega$) / rad ps$^{-1}$', size=20)
+    # Format x-axis
+    axes.set_xlim(frequencies[0], frequencies[-1])
+    upper_x_bound = list(axes.get_xticks())[5]
+    axes.xaxis.set_minor_locator(MultipleLocator(upper_x_bound / 20))
+    # Format y-axis
+    axes.set_ylim(bottom=0.)
+    upper_y_bound = list(axes.get_yticks())[5]
+    axes.yaxis.set_minor_locator(MultipleLocator(upper_y_bound / 20))
+    # Format tick size
+    axes.tick_params(axis='both', which='major', size=10, labelsize=17)
+    axes.tick_params(axis='both', which='minor', size=5)
+    # Other formatting
+    axes.legend(fontsize='x-large')
+    # Save figure as .pdf in quantum_HEOM/doc/figures directory
+    if save:
+        plot_args = {'models': models,
+                     'debye': debye,
+                     'ohmic': ohmic,
+                     'save': save,
+                    }
+        _save_figure_and_args(systems, plot_type='spectral_density',
+                              plot_args=plot_args)
+    plt.show()
+
+def comparative_trace_distance(systems, reference, save: bool = False):
+
+    """
+    Takes 2 QuantumSystem objects and plots the trace distance
+    between their density matrices at each timestep in their
+    time-evolutions. Systems must be the same dimensions and have
+    been initialised with time-evolution for the same number of
+    timesteps and time interval.
+
+    Parameters
+    ----------
+    systems : list of QuantumSystem
+        The QuantumSystem objects whose density matrices at each
+        timestep will be compared to the reference QuantumSystem.
+    reference : QuantumSystem
+        The reference QuantumSystem to compare each system against.
+    save : bool
+        Whether or not to save the figure. Saves to the relative
+        directory quantum_HEOM/doc/figures/ with a descriptive
+        filename. Default is False.
+    """
+
+    if not isinstance(systems, list):
+        systems = [systems]
+    for system in systems:
+        assert system.sites == reference.sites, (
+            'All QuantumSystem objects must have the same dimensions')
+        assert system.timesteps == reference.timesteps, (
+            'The time evolution of all QuantumSystems must be evaluated for'
+            ' the same number of timesteps')
+        assert system.time_interval == reference.time_interval, (
+            'The time evolution of all QuantumSystems must be evaluated for'
+            ' the same number of timesteps')
+
+    # Set up axes
+    ratio, scaling = 1.6, 5
+    figsize = (ratio * scaling, scaling)
+    _, axes = plt.subplots(figsize=figsize)
+
+    # QuantumSystem.time_evolution = (time, matrix, squared, distance)
+    evo_ref = reference.time_evolution
+    times = [step[0] for step in evo_ref]
+    for sys_idx, sys in enumerate(systems):
+        evo_sys = sys.time_evolution
+        distances = np.empty(len(evo_sys), dtype=float)
+        for idx, step in enumerate(evo_sys):
+            mat_sys = step[1]
+            mat_ref = evo_ref[idx][1]
+            distances[idx] = util.trace_distance(mat_sys, mat_ref)
+        axes.plot(times, distances, label=LEGEND_LABELS[sys.dynamics_model])
+    axes = _format_axes(axes, elements=None, trace_measure=['distance'],
+                        times=times, view_3d=False)
+
+    if save:
+        plot_type = 'compare_tr_dist'
+        assert plot_type in PLOT_TYPES
+        _save_figure_and_args(systems + [reference], plot_type=plot_type,
+                              plot_args={})
+    plt.show()
+
+def fit_exponential_to_trace_distance(system, save: bool = False) -> tuple:
+
+    """
+    Fits an exponential curve "a * exp(-x / b) + c" to time-
+    evolution trace-distance (relative to the system's equilibrium
+    state) data, plotting the trace distances and the fitted curve,
+    as well as returning parameters a, b, and c.
+
+    Parameters
+    ----------
+    system : QuantumSystem
+        The system whose trace distance will be plotted and have a
+        curve fitted to.
+    save : bool
+        Whether or not to save the figure. Saves to the relative
+        directory quantum_HEOM/doc/figures/ with a descriptive
+        filename. Default is False.
+
+    Returns
+    -------
+    a : float
+        The 'a' parameter in the above general exponential formula,
+        in time units (i.e. the same units as 'times' is given in.)
+    b : float
+        The 'b' parameter in the above general exponential formula,
+        in inverse time units (i.e. the inverse units as 'times' is
+        given in.)
+    c : float
+        The 'c' parameter in the above general exponential formula,
+        in time units (i.e. the same units as 'times' is given in.)
+    """
+
+    if isinstance(system, list):
+        assert len(system) == 1, 'Can only pass 1 system to this function.'
+        system = system[0]
+    if system is not None:
+        evol = system.time_evolution
+        times, distances = [], []
+        for step in evol:
+            times.append(step[0])
+            distances.append(step[3])
+    else:
+        assert (times is not None and distances is not None), (
+            'If not passing a QuantumSystem object, must pass times and'
+            ' distances.')
+    assert len(times) == len(distances), (
+        'times and distances must be arrays of equal length')
+
+    # Define general exponential curve
+    # if system.dynamics_model in LINDBLAD_MODELS:
+    #     def exp_curve(time, a, c):
+    #         eigv = util.eigv(system.lindbladian_superop)
+    #         b = util.lowest_non_zero_eigv(eigv)
+    #         return a * np.exp(- time / b) + c
+    #     popt, pcov = curve_fit(exp_curve, times, distances)
+    #     a, c = popt
+    #     fit = [exp_curve(t, a, c) for t in times]
+    # else:
+    def exp_curve(time, a, b, c):
+        return a * np.exp(- time / b) + c
+    popt, pcov = curve_fit(exp_curve, times, distances)
+    a, b, c = popt
+    fit = [exp_curve(t, a, b, c) for t in times]
+
+    # Plot trace distances and fitted curve
+    ratio, scaling = 1.6, 5
+    figsize = (ratio * scaling, scaling)
+    _, axes = plt.subplots(figsize=figsize)
+    axes.plot(times, distances, ls='--', c='gray', label='Trace Distance')
+    axes.plot(times, fit, ls='-', c='r', label='Fitted Curve')
+    if system is not None:
+        axes = _format_axes(axes, elements=None, trace_measure='distance',
+                            times=times, view_3d=False)
+    axes.legend(loc='upper right', fontsize='x-large')
+    if save:
+        plot_args = {'save': save}
+        plot_type = 'fit_expo_tr_dist'
+        assert plot_type in PLOT_TYPES
+        _save_figure_and_args([system], plot_type=plot_type, plot_args=plot_args)
+    plt.show()
+    # if system.dynamics_model in LINDBLAD_MODELS:
+    #     return a, c
+    return a, b, c
+
+def integrate_distance_fxn_variable(systems, reference, var_name,
+                                    var_values, save):
+
+    """
+    Plots the integrated trace distance of each QuantumSystem
+    in 'systems' with respect to the 'reference' QuantumSystem
+    as a function of the variable passed.
+
+    Parameters
+    ----------
+    systems : list of QuantumSystem
+        The QuantumSystem objects whose trace distance with respect
+        to the reference QuantumSystem at each timestep will be
+        evaluated.
+    reference : QuantumSystem
+        The reference QuantumSystem object.
+    var_name : str
+        The string name of the QuantumSystem's attribute to vary.
+        Must be a valid name as used in a QuantumSystem's
+        initialisation. Exception is in the case of system
+        Hamiltonian parameters; 'alpha' or 'beta' (for nearest
+        neighbour models), or 'epsi' or 'delta' (for spin-boson)
+        can be passed as variable names.
+    var_values : list
+        A list of values to set the QuantumSystem's attribute given
+        in var_name. Must be valid values for that attribute.
+    save : bool
+        Whether or not to save the figure. Saves to the relative
+        directory quantum_HEOM/doc/figures/ with a descriptive
+        filename. Default is False.
+    """
+
+    xaxis_labels = {'alpha': '$\\alpha$ / rad ps$^{-1}$',
+                    'beta': '$\\beta$ / rad ps$^{-1}$',
+                    'epsi': '$\\epsilon$ / rad ps$^{-1}$',
+                    'delta': '$\\Delta$ / rad ps$^{-1}$',
+                    'cutoff_freq': '$\\omega_c$ / rad ps$^{-1}$',
+                    'reorg_energy': '$\\lambda$ / rad ps$^{-1}$',
+                    'deph_rate': '$\\Gamma_{\\text{deph}}$ / rad ps$^{-1}$',
+                    'temperature': 'T / K',
+                   }
+    if not isinstance(systems, list):
+        systems = [systems]
+    for system in systems:
+        assert system.sites == reference.sites, (
+            'All QuantumSystem objects must have the same dimensions')
+        assert system.timesteps == reference.timesteps, (
+            'The time evolution of all QuantumSystems must be evaluated for'
+            ' the same number of timesteps')
+        assert system.time_interval == reference.time_interval, (
+            'The time evolution of all QuantumSystems must be evaluated for'
+            ' the same number of timesteps')
+        assert var_name in xaxis_labels.keys(), (
+            'Must choose a valid variable to plot the integ trace distance'
+            ' against. Choose from: ' + str(list(xaxis_labels.keys())))
+
+    _, axes = plt.subplots()
+    for system in systems:
+        integ_dists = np.empty(len(var_values))
+        for idx, value in enumerate(var_values):
+            if var_name == 'alpha':
+                setattr(system, 'alpha_beta', (value, system.alpha_beta[1]))
+                setattr(reference, 'alpha_beta',
+                        (value, reference.alpha_beta[1]))
+            elif var_name == 'beta':
+                setattr(system, 'alpha_beta', (system.alpha_beta[0], value))
+                setattr(reference, 'alpha_beta',
+                        (reference.alpha_beta[0], value))
+            elif var_name == 'epsi':
+                setattr(system, 'epsi_delta', (value, system.epsi_delta[1]))
+                setattr(reference, 'epsi_delta',
+                        (value, reference.epsi_delta[1]))
+            elif var_name == 'delta':
+                setattr(system, 'epsi_delta', (system.epsi_delta[0], value))
+                setattr(reference, 'epsi_delta',
+                        (reference.epsi_delta[0], value))
+            else:
+                setattr(system, var_name, value)
+                setattr(reference, var_name, value)
+            integ_dists[idx] = meta.integrate_trace_distance(system, reference)
+        label = LEGEND_LABELS[system.dynamics_model]
+        axes.plot(var_values, integ_dists, label=label)
+    # Format plot
+    axes_label_size = '15'
+    tick_size = 15
+    pad = 10
+    axes.legend(loc='upper right', fontsize='large')
+    axes.set_xlabel(xaxis_labels[var_name], size=axes_label_size, labelpad=pad)
+    axes.set_ylabel('Integrated Trace Distance', size=axes_label_size,
+                    labelpad=pad)
+    axes.set_xlim(left=var_values[0])
+    axes.set_ylim(bottom=0.)
+    axes.tick_params(axis='both', which='major', size=8, labelsize=tick_size)
+    axes.tick_params(axis='both', which='minor', size=4)
+    if save:
+        plot_args = {'var_name': var_name,
+                     'var_values': var_values,
+                     'save': save,
+                    }
+        plot_type = 'integ_tr_dist_fxn_var'
+        assert plot_type in PLOT_TYPES
+        _save_figure_and_args(systems + [reference], plot_type=plot_type,
+                              plot_args=plot_args)
+    plt.show()
 
 def plot_comparison_publication(systems, save: bool = False):
 
@@ -460,7 +858,6 @@ def plot_comparison_publication(systems, save: bool = False):
         If True, saves a .pdf figure in the quantum_HEOM/doc/figures
         relative directory of this package, as a .pdf file with a
         descriptive filename.
-
     """
 
     if not isinstance(systems, list):
@@ -540,486 +937,180 @@ def plot_comparison_publication(systems, save: bool = False):
             axes[idx].set_ylabel('Population')
     # Save figure
     if save:
-        abbr = {'local dephasing lindblad': '_loc_deph',
-                'global thermalising lindblad': '_glob_therm',
-                'local thermalising lindblad': '_loc_therm'}
-        fig_dir = (os.getcwd()[:os.getcwd().find('quantum_HEOM')]
-                   + 'quantum_HEOM/doc/figures/')
-        filename = fig_dir + 'FMO_comparisons'
-        for system in systems:
-            filename += system.dynamics_model
-        plt.savefig(filename + '.pdf')
+        plot_args = {'save': save}
+        plot_type = 'publication'
+        assert plot_type in PLOT_TYPES
+        _save_figure_and_args(systems, plot_type=plot_type, plot_args=plot_args)
     plt.show()
 
-def _save_figure_and_args(systems, plot_args: dict, plot_type: str):
+def _save_figure_and_args(systems, plot_type: str, plot_args: dict):
 
     """
     Saves the figure to a descriptive filename in the relative
     path quantum_HEOM/doc/figures/ as a .pdf file, and saves a
     .txt file of the same name in the same directory that contains
-    all of the arguments used to define the system as plot the
-    dynamics.
+    all of the arguments used to define the system(s) and plot the
+    figure.
 
     Parameters
     ----------
     systems : list of QuantumSystem
         The QuantumSystem objects whose dynamics have been plotted.
+    plot_type : str
+        The type of plot in in the figure; either 'dynamics',
+        'spectral_density', 'compare_tr_dist', 'fit_expo_tr_dist',
+        'integ_tr_dist', 'integ_tr_dist_fxn_var'.
     plot_args : dict
         The arguments passed to the plot_dynamics() method,
         used to plot the dynamics of the systems.
-    plot_type : str
-        The type of plot in in the figure; either 'dynamics' or
-        'spectral_density'.
     """
+
+    assert plot_type in PLOT_TYPES, 'Must choose one from; ' + str(PLOT_TYPES)
 
     # Define some abbreviations of terms to use in file naming
     abbrevs = {'nearest neighbour linear': '_near_neigh_lin',
                'nearest neighbour cyclic': '_near_neigh_cyc',
                'FMO': '_FMO',
                'spin-boson': '_spin_boson',
-               'local thermalising lindblad': '_local_therm',
-               'global thermalising lindblad': '_global_therm',
-               'local dephasing lindblad': '_local_deph',
-               'HEOM': '_HEOM',
-               'ohmic': '_ohmic',
-               'debye': '_debye',
+               'local thermalising lindblad': '_loc_therm',
+               'global thermalising lindblad': '_glob_therm',
+               'local dephasing lindblad': '_loc_deph',
+               'HEOM': '_heom',
               }
     # date_stamp = util.date_stamp()  # avoid duplicates in filenames
     fig_dir = (os.getcwd()[:os.getcwd().find('quantum_HEOM')]
                + 'quantum_HEOM/doc/figures/')
-    fig_dir += plot_type + '_'
-    if len(systems) == 1:
-        filename = (fig_dir + str(systems[0].sites) + '_sites'
-                    + abbrevs[systems[0].interaction_model]
-                    + abbrevs[systems[0].dynamics_model])
-    else:
-        # Ascertain which variables are being compared between systems.
-        interactions = [sys.interaction_model for sys in systems]
-        interactions = interactions.count(interactions[0]) == len(interactions)
-        dynamics = [sys.dynamics_model for sys in systems]
-        dynamics = dynamics.count(dynamics[0]) == len(dynamics)
-        temp = [sys.temperature for sys in systems]
-        temp = temp.count(temp[0]) == len(temp)
-        spec = [sys.spectral_density for sys in systems]
-        spec = spec.count(spec[0]) == len(spec)
-        # Include the constant arguments in the filename and highlight variables
-        filename = fig_dir + str(systems[0].sites) + '_sites'
-        if interactions:
-            filename += abbrevs[systems[0].interaction_model]
-        else:
-            filename += '_variable_interactions'
-        if dynamics:
-            filename += abbrevs[systems[0].dynamics_model]
-        else:
-            filename += '_variable_dynamics'
-        if temp:
-            filename += '_' + str(int(systems[0].temperature)) + 'K'
-        else:
-            filename += '_variable_temp'
-        if spec:
-            filename += 'variable_spec_dens'
-        else:
-            for sys in systems:
-                try:
-                    filename += '_' + sys.spectral_density
-                except TypeError:
-                    continue
-                break
-        try:
-            if plot_args['elements'] not in [None, [None]]:
-                filename += '_elements'
-                if 'dynamics' in filename:
-                    for elem in plot_args['elements']:
-                        filename += '_' + elem
-                elif 'spectral_density' in filename:
-                    if plot_args['debye'] is not None:
-                        filename += '_debye'
-                    if plot_args['ohmic'] is not None:
-                        filename += '_ohmic'
-            else:
-                if 'squared' in plot_args['trace_measure']:
-                    filename += '_trace_sqaured'
-                elif 'distance' in plot_args['trace_measure']:
-                    filename += '_trace_distance'
-        except:
-            pass
+    path = fig_dir + plot_type + '_'
+    # if len(systems) == 1:
+    # Assumes all systems have the same number of sites
+    path += str(systems[0].sites) + '_sites'
+    for system in systems:
+        path += (abbrevs[system.interaction_model]
+                 + abbrevs[system.dynamics_model])
     # Create a file index number to avoid overwriting existing files
-    filename += '_version_'
+    path += '_version_'
     index = 0
-    while os.path.exists(filename + str(index) + '.pdf'):
+    while os.path.exists(path + str(index) + '.pdf'):
         index += 1
-    filename += str(index)
+    path += str(index)
     # Save the figure and write the argument info to file.
-    plt.savefig(filename + '.pdf', bbox_inches='tight')
-    util.write_args_to_file(systems, plot_args, filename + '.txt')
+    plt.savefig(path + '.pdf', bbox_inches='tight')
+    _write_args_to_file(systems, plot_type, plot_args, path + '.txt')
 
-def plot_spectral_density(systems: list = None, models: list = None,
-                          debye: dict = None, ohmic: dict = None,
-                          save: bool = False):
+def _write_args_to_file(systems, plot_type: str, plot_args: dict,
+                        filename: str):
 
     """
-    Plots either the Debye or Ohmic - or both - spectral densities
-    as a function of frequency. Units of all the frequencies and
-    the cutoff frequency must be consistent; in rad ps^-1.
+    Writes a file of name 'filename' that contains the arguments
+    used to define the QuantumSystem object(s) and plot the
+    figure specified by plot_type.
 
     Parameters
     ----------
     systems : list of QuantumSystem
-        A list of systems whose spectral densities are to be
-        plotted. Optional; can just pass dictionaries containing
-        arguments for spectral densities manually.
-    models : list of str
-        Must specify if systems is passed as None. The spectral
-        density(s) model to plot. Must be a list containing either
-        or both of 'debye', 'ohmic'.
-    debye : dict
-        Must specify if systems is passed as None. A dictionary
-        containing the arguments used to define the Debye spectral
-        density. Must contain values under the keys 'frequencies',
-        'cutoff_freq' and 'reorg_energy'. Check the docstring in
-        bath.py 's debye_spectral_density() function for details
-        on these arguments. If models contains both 'debye' and
-        'ohmic' and ohmic is passed as None, the arguments given in
-        debye will be used to plot the ohmic spctral density too.
-    ohmic : dict
-        Must specify if systems is passed as None. A dictionary
-        containing the arguments used to define the Ohmic spectral
-        density. Must contain values under the keys 'frequencies',
-        'cutoff_freq', 'reorg_energy', and 'exponent'. Check the
-        docstring in bath.py 's ohmic_spectral_density() function
-        for details on these arguments.
-    save : bool
-        Whether or not to save the figure. Saves to the relative
-        directory quantum_HEOM/doc/figures/ with a descriptive
-        filename. Default is False.
+        The QuantumSystem objects whose dynamics have been plotted.
+    plot_type : str
+        The type of figure being plotted, from 'dynamics',
+        'distance',
+    plot_args : dict
+        The arguments passed to the plot_dynamics() method,
+        used to plot the dynamics of the systems.
+    filename : str
+        The absolute path of the file to be created.
     """
 
-    # PLOTTING
-    # Set up axes
-    ratio, scaling = 1.61803, 5
-    figsize = (ratio * scaling, scaling)
-    _, axes = plt.subplots(figsize=figsize)
-    # Plot systems if list of QuantumSystems is passed.
-    if systems is not None:
-        if not isinstance(systems, list):
-            systems = [systems]
-        for sys in systems:
-            if sys.dynamics_model == 'local dephasing lindblad':
-                raise ValueError(
-                    'No spectral density used for local dephasing model.')
-            cutoff = sys.cutoff_freq
-            frequencies = np.arange(0., cutoff * 10., cutoff / 100.)
-            specs = []
-            for freq in frequencies:
-                if sys.spectral_density == 'debye':
-                    label = 'Debye'
-                    specs.append(bath.debye_spectral_density(freq, cutoff,
-                                                             sys.reorg_energy))
-                else:  # Ohmic
-                    label = 'Ohmic'
-                    specs.append(bath.ohmic_spectral_density(freq,
-                                                             cutoff,
-                                                             sys.reorg_energy,
-                                                             sys.ohmic_exponent
-                                                             ))
-            specs = np.array(specs)
-            axes.plot(frequencies, specs, label=label)
-    # Plot if just specifications are passed.
-    else:
-        if isinstance(models, str):
-            models = [models]
-        assert all(i in SPECTRAL_DENSITIES for i in models)
-        assert debye is not None or ohmic is not None, (
-            'Must pass arguments for either debye or ohmic spectral densities.')
-        if models == ['debye']:
-            assert debye is not None, (
-                'Must pass arguments for Debye spectral density to plot it.')
-        if models == ['ohmic']:
-            assert ohmic is not None, (
-                'Must pass arguments for Ohmic spectral density to plot it.')
-        if len(models) == 2 and debye is None:
-            debye = ohmic
-        if len(models) == 2 and ohmic is None:
-            ohmic = debye
-        deb, ohm = [], []
-        if 'debye' in models:
-            frequencies = np.array(debye['frequencies'])
-            for freq in frequencies:
-                deb.append(bath.debye_spectral_density(freq,
-                                                       debye['cutoff_freq'],
-                                                       debye['reorg_energy']))
-        if 'ohmic' in models:
-            frequencies = ohmic['frequencies']
-            for freq in frequencies:
-                ohm.append(bath.ohmic_spectral_density(freq,
-                                                       ohmic['cutoff_freq'],
-                                                       ohmic['reorg_energy'],
-                                                       ohmic['exponent']))
-        frequencies *= 1e-12
-        if 'debye' in models:
-            deb = np.array(deb) * 1e-12
-            axes.plot(frequencies * 1e-12, deb, label='Debye')
-        if 'ohmic' in models:
-            ohm = np.array(ohm) * 1e-12
-            axes.plot(frequencies * 1e-12, ohm, label='Ohmic')
+    assert plot_type in PLOT_TYPES
+    # Define names of all systems plotted and args used to be written to file
+    sys_names, arg_names = [], []
+    for i in range(1, len(systems) + 1):
+        sys_names.append('q' + str(i))
+        arg_names.append('args' + str(i))
+    # Write file header
+    with open(filename, 'w+') as f:
+        f.write('-------------------------------------------------------\n')
+        f.write('Arguments for reproducing figure in file of name:\n')
+        f.write(filename.replace('.txt', '.pdf') + '\n')
+        f.write('-------------------------------------------------------\n')
+        f.write('\n')
+        f.write('-------------------------------------------------------\n')
+        f.write('PYTHON-COPYABLE CODE FOR REPRODUCING FIGURE:\n')
+        f.write('-------------------------------------------------------\n')
+        f.write('import os\n')
+        f.write('import sys\n')
+        f.write("ROOT_DIR = os.getcwd()[:os.getcwd().rfind('quantum_HEOM')]")
+        f.write("+ 'quantum_HEOM'\n")
+        f.write('if ROOT_DIR not in sys.path:\n')
+        f.write('    sys.path.append(ROOT_DIR)\n\n')
+        f.write('import numpy as np\n')
+        f.write('from quantum_heom.quantum_system import QuantumSystem\n')
+        f.write('from quantum_heom import figures as figs\n\n')
+    # Write args to file as Python copyable text
+    with open(filename, 'a+') as f:
+        for idx, sys in enumerate(systems):
+            args = re.sub(' +', ' ', str(sys.__dict__).replace("\'_", "\'"))
+            args = args.replace('\n', '')
+            args = args.replace('array', 'np.array')
+            f.write('# Args for initialising QuantumSystem '
+                    + str(idx + 1) + '\n')
+            f.write(arg_names[idx] + ' = ' + args + '\n')
+        plot_args = re.sub(' +', ' ', str(plot_args))
+        plot_args = plot_args.replace('\n', '')
+        if 'dynamics' in filename:
+            f.write('# Arguments for plotting dynamics.\n')
+        elif 'spectral_density' in filename:
+            f.write('# Arguments for plotting spectral density.\n')
+        elif 'compare_tr_dist' in filename:
+            f.write('# Arguments for plotting comparative trace distances.\n')
+        elif 'fit_expo_tr_dist' in filename:
+            f.write('# Arguments for plotting trace distance of system\n')
+            f.write('# fitted with an exponential curve.\n')
+        elif 'integ_tr_dist_fxn_var' in filename:
+            f.write('# Arguments for plotting integrated trace distance\n')
+            f.write('# as a function of input variable.\n')
+        elif 'publication' in filename:
+            f.write('# Arguments for plotting panelled dynamics of systems\n')
+            f.write('# with initial excitations on site 1 (top row), site 6\n')
+            f.write('# (middle row), and sites 1 and 6 (bottom row).\n')
+        else:
+            raise ValueError('Incorrectly named files')
+        f.write('plot_args = ' + plot_args + '\n')
+        f.write('\n')
+        f.write('# Use the arguments in the following way:\n')
+        for sys, arg in zip(sys_names, arg_names):
+            f.write(sys + ' = QuantumSystem(**' + arg + ')\n')
+        f.write('\n')
+        if 'dynamics' in filename:
+            f.write('figs.plot_dynamics([' + sys_names[0])
+        elif 'spectral_density' in filename:
+            f.write('figs.plot_spectral_density([' + sys_names[0])
+        elif 'compare_tr_dist' in filename:
+            f.write('# 2nd arg in below function call is the reference system\n')
+            f.write('figs.comparative_trace_distance([' + sys_names[0])
+        elif 'fit_expo_tr_dist' in filename:
+            f.write('figs.fit_exponential_to_trace_distance([' + sys_names[0])
+        elif 'integ_tr_dist_fxn_var' in filename:
+            f.write('figs.integrate_distance_fxn_variable([' + sys_names[0])
+        elif 'publication' in filename:
+            f.write('figs.plot_comparison_publication([' + sys_names[0])
+        else:
+            raise ValueError('Incorrectly named files')
+        if 'compare_tr_dist' in filename:
+            for idx in range(1, len(sys_names) - 1):
+                f.write(', ' + sys_names[idx])
+            f.write('], ' + sys_names[-1])  # write the reference system
+        else:
+            for idx in range(1, len(sys_names)):
+                f.write(', ' + sys_names[idx])
+            f.write(']')
+        f.write(', **plot_args)\n\n')
+        f.write('-------------------------------------------------------\n')
 
-    # FORMATTING
-    # Format labels
-    axes.set_xlabel('$\\omega$ / $rad\\ ps^{-1}$', size=20)
-    axes.set_ylabel('J($\\omega$) / $rad\\ ps^{-1}$', size=20)
-    # Format x-axis
-    axes.set_xlim(frequencies[0], frequencies[-1])
-    upper_x_bound = list(axes.get_xticks())[5]
-    axes.xaxis.set_minor_locator(MultipleLocator(upper_x_bound / 20))
-    # Format y-axis
-    axes.set_ylim(bottom=0.)
-    upper_y_bound = list(axes.get_yticks())[5]
-    axes.yaxis.set_minor_locator(MultipleLocator(upper_y_bound / 20))
-    # Format tick size
-    axes.tick_params(axis='both', which='major', size=10, labelsize=17)
-    axes.tick_params(axis='both', which='minor', size=5)
-    # Other formatting
-    axes.legend(fontsize='x-large')
-    # Save figure as .pdf in quantum_HEOM/doc/figures directory
-    if save:
-        plot_args = {'models': models,
-                     'debye': debye,
-                     'ohmic': ohmic,
-                     'save': save,
-                    }
-        _save_figure_and_args(systems, plot_args, plot_type='spectral_density')
-    plt.show()
-
-def fit_exponential_to_trace_distance(system, times: np.ndarray = None,
-                                      distances: np.ndarray = None) -> tuple:
-
-    """
-    Fits an exponential curve "a * exp(-x / b) + c" to time-
-    evolution trace-distance data, plotting the trace distances
-    and the fitted curve, as well as returning parameters a, b,
-    and c. Can just pass a QuantumSystem object instead of 'times'
-    and 'distances'
-
-    Parameters
-    ----------
-    system : QuantumSystem
-        The system whose trace distance will be plotted and have a
-        curve fitted to.
-    times : np.ndarray of float
-        The times at which the trace-distances are evaluated.
-    distances : np.ndarray of float
-        The trace distances evaluated at each time in times.
-
-    Returns
-    -------
-    a : float
-        The 'a' parameter in the above general exponential formula,
-        in time units (i.e. the same units as 'times' is given in.)
-    b : float
-        The 'b' parameter in the above general exponential formula,
-        in inverse time units (i.e. the inverse units as 'times' is
-        given in.)
-    c : float
-        The 'c' parameter in the above general exponential formula,
-        in time units (i.e. the same units as 'times' is given in.)
-    """
-
-    if system is not None:
-        evo = system.time_evolution
-        times, distances = [], []
-        for step in evo:
-            times.append(step[0])
-            distances.append(step[3])
-    else:
-        assert (times is not None and distances is not None), (
-            'If not passing a QuantumSystem object, must pass times and'
-            ' distances.')
-    assert len(times) == len(distances), (
-        'times and distances must be arrays of equal length')
-
-    # Define general exponential curve
-    if system.dynamics_model in LINDBLAD_MODELS:
-        def exp_curve(time, a, c):
-            eigv = util.eigv(system.lindbladian_superop)
-            b = util.lowest_non_zero_eigv(eigv)
-            return a * np.exp(- time / b) + c
-        popt, pcov = curve_fit(exp_curve, times, distances)
-        a, c = popt
-        fit = [exp_curve(t, a, c) for t in times]
-    else:
-        def exp_curve(time, a, b, c):
-            return a * np.exp(- time / b) + c
-        popt, pcov = curve_fit(exp_curve, times, distances)
-        a, b, c = popt
-        fit = [exp_curve(t, a, b, c) for t in times]
-
-    # Plot trace distances and fitted curve
-    ratio, scaling = 1.7, 5
-    figsize = (ratio * scaling, scaling)
-    _, axes = plt.subplots(figsize=figsize)
-    axes.plot(times, distances, ls='--', c='gray', label='Trace Distance')
-    axes.plot(times, fit, ls='-', c='r', label='Fitted Curve')
-    if system is not None:
-        axes = _format_axes(axes, elements=None, trace_measure='distance',
-                            times=times, view_3d=False)
-    axes.legend(loc='upper right', fontsize='x-large')
-    plt.show()
-
-    if system.dynamics_model in LINDBLAD_MODELS:
-        return a, c
-    return a, b, c
-
-def comparative_trace_distance(systems, reference, save: bool = False):
-
-    """
-    Takes 2 QuantumSystem objects and plots the trace distance
-    between their density matrices at each timestep in their
-    time-evolutions. Systems must be the same dimensions and have
-    been initialised with time-evolution for the same number of
-    timesteps and time interval.
-
-    Parameters
-    ----------
-    systems : list of QuantumSystem
-        The QuantumSystem objects whose density matrices at each
-        timestep will be compared to the reference QuantumSystem.
-    reference : QuantumSystem
-        The reference QuantumSystem to compare each system against.
-    save : bool
-        Whether or not to save the figure. Saves to the relative
-        directory quantum_HEOM/doc/figures/ with a descriptive
-        filename. Default is False.
-    """
-
-    if not isinstance(systems, list):
-        systems = [systems]
-    for system in systems:
-        assert system.sites == reference.sites, (
-            'All QuantumSystem objects must have the same dimensions')
-        assert system.timesteps == reference.timesteps, (
-            'The time evolution of all QuantumSystems must be evaluated for'
-            ' the same number of timesteps')
-        assert system.time_interval == reference.time_interval, (
-            'The time evolution of all QuantumSystems must be evaluated for'
-            ' the same number of timesteps')
-
-    # Set up axes
-    ratio, scaling = 1.61803, 5
-    figsize = (ratio * scaling, scaling)
-    _, axes = plt.subplots(figsize=figsize)
-
-    # QuantumSystem.time_evolution = (time, matrix, squared, distance)
-    evo_ref = reference.time_evolution
-    times = [step[0] for step in evo_ref]
-    for sys_idx, sys in enumerate(systems):
-        evo_sys = sys.time_evolution
-        distances = np.empty(len(evo_sys), dtype=float)
-        for idx, step in enumerate(evo_sys):
-            mat_sys = step[1]
-            mat_ref = evo_ref[idx][1]
-            distances[idx] = util.trace_distance(mat_sys, mat_ref)
-        axes.plot(times, distances, label=LEGEND_LABELS[sys.dynamics_model])
-    axes = _format_axes(axes, elements=None, trace_measure=['distance'],
-                        times=times, view_3d=False)
-
-    if save:
-        _save_figure_and_args(systems + [reference], plot_args=None,
-                              plot_type='comparative_trace_dist')
-    plt.show()
-
-def integrate_distance_fxn_variable(systems, reference, var_name,
-                                    var_values, save):
-
-    """
-    Plots the integrated trace distance of each QuantumSystem
-    in 'systems' with respect to the 'reference' QuantumSystem
-    as a function of the variable passed.
-
-    Parameters
-    ----------
-    systems : list of QuantumSystem
-        The QuantumSystem objects whose trace distance with respect
-        to the reference QuantumSystem at each timestep will be
-        evaluated.
-    reference : QuantumSystem
-        The reference QuantumSystem object.
-    var_name : str
-        The string name of the QuantumSystem's attribute to vary.
-        Must be a valid name as used in a QuantumSystem's
-        initialisation. Exception is in the case of system
-        Hamiltonian parameters; 'alpha' or 'beta' (for nearest
-        neighbour models), or 'epsi' or 'delta' (for spin-boson)
-        can be passed as variable names.
-    var_values : list
-        A list of values to set the QuantumSystem's attribute given
-        in var_name. Must be valid values for that attribute.
-    save : bool
-        Whether or not to save the figure. Saves to the relative
-        directory quantum_HEOM/doc/figures/ with a descriptive
-        filename. Default is False.
-    """
-
-    if not isinstance(systems, list):
-        systems = [systems]
-    for system in systems:
-        assert system.sites == reference.sites, (
-            'All QuantumSystem objects must have the same dimensions')
-        assert system.timesteps == reference.timesteps, (
-            'The time evolution of all QuantumSystems must be evaluated for'
-            ' the same number of timesteps')
-        assert system.time_interval == reference.time_interval, (
-            'The time evolution of all QuantumSystems must be evaluated for'
-            ' the same number of timesteps')
-        try:
-            assert hasattr(system, var_name), (
-                'Invalid attribute name.')
-        except AssertionError:
-            assert var_name in ['alpha', 'beta', 'epsi', 'delta']
-    assert var_name != 'timesteps', (
-        'Variable cannot be the number of timesteps.')
-    assert var_name != 'time_interval', (
-        'Variable cannot be the number of timesteps.')
-
-    xaxis_labels = {'alpha': '$\\alpha \\ / \\ rad \\ ps^{-1}$',
-                    'beta': '$\\beta \\ / \\ rad \\ ps^{-1}$',
-                    'epsi': '$\\epsilon \\ / \\ rad \\ ps^{-1}$',
-                    'delta': '$\\Delta \\ / \\ rad \\ ps^{-1}$',
-                    }
-    _, axes = plt.subplots()
-    for sys_idx, system in enumerate(systems):
-        integ_dists = np.empty(len(var_values))
-        for idx, value in enumerate(var_values):
-            if var_name == 'alpha':
-                setattr(system, 'alpha_beta', (value, system.alpha_beta[1]))
-                setattr(reference, 'alpha_beta',
-                        (value, reference.alpha_beta[1]))
-            elif var_name == 'beta':
-                setattr(system, 'alpha_beta', (system.alpha_beta[0], value))
-                setattr(reference, 'alpha_beta',
-                        (reference.alpha_beta[0], value))
-            elif var_name == 'epsi':
-                setattr(system, 'epsi_delta', (value, system.epsi_delta[1]))
-                setattr(reference, 'epsi_delta',
-                        (value, reference.epsi_delta[1]))
-            elif var_name == 'delta':
-                setattr(system, 'epsi_delta', (system.epsi_delta[0], value))
-                setattr(reference, 'epsi_delta',
-                        (reference.epsi_delta[0], value))
-            else:
-                setattr(system, var_name, value)
-                setattr(reference, var_name, value)
-            integ_dists[idx] = meta.integrate_trace_distance(system, reference)
-        # label = 'System ' + str(sys_idx + 1)
-        label = LEGEND_LABELS[system.dynamics_model]
-        axes.plot(var_values, integ_dists, label=label)
-    axes.set_xlabel(xaxis_labels[var_name])
-    axes.set_ylabel('Integrated Trace Distance')
-    axes.legend()
-    if save:
-        plot_args = {'var_name': var_name,
-                     'var_values': var_values,
-                     'save': save,
-                    }
-        _save_figure_and_args(systems + [reference], plot_args,
-                              plot_type='integ_trace_dist')
-    plt.show()
+    # # Write args to file as LaTeX-renderable text
+    # with open(filename, 'a+') as f:
+    #     args = util.convert_args_to_latex(filename)
+    #     f.write('-------------------------------------------------------\n')
+    #     f.write('ARGS IN LATEX-RENDERABLE FORMAT:\n')
+    #     f.write('-------------------------------------------------------\n')
+    #     for arg in args:
+    #         f.write(arg + '\n')
+    #     f.write('-------------------------------------------------------\n')
