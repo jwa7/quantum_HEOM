@@ -8,7 +8,7 @@ import numpy as np
 SPECTRAL_DENSITIES = ['debye', 'ohmic']
 
 
-def rate_constant_redfield(omega: float, cutoff_freq: float,
+def rate_constant_redfield(omega: float, deph_rate: float, cutoff_freq: float,
                            reorg_energy: float, temperature: float,
                            spectral_density: str, exponent: float = 1) -> float:
 
@@ -33,6 +33,9 @@ def rate_constant_redfield(omega: float, cutoff_freq: float,
         The frequency of the energy gap between states i and j.
         Has the form omega = omega_i - omega_j. Must be in units of
         rad ps^-1.
+    deph_rate : float
+        The dephasing rate of the system. Represents the Redfield rate
+        constant at zero frequency.
     cutoff_freq : float
         The cutoff frequency at which the spectral density
         evaluates to 1 (or the reorg_energy value if f not equal
@@ -57,11 +60,13 @@ def rate_constant_redfield(omega: float, cutoff_freq: float,
     assert reorg_energy >= 0., (
         'The scaling factor must be a positive float, in units of rad ps^-1')
 
-    if omega == 0 or cutoff_freq == 0 or reorg_energy == 0:
-        # Using an asymmetric spectral density only evaluated for positive omega
-        # Therefore the spectral density and rate is 0 for omega <= 0.
-        return 11.
-        # return dephasing_rate(cutoff_freq, reorg_energy, temperature)
+    if omega == 0:
+        # Redfield rate constant at zero frequency is the dephasing rate
+        if deph_rate is None:
+            deph_rate = dephasing_rate(cutoff_freq, reorg_energy, temperature)
+        return deph_rate
+    if cutoff_freq == 0 or reorg_energy == 0:
+        return 0.
 
     if spectral_density == 'debye':
         spec_omega_ij = debye_spectral_density(omega, cutoff_freq,
