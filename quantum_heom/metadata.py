@@ -62,4 +62,4 @@ def integrate_trace_distance(systems, reference) -> list:
             distances[idx] = util.trace_distance(mat_sys, mat_ref)
         # Integrate function times vs distances
         integ_dists[sys_idx] = integrate.trapz(distances, times)
-    return integ_dists / reference.timesteps
+    return integ_dists / (reference.timesteps * reference.time_interval)
