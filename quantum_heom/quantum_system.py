@@ -134,8 +134,8 @@ class QuantumSystem:
             self.timesteps = settings.get('timesteps')
         else:
             self.timesteps = 500
-        # SETTINGS FOR TEMPERATURE INDEPENDENT MODELS
-        if self.dynamics_model in TEMP_INDEP_MODELS:
+        # SETTINGS FOR LINDBLAD MODELS
+        if self.dynamics_model in LINDBLAD_MODELS:
             if settings.get('deph_rate') is not None:
                 self.deph_rate = settings.get('deph_rate')
             else:
@@ -641,7 +641,7 @@ class QuantumSystem:
             units of rad ps^-1.
         """
 
-        if self.dynamics_model in TEMP_INDEP_MODELS:
+        if self.dynamics_model in LINDBLAD_MODELS:
             return self._deph_rate
 
     @deph_rate.setter
@@ -650,8 +650,8 @@ class QuantumSystem:
         assert isinstance(deph_rate, (int, float)), (
             'deph_rate must be passed as either an int or float')
         if deph_rate < 0.:
-            raise ValueError('Cutoff frequency must be a non-negative float'
-                             ' in units of s^-1.')
+            raise ValueError('Dephasing rate must be a non-negative float'
+                             ' in units of rad s^-1.')
 
         self._deph_rate = deph_rate
 
