@@ -12,7 +12,7 @@ from quantum_heom.quantum_system import QuantumSystem
      (2, 'spin-boson', 'global thermalising lindblad'),
      (2, 'spin-boson', 'local thermalising lindblad'),
      (2, 'spin-boson', 'HEOM')])
-def test_integrated_trace_distance_zero(sites, interactions, dynamics):
+def test_integrate_trace_distance_zero(sites, interactions, dynamics):
 
     """
     Tests that the integrated trace distance of a system with
@@ -22,4 +22,4 @@ def test_integrated_trace_distance_zero(sites, interactions, dynamics):
     qsys = QuantumSystem(sites=sites, interaction_model=interactions,
                          dynamics_model=dynamics)
 
-    assert meta.integrated_trace_distance([qsys], qsys) == [0]
+    assert meta.integrate_trace_distance([qsys], qsys) == [0]
