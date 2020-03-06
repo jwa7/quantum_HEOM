@@ -21,7 +21,7 @@ from itertools import product
 
 from math import ceil
 from mpl_toolkits import mplot3d
-from matplotlib.ticker import MultipleLocator
+from matplotlib.ticker import AutoLocator, MultipleLocator
 import matplotlib.pyplot as plt
 import numpy as np
 from scipy.optimize import curve_fit
@@ -563,22 +563,28 @@ def plot_spectral_density(systems: list = None, models: list = None,
             axes.plot(frequencies * 1e-12, ohm, label='Ohmic')
 
     # FORMATTING
+    axes_label_size = '15'
+    tick_size = 15
+    pad = 10
+    axes.legend(loc='upper right', fontsize='large')
     # Format labels
-    axes.set_xlabel('$\\omega$ / rad ps$^{-1}$', size=20)
-    axes.set_ylabel('J($\\omega$) / rad ps$^{-1}$', size=20)
+    axes.set_xlabel('$\\omega$ / rad ps$^{-1}$', size=axes_label_size,
+                    labelpad=pad)
+    axes.set_ylabel('J($\\omega$) / rad ps$^{-1}$', size=axes_label_size,
+                    labelpad=pad)
     # Format x-axis
-    axes.set_xlim(frequencies[0], frequencies[-1])
+    axes.set_xlim(min(frequencies), max(frequencies))
     upper_x_bound = list(axes.get_xticks())[5]
-    axes.xaxis.set_minor_locator(MultipleLocator(upper_x_bound / 20))
+    axes.xaxis.set_major_locator(MultipleLocator(upper_x_bound / 5))
+    axes.xaxis.set_minor_locator(MultipleLocator(upper_x_bound / 10))
     # Format y-axis
     axes.set_ylim(bottom=0.)
     upper_y_bound = list(axes.get_yticks())[5]
-    axes.yaxis.set_minor_locator(MultipleLocator(upper_y_bound / 20))
+    axes.yaxis.set_major_locator(MultipleLocator(upper_y_bound / 5))
+    axes.yaxis.set_minor_locator(MultipleLocator(upper_y_bound / 10))
     # Format tick size
-    axes.tick_params(axis='both', which='major', size=10, labelsize=17)
-    axes.tick_params(axis='both', which='minor', size=5)
-    # Other formatting
-    axes.legend(fontsize='x-large')
+    axes.tick_params(axis='both', which='major', size=8, labelsize=tick_size)
+    axes.tick_params(axis='both', which='minor', size=4)
     # Save figure as .pdf in quantum_HEOM/doc/figures directory
     if save:
         plot_args = {'models': models,
@@ -723,7 +729,7 @@ def fit_exponential_to_trace_distance(system, save: bool = False) -> tuple:
     if system is not None:
         axes = _format_axes(axes, elements=None, trace_measure='distance',
                             times=times, view_3d=False)
-    axes.legend(loc='upper right', fontsize='x-large')
+    axes.legend(loc='upper right', fontsize='large')
     if save:
         plot_args = {'save': save}
         plot_type = 'fit_expo_tr_dist'
@@ -789,8 +795,9 @@ def integrate_distance_fxn_variable(systems, reference, var_name,
         assert var_name in xaxis_labels.keys(), (
             'Must choose a valid variable to plot the integ trace distance'
             ' against. Choose from: ' + str(list(xaxis_labels.keys())))
-
-    _, axes = plt.subplots()
+    ratio, scaling = 1.6, 5
+    figsize = (ratio * scaling, scaling)
+    _, axes = plt.subplots(figsize=figsize)
     for system in systems:
         integ_dists = np.empty(len(var_values))
         for idx, value in enumerate(var_values):
@@ -824,8 +831,10 @@ def integrate_distance_fxn_variable(systems, reference, var_name,
     axes.set_xlabel(xaxis_labels[var_name], size=axes_label_size, labelpad=pad)
     axes.set_ylabel('Integrated Trace Distance', size=axes_label_size,
                     labelpad=pad)
-    axes.set_xlim(left=var_values[0])
-    axes.set_ylim(bottom=0.)
+    axes.set_xlim(left=min(var_values), right=max(var_values))
+    axes.set_ylim(bottom=0., top=1.0)
+    axes.xaxis.set_minor_locator(AutoLocator())
+    axes.yaxis.set_minor_locator(AutoLocator())
     axes.tick_params(axis='both', which='major', size=8, labelsize=tick_size)
     axes.tick_params(axis='both', which='minor', size=4)
     if save:
@@ -869,9 +878,10 @@ def plot_comparison_publication(systems, save: bool = False):
                (137/250, 140/250, 50/250), (49/250, 46/250, 131/250)]
 
     # Set up axes, plot matrix data
-    figsize = (10, 5)
-    _, axes = plt.subplots(3, len(systems), sharex=True, sharey=True,
-                           figsize=figsize)
+    figsize = (20, 10)
+    fig, axes = plt.subplots(3, len(systems), sharex=True, sharey=True,
+                             figsize=figsize)
+    fig.subplots_adjust(wspace=0.1, hspace=0.1)
 
     for column, system in enumerate(systems):
         assert system.sites == 7, 'Comparative plots only for 7-sites'
@@ -891,25 +901,25 @@ def plot_comparison_publication(systems, save: bool = False):
             matrix_data.append(matrix)
 
         # Plot data
-        for i in range(3):
+        for i in range(3):  # iterate over the 3 rows of panels
             data = matrix_data[i]
             for el_no, (element, amps) in enumerate(data.items()):
                 idx = (i) if len(systems) == 1 else (i, column)
                 axes[idx].plot(times[i], amps, c=colours[el_no],
                                label='BChl ' + str(element[0]))
-                if i == 0 or i == 1:
+                if i in (0, 1):
                     axes[idx].set_ylim(bottom=0., top=1.)
                 if i == 2:
                     axes[idx].set_ylim(bottom=0., top=0.5)
-            if column == 0 and i == 0:
-                idx = (0) if len(systems) == 1 else (0, 0)
-                axes[idx].legend(loc='upper right', fontsize='small')
-
+            # if column == 0 and i == 0:
+            #     idx = (0) if len(systems) == 1 else (0, 0)
+            #     axes[idx].legend(loc='upper right', fontsize='xx-small')
     # Format plot
     font = {'family': 'sans-serif', 'weight': 'bold', 'size': 22}
     legendfont = {'family': 'calibri', 'weight': 'bold', 'size': 12}
     axisfontsize = 18
     line_thickness = 3
+    line_width = 1
     plt.rcParams['figure.dpi'] = 250
 
     for i, j in product(range(3), range(len(systems))):
@@ -920,21 +930,22 @@ def plot_comparison_publication(systems, save: bool = False):
         axes[idx].yaxis.set_minor_locator(MultipleLocator(0.25))
         axes[idx].xaxis.set_major_locator(MultipleLocator(500))
         axes[idx].yaxis.set_major_locator(MultipleLocator(0.5))
-        axes[idx].tick_params(which='both', top=True, right=True, width=2.)
-        axes[idx].tick_params(which='major', length=6.)
+        axes[idx].tick_params(which='both', top=True, right=True,
+                              width=line_width)
+        axes[idx].tick_params(which='major', length=5.)
         axes[idx].tick_params(which='minor', length=3.)
-        axes[idx].spines['top'].set_linewidth(2.)
-        axes[idx].spines['bottom'].set_linewidth(2.)
-        axes[idx].spines['right'].set_linewidth(2.)
-        axes[idx].spines['left'].set_linewidth(2.)
+        axes[idx].spines['top'].set_linewidth(line_width)
+        axes[idx].spines['bottom'].set_linewidth(line_width)
+        axes[idx].spines['right'].set_linewidth(line_width)
+        axes[idx].spines['left'].set_linewidth(line_width)
         axes[idx].set_prop_cycle(color=colours)
-        if i == 0 or i == 1:
+        if i in (0, 1):
             axes[idx].set_ylim(bottom=0., top=1.)
         if i == 2:
-            axes[idx].set_xlabel('Time / fs')
+            axes[idx].set_xlabel('Time / fs', fontdict=font)
             axes[idx].set_ylim(bottom=0., top=1.)
-        if j == 0:
-            axes[idx].set_ylabel('Population')
+        if i == 1 and j == 0:
+            axes[idx].set_ylabel('Population of Each Site', fontdict=font)
     # Save figure
     if save:
         plot_args = {'save': save}
