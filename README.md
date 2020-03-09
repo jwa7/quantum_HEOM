@@ -29,13 +29,13 @@ Written in Python, interactive, and with control over input parameters, *quantum
 2. Create a virtual environment from the specification yaml file. This environment will contain all external package dependencies (i.e. [numpy](https://github.com/numpy/numpy), [scipy](https://github.com/scipy/scipy), [QuTiP](https://github.com/qutip), [matplotlib](https://github.com/matplotlib/matplotlib), etc.) relied upon by *quantum_HEOM*:  
 ``conda env create -f environment.yml``
 
-2. Enter the virtual environment:
+2. Enter the virtual environment:  
 ``conda activate qheom``
 
-2. Install the environment as a ipython kernel. This allows jupyter notebooks to be executed from within the virtual environment: 
+2. Install the environment as a ipython kernel. This allows jupyter notebooks to be executed from within the virtual environment:   
 ``ipython kernel install --user --name=qheom``  
 
-2. Run all unit tests. All of these should pass if the package is working as it should. If something if wrong, please raise an issue [here](https://github.com/jwa7/quantum_HEOM/issues).
+2. Run all unit tests. All of these should pass if the package is working as it should. If something if wrong, please raise an issue [here](https://github.com/jwa7/quantum_HEOM/issues).  
 ``chmod +x run_tests.sh && ./run_tests.sh``
 
 
