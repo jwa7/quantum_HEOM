@@ -39,17 +39,6 @@ Written in Python, interactive, and with control over input parameters, *quantum
 ``chmod +x run_tests.sh && ./run_tests.sh``
 
 
-
-2. Run the setup script to create the virtual environment with the required package dependencies:  
-``chmod +x run_setup.sh && ./run_setup.sh``
-
-3. Enter the environment:  
-``conda activate qheom``
-
-3. Run package installation and testing:  
-``chmod +x run_install.sh && ./run_install.sh``
-
-
 ## Functionality
 
 ### Tutorial
