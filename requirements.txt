@@ -1,9 +1,0 @@
-cython
-flake8
-jupyter
-matplotlib
-mpl_toolkits
-numpy
-pytest
-qutip
-scipy
