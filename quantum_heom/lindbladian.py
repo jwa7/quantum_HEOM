@@ -198,7 +198,7 @@ def lindbladian_superop(dims: int, dynamics_model: str,
         be passed if dynamics_model=='local dephasing lindblad'.
     dynamics_model : str
         The model used to describe the system dynamics. Must be one
-        of 'local dephasing lindblad','local thermalising
+        of 'local dephasing lindblad', 'local thermalising
         lindblad', 'global thermalising lindblad'.
     deph_rate : float
         The dephasing rate constant of the system, in rad ps^-1.
