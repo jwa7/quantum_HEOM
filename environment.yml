@@ -1,5 +1,6 @@
 name: heom
 channels:
+  - anaconda
   - defaults
   - conda-forge
 dependencies:
@@ -8,7 +9,7 @@ dependencies:
   - backcall=0.1.0
   - blas=1.0
   - bleach=3.1.0
-  - ca-certificates=2019.11.
+  - ca-certificates=2020.1.
   - certifi=2019.11.28
   - cycler=0.10.0
   - cython=0.29.14
@@ -17,10 +18,13 @@ dependencies:
   - defusedxml=0.6.0
   - entrypoints=0.3
   - expat=2.2.6
+  - fastcache=1.1.0
   - flake8=3.7.9
   - freetype=2.9.1
   - gettext=0.19.8.1
   - glib=2.63.1
+  - gmp=6.1.2
+  - gmpy2=2.0.8
   - icu=58.2
   - importlib_metadata=1.3.0
   - intel-openmp=2019.4
@@ -54,13 +58,16 @@ dependencies:
   - mkl_fft=1.0.15
   - mkl_random=1.1.0
   - more-itertools=8.0.2
+  - mpc=1.1.0
+  - mpfr=4.0.1
+  - mpmath=1.1.0
   - nbconvert=5.6.1
   - nbformat=4.4.0
   - ncurses=6.1
   - notebook=6.0.2
   - numpy=1.17.2
   - numpy-base=1.17.2
-  - openssl=1.1.1d
+  - openssl=1.1.1
   - packaging=19.2
   - pandoc=2.2.3.
   - pandocfilters=1.4.2
@@ -95,6 +102,7 @@ dependencies:
   - sip=4.19.8
   - six=1.13.0
   - sqlite=3.30.1
+  - sympy=1.5.1
   - terminado=0.8.3
   - testpath=0.4.4
   - tk=8.6.8
