@@ -69,8 +69,9 @@ class QuantumSystem:
         spectral_density : str
             The spectral density used to described the interaction
             of the system with the bath modes. Must be either
-            'Debye' or 'Ohmic'. Systems with HEOM dynamics can
-            currently only be described by Ohmic spectral densities.
+            'debye', 'ohmic', or 'renger-marcus'. Systems with HEOM
+            dynamics can currently only be described by Debye
+            spectral densities.
         deph_rate : float
             The dephasing rate constant of the system, in units of
             rad ps^-1, used in the local dephasing lindblad model.
@@ -954,8 +955,8 @@ class QuantumSystem:
         Returns
         -------
         str
-            The spectral density beign used. Either 'debye' or
-            'ohmic'.
+            The spectral density beign used. Either 'debye',
+            'ohmic', or 'renger-marcus'
         """
 
         if self.dynamics_model in TEMP_DEP_MODELS:
@@ -967,7 +968,7 @@ class QuantumSystem:
         assert spectral_density in SPECTRAL_DENSITIES, (
             'Must choose a spectral density from ' + str(SPECTRAL_DENSITIES)
             + '. Other spectral densities not yet implemented in quantum_HEOM.')
-        if self.dynamics_model == 'HEOM' and spectral_density == 'ohmic':
+        if self.dynamics_model == 'HEOM' and spectral_density != 'debye':
             raise NotImplementedError(
                 'Currently systems described by HEOM dynamics can only be'
                 ' evaluated for Debye spectral densities.')
