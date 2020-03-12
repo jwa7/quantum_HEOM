@@ -2,10 +2,12 @@
 thermal bath; spectral densities (Debye and Ohmic), Bose-Einstein
 distribution, and Redfield rate constant."""
 
+import math
+
 from scipy import constants
 import numpy as np
 
-SPECTRAL_DENSITIES = ['debye', 'ohmic']
+SPECTRAL_DENSITIES = ['debye', 'ohmic', 'renger-marcus']
 
 
 def rate_constant_redfield(omega: float, deph_rate: float, cutoff_freq: float,
@@ -78,6 +80,9 @@ def rate_constant_redfield(omega: float, deph_rate: float, cutoff_freq: float,
                                                reorg_energy, exponent)
         spec_omega_ji = ohmic_spectral_density(-omega, cutoff_freq,
                                                reorg_energy, exponent)
+    elif spectral_density == 'renger-marcus':
+        spec_omega_ij = renger_marcus_spectral_density(omega, reorg_energy)
+        spec_omega_ji = renger_marcus_spectral_density(-omega, reorg_energy)
     else:
         raise NotImplementedError('Other spectral densities not yet'
                                   ' implemented in quantum_HEOM')
@@ -88,6 +93,47 @@ def rate_constant_redfield(omega: float, deph_rate: float, cutoff_freq: float,
                + (spec_omega_ji * n_omega_ji)
               )
            )
+
+def renger_marcus_spectral_density(omega: float, reorg_energy: float) -> float:
+
+    """
+    Calculates the parameterised spectral density as optimised by
+    T. Renger and R. A. Marcus, J. Chem. Phys., 2002, 116,
+    9997-10019.
+
+    Parameters
+    ----------
+    omega : float
+        The frequency at which the spectral density will be
+        evaluated, in units of rad ps^-1. If omega <= 0, the
+        spectral density evaluates to zero.
+
+    Returns
+    -------
+    float
+        The Renger-Marcus spectral density, in rad ps^-1.
+    """
+
+    if omega <= 0:
+        return 0.
+
+    # Parameters as given in the paper
+    s1, s2 = 0.8, 0.5
+    hbar_w1, hbar_w2 = 0.069, 0.24  # meV
+    # Convert frequencies into rad ps^-1
+    # 1 eV = 1 J C^-1 = 1.602e-19 J
+    w1 = hbar_w1 * 1e-15 * constants.e / constants.hbar  # rad ps^-1
+    w2 = hbar_w2 * 1e-15 * constants.e / constants.hbar
+
+    spec_dens = 0
+    for si, wi in zip([s1, s2], [w1, w2]):
+        tmp = si * omega**3 * np.exp(- np.sqrt(omega / wi))
+        tmp /= (math.factorial(7) * 2 * wi**4)
+        spec_dens += tmp
+
+    scaling = np.pi * reorg_energy * (42 * w1 * w2) / (s1 * w2 + s2 * w1)
+
+    return scaling * spec_dens
 
 def ohmic_spectral_density(omega: float, cutoff_freq: float,
                            reorg_energy: float, exponent: float) -> float:
@@ -118,6 +164,11 @@ def ohmic_spectral_density(omega: float, cutoff_freq: float,
         The factor by which the spectral density should be scaled
         by. Should be passed in units of rad ps^-1. Must be a
         non-negative float.
+
+    Returns
+    -------
+    float
+        The Ohmic spectral density, in rad ps^-1.
     """
 
     assert cutoff_freq >= 0., (

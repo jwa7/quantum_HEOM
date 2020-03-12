@@ -452,14 +452,13 @@ def _format_axes(ax, elements: [list, None], trace_measure: list,
     return ax
 
 def plot_spectral_density(systems: list = None, models: list = None,
-                          debye: dict = None, ohmic: dict = None,
                           save: bool = False):
 
     """
-    Plots either the Debye or Ohmic - or both - spectral densities
-    as a function of frequency, over a frequency range 10 times the
-    cutoff frequency. Units of all the frequencies and the cutoff
-    frequency must be in rad ps^-1.
+    Plots the spectral density for each QuantumSystem passed (on
+    the same plot) as a function of a range of frequencies that
+    extends to 10 times the cutoff frequency. Cutoff frequencies
+    between models must be the same.
 
     Parameters
     ----------
@@ -471,27 +470,16 @@ def plot_spectral_density(systems: list = None, models: list = None,
         Must specify if systems is passed as None. The spectral
         density(s) model to plot. Must be a list containing either
         or both of 'debye', 'ohmic'.
-    debye : dict
-        Must specify if systems is passed as None. A dictionary
-        containing the arguments used to define the Debye spectral
-        density. Must contain values under the keys 'frequencies',
-        'cutoff_freq' and 'reorg_energy'. Check the docstring in
-        bath.py 's debye_spectral_density() function for details
-        on these arguments. If models contains both 'debye' and
-        'ohmic' and ohmic is passed as None, the arguments given in
-        debye will be used to plot the ohmic spctral density too.
-    ohmic : dict
-        Must specify if systems is passed as None. A dictionary
-        containing the arguments used to define the Ohmic spectral
-        density. Must contain values under the keys 'frequencies',
-        'cutoff_freq', 'reorg_energy', and 'exponent'. Check the
-        docstring in bath.py 's ohmic_spectral_density() function
-        for details on these arguments.
     save : bool
         Whether or not to save the figure. Saves to the relative
         directory quantum_HEOM/doc/figures/ with a descriptive
         filename. Default is False.
     """
+
+    if not isinstance(systems, list):
+        systems = [systems]
+    assert all([system.cutoff_freq == systems[0].cutoff_freq
+                for system in systems]), ('All systems must have same cutoff')
 
     # PLOTTING
     # Set up axes
@@ -499,69 +487,37 @@ def plot_spectral_density(systems: list = None, models: list = None,
     figsize = (ratio * scaling, scaling)
     _, axes = plt.subplots(figsize=figsize)
     # Plot systems if list of QuantumSystems is passed.
-    if systems is not None:
-        if not isinstance(systems, list):
-            systems = [systems]
-        for sys in systems:
-            if sys.dynamics_model == 'local dephasing lindblad':
-                raise ValueError(
-                    'No spectral density used for local dephasing model.')
-            cutoff = sys.cutoff_freq
-            frequencies = np.arange(0., cutoff * 10., cutoff / 100.)
-            specs = []
-            for freq in frequencies:
-                if sys.spectral_density == 'debye':
-                    label = 'Debye'
-                    specs.append(bath.debye_spectral_density(freq, cutoff,
-                                                             sys.reorg_energy))
-                else:  # Ohmic
-                    label = 'Ohmic'
-                    specs.append(bath.ohmic_spectral_density(freq,
-                                                             cutoff,
-                                                             sys.reorg_energy,
-                                                             sys.ohmic_exponent
-                                                             ))
-            specs = np.array(specs)
-            axes.plot(frequencies, specs, label=label)
-    # Plot if just specifications are passed.
-    else:
-        if isinstance(models, str):
-            models = [models]
-        assert all(i in SPECTRAL_DENSITIES for i in models)
-        assert debye is not None or ohmic is not None, (
-            'Must pass arguments for either debye or ohmic spectral densities.')
-        if models == ['debye']:
-            assert debye is not None, (
-                'Must pass arguments for Debye spectral density to plot it.')
-        if models == ['ohmic']:
-            assert ohmic is not None, (
-                'Must pass arguments for Ohmic spectral density to plot it.')
-        if len(models) == 2 and debye is None:
-            debye = ohmic
-        if len(models) == 2 and ohmic is None:
-            ohmic = debye
-        deb, ohm = [], []
-        if 'debye' in models:
-            frequencies = np.array(debye['frequencies'])
-            for freq in frequencies:
-                deb.append(bath.debye_spectral_density(freq,
-                                                       debye['cutoff_freq'],
-                                                       debye['reorg_energy']))
-        if 'ohmic' in models:
-            frequencies = ohmic['frequencies']
-            for freq in frequencies:
-                ohm.append(bath.ohmic_spectral_density(freq,
-                                                       ohmic['cutoff_freq'],
-                                                       ohmic['reorg_energy'],
-                                                       ohmic['exponent']))
-        frequencies *= 1e-12
-        if 'debye' in models:
-            deb = np.array(deb) * 1e-12
-            axes.plot(frequencies * 1e-12, deb, label='Debye')
-        if 'ohmic' in models:
-            ohm = np.array(ohm) * 1e-12
-            axes.plot(frequencies * 1e-12, ohm, label='Ohmic')
-
+    # if systems is not None:
+    #     if not isinstance(systems, list):
+    #         systems = [systems]
+    for sys in systems:
+        if sys.dynamics_model == 'local dephasing lindblad':
+            raise ValueError(
+                'No spectral density used for local dephasing model;'
+                ' not a thermalising model.')
+        cutoff = sys.cutoff_freq
+        frequencies = np.arange(0., cutoff * 10., cutoff / 100.)
+        specs = []
+        for freq in frequencies:
+            if sys.spectral_density == 'debye':
+                label = 'Debye'
+                specs.append(bath.debye_spectral_density(freq, cutoff,
+                                                         sys.reorg_energy))
+            elif sys.spectral_density == 'ohmic':
+                label = 'Ohmic'
+                specs.append(bath.ohmic_spectral_density(freq,
+                                                         cutoff,
+                                                         sys.reorg_energy,
+                                                         sys.ohmic_exponent
+                                                         ))
+            elif sys.spectral_density == 'renger-marcus':
+                label = 'Renger-Marcus'
+                reorg = sys.reorg_energy
+                specs.append(bath.renger_marcus_spectral_density(freq, reorg))
+            else:
+                raise NotImplementedError('Invalid spectral density.')
+        specs = np.array(specs)
+        axes.plot(frequencies, specs, label=label)
     # FORMATTING
     axes_label_size = '15'
     tick_size = 15
@@ -587,10 +543,7 @@ def plot_spectral_density(systems: list = None, models: list = None,
     axes.tick_params(axis='both', which='minor', size=4)
     # Save figure as .pdf in quantum_HEOM/doc/figures directory
     if save:
-        plot_args = {'models': models,
-                     'debye': debye,
-                     'ohmic': ohmic,
-                     'save': save,
+        plot_args = {'save': save,
                     }
         _save_figure_and_args(systems, plot_type='spectral_density',
                               plot_args=plot_args)
@@ -879,9 +832,19 @@ def plot_comparison_publication(systems, save: bool = False):
 
     # Set up axes, plot matrix data
     figsize = (20, 10)
-    fig, axes = plt.subplots(3, len(systems), sharex=True, sharey=True,
+    fig, axes = plt.subplots(3, len(systems), sharex=True, sharey='row',
                              figsize=figsize)
-    fig.subplots_adjust(wspace=0.1, hspace=0.1)
+    fig.subplots_adjust(wspace=0.075, hspace=0.125)
+
+    # Define some settings
+    font = {'family': 'sans-serif', 'weight': 'demi', 'size': 22}
+    # font = {'family': 'calibri', 'weight': 'bold', 'size': 12}
+    axes_label_size = 30
+    axisfontsize = 5
+    line_thickness = 3
+    line_width = 2
+    tick_length = 8
+    plt.rcParams['figure.dpi'] = 250
 
     for column, system in enumerate(systems):
         assert system.sites == 7, 'Comparative plots only for 7-sites'
@@ -903,49 +866,51 @@ def plot_comparison_publication(systems, save: bool = False):
         # Plot data
         for i in range(3):  # iterate over the 3 rows of panels
             data = matrix_data[i]
+            idx = (i) if len(systems) == 1 else (i, column)
             for el_no, (element, amps) in enumerate(data.items()):
-                idx = (i) if len(systems) == 1 else (i, column)
                 axes[idx].plot(times[i], amps, c=colours[el_no],
-                               label='BChl ' + str(element[0]))
-                if i in (0, 1):
-                    axes[idx].set_ylim(bottom=0., top=1.)
-                if i == 2:
-                    axes[idx].set_ylim(bottom=0., top=0.5)
-            # if column == 0 and i == 0:
-            #     idx = (0) if len(systems) == 1 else (0, 0)
-            #     axes[idx].legend(loc='upper right', fontsize='xx-small')
+                               label='Site ' + str(element[0]),
+                               linewidth=line_thickness)
     # Format plot
-    font = {'family': 'sans-serif', 'weight': 'bold', 'size': 22}
-    legendfont = {'family': 'calibri', 'weight': 'bold', 'size': 12}
-    axisfontsize = 18
-    line_thickness = 3
-    line_width = 1
-    plt.rcParams['figure.dpi'] = 250
-
     for i, j in product(range(3), range(len(systems))):
         idx = (i) if len(systems) == 1 else (i, j)
         # axes[idx].set_aspect(1250)
         axes[idx].set_xlim(0, 2500)
-        axes[idx].xaxis.set_minor_locator(MultipleLocator(250))
-        axes[idx].yaxis.set_minor_locator(MultipleLocator(0.25))
         axes[idx].xaxis.set_major_locator(MultipleLocator(500))
-        axes[idx].yaxis.set_major_locator(MultipleLocator(0.5))
+        axes[idx].xaxis.set_minor_locator(MultipleLocator(250))
+        if i == 2:
+            axes[idx].yaxis.set_major_locator(MultipleLocator(0.25))
+            axes[idx].yaxis.set_minor_locator(MultipleLocator(0.125))
+        else:
+            axes[idx].yaxis.set_major_locator(MultipleLocator(0.5))
+            axes[idx].yaxis.set_minor_locator(MultipleLocator(0.25))
         axes[idx].tick_params(which='both', top=True, right=True,
-                              width=line_width)
-        axes[idx].tick_params(which='major', length=5.)
-        axes[idx].tick_params(which='minor', length=3.)
+                              width=line_width, labelsize=axisfontsize)
+        axes[idx].tick_params(which='major', length=tick_length)
+        axes[idx].tick_params(which='minor', length=tick_length / 2)
+        axes[idx].set_xticklabels(labels=np.array(axes[idx].get_xticks(),
+                                                  dtype=int),
+                                  fontdict=font, fontsize=7)
+        axes[idx].set_yticklabels(labels=np.array(axes[idx].get_yticks(),
+                                                  dtype=float),
+                                  fontdict=font, fontsize=7)
         axes[idx].spines['top'].set_linewidth(line_width)
         axes[idx].spines['bottom'].set_linewidth(line_width)
         axes[idx].spines['right'].set_linewidth(line_width)
         axes[idx].spines['left'].set_linewidth(line_width)
         axes[idx].set_prop_cycle(color=colours)
+        # if i == 0 and j == 0:
+        #     axes[idx].legend(loc='upper right', fontsize='x-large',
+        #                      fontdict=legendfont)
         if i in (0, 1):
             axes[idx].set_ylim(bottom=0., top=1.)
         if i == 2:
-            axes[idx].set_xlabel('Time / fs', fontdict=font)
-            axes[idx].set_ylim(bottom=0., top=1.)
+            axes[idx].set_xlabel('Time / fs', fontdict=font,
+                                 fontsize=axes_label_size)
+            axes[idx].set_ylim(bottom=0., top=0.5)
         if i == 1 and j == 0:
-            axes[idx].set_ylabel('Population of Each Site', fontdict=font)
+            axes[idx].set_ylabel('Population of Each Site', fontdict=font,
+                                 fontsize=axes_label_size, labelpad=15)
     # Save figure
     if save:
         plot_args = {'save': save}
