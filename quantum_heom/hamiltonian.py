@@ -3,6 +3,8 @@
 from scipy import constants
 import numpy as np
 
+from quantum_heom import utilities as util
+
 INTERACTION_MODELS = ['nearest neighbour cyclic', 'nearest neighbour linear',
                       'FMO', 'spin-boson']
 
@@ -176,6 +178,11 @@ def hamiltonian_superop(hamiltonian: np.ndarray) -> np.ndarray:
     .. math::
         H_{sup} = -i(H \\otimes I - I \\otimes H^{\\dagger})
 
+    Parameters
+    ----------
+    hamiltonian : np.ndarray
+        The input 2D square system Hamiltonian, of dimensions N x N.
+
     Returns
     -------
     np.ndarray
@@ -200,8 +207,8 @@ def pad_hamiltonian_zero_exciton_gs(hamiltonian: np.ndarray) -> np.ndarray:
 
     Parameters
     ----------
-    H : array of array of complex
-        An N x N Hamiltonian 2D array.
+    hamiltonian : np.ndarray
+        The input 2D square system Hamiltonian, of dimensions N x N.
 
     Returns
     -------
@@ -215,3 +222,39 @@ def pad_hamiltonian_zero_exciton_gs(hamiltonian: np.ndarray) -> np.ndarray:
         hamiltonian = np.insert(hamiltonian, 0,
                                 np.zeros(dim + axis, dtype=complex), axis=axis)
     return hamiltonian
+
+def calc_inverse_participation_ratios(hamiltonian: np.ndarray) -> np.ndarray:
+
+    """
+    Calculates the inverse participation ratios of each eigenstate
+    of an input N x N system Hamiltonian. For a given
+    eigenstate, a:
+
+    .. math::
+        \\ket{a} = \\sum_i^N c_i \\ket{a}
+
+    the IPR is given by:
+
+    .. math::
+        IPR_a = (\\sum_i^N c_i^4)^{-1}
+
+    Parameters
+    ----------
+    hamiltonian : np.ndarray
+        The input 2D square system Hamiltonian, of dimensions N x N.
+
+    Returns
+    -------
+    np.ndarray
+        An N element array containing the IPRs of each eigestate.
+    """
+
+    dims = hamiltonian.shape[0]
+    states = util.eigs(hamiltonian)
+    ratios = np.zeros(dims)
+    for idx, state in enumerate(states):
+        tmp = 0
+        for coeff in state:
+            tmp += coeff ** 4
+        ratios[idx] = tmp ** -1
+    return ratios
