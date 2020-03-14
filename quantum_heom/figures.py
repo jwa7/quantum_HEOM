@@ -430,7 +430,8 @@ def _format_axes(ax, elements: [list, None], trace_measure: list,
                               labelpad=pad)
             else:
                 raise ValueError(
-                    'Invalid input for trace measures. Must pass as a list'
+                    'If not plotting any density matrix elements you must pass'
+                    ' values for which trace measures to plot. Pass as a list'
                     ' containing either or both of "squared" and/or'
                     ' "distance".')
         # Format axes ranges
@@ -834,7 +835,8 @@ def plot_comparison_publication(systems, save: bool = False):
     figsize = (20, 10)
     fig, axes = plt.subplots(3, len(systems), sharex=True, sharey='row',
                              figsize=figsize)
-    fig.subplots_adjust(wspace=0.075, hspace=0.125)
+    # wspace=0.075, hspace=0.125 for side-by-side with Zhu's HEOM
+    fig.subplots_adjust(wspace=0.15, hspace=0.2)
 
     # Define some settings
     font = {'family': 'sans-serif', 'weight': 'demi', 'size': 22}
@@ -900,8 +902,7 @@ def plot_comparison_publication(systems, save: bool = False):
         axes[idx].spines['left'].set_linewidth(line_width)
         axes[idx].set_prop_cycle(color=colours)
         # if i == 0 and j == 0:
-        #     axes[idx].legend(loc='upper right', fontsize='x-large',
-        #                      fontdict=legendfont)
+        #     axes[idx].legend(loc='upper right', fontsize='large')
         if i in (0, 1):
             axes[idx].set_ylim(bottom=0., top=1.)
         if i == 2:
