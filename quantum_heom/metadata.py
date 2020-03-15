@@ -63,3 +63,28 @@ def integrate_trace_distance(systems, reference) -> list:
         # Integrate function times vs distances
         integ_dists[sys_idx] = integrate.trapz(distances, times)
     return integ_dists / (reference.timesteps * reference.time_interval)
+
+def calc_equilibration_time(system) -> float:
+
+    """
+    Calculates the time it takes for a system to reach its
+    equilibrium state.
+
+    Parameters
+    ----------
+    system : QuantumSystem
+        The QuantumSystem object whose equilibration time
+        will be calculated.
+
+    Returns
+    -------
+    float
+        The equilibration time for the input system.
+    """
+
+    evo = system.time_evolution
+    for step in evo:
+        if step[3] < 0.0001:
+            return step[0]
+    raise ValueError("QuantumSystem hasn't equilibrated within timescale of"
+                     " of evolution. Increase the number of timesteps.")
