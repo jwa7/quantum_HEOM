@@ -232,6 +232,38 @@ def lowest_non_zero_eigv(eigvals: np.ndarray) -> float:
 
     return lifetime
 
+def calc_ipr_density_matrix(density_matrix: np.ndarray) -> float:
+
+    """
+    Calulates the inverse participation ratio of
+    an N x N input density matrix, given by:
+
+    .. math::
+        IPR(\\rho) = \\frac{(sum_{i,j} |\\rho_{ij}|)^2}
+                           {N(sum_{i,j} |\\rho_{ij}|^2)}
+
+    As defined in equation 15 of T. Meier, V. Chernyak, and
+    S. Mukamel, J. Phys. Chem. B 1997, 101, 7332-7342.
+
+    Parameters
+    ----------
+    density_matrix : np.ndarray
+        The square input density matrix
+
+    Returns
+    -------
+    float
+        The IPR for the input density matrix.
+    """
+
+    dims = density_matrix.shape[0]
+    numer, denom = 0, 0
+    for row in density_matrix:
+        for element in row:
+            numer += abs(element)
+            denom += abs(element)**2
+    return numer**2 / (dims * denom)
+
 def elements_from_str(sites: int, elements: str) -> list:
 
     """
