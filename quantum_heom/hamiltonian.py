@@ -223,7 +223,7 @@ def pad_hamiltonian_zero_exciton_gs(hamiltonian: np.ndarray) -> np.ndarray:
                                 np.zeros(dim + axis, dtype=complex), axis=axis)
     return hamiltonian
 
-def calc_inverse_participation_ratios(hamiltonian: np.ndarray) -> np.ndarray:
+def calc_ipr_hamiltonian_eigenstates(hamiltonian: np.ndarray) -> np.ndarray:
 
     """
     Calculates the inverse participation ratios of each eigenstate
