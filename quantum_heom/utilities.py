@@ -239,8 +239,8 @@ def calc_ipr_density_matrix(density_matrix: np.ndarray) -> float:
     an N x N input density matrix, given by:
 
     .. math::
-        IPR(\\rho) = \\frac{(sum_{i,j} |\\rho_{ij}|)^2}
-                           {N(sum_{i,j} |\\rho_{ij}|^2)}
+        IPR(\\rho) = \\frac{(\\sum_{i,j} |\\rho_{ij}|)^2}
+                           {N(\\sum_{i,j} |\\rho_{ij}|^2)}
 
     As defined in equation 15 of T. Meier, V. Chernyak, and
     S. Mukamel, J. Phys. Chem. B 1997, 101, 7332-7342.
