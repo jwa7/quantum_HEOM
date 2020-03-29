@@ -36,7 +36,7 @@ This Python package was written as part of a final year MSci Cproject on the mod
 2. Install the environment as a ipython kernel. This allows jupyter notebooks to be executed from within the virtual environment:   
 ``ipython kernel install --user --name=qheom``  
 
-2. Run all unit tests. All of these should pass if the package is working as it should. If something if wrong, please raise an issue [here](https://github.com/jwa7/quantum_HEOM/issues).  
+2. Run all unit tests. All of these should pass if the package is working as it should. If something is wrong, please raise an issue [here](https://github.com/jwa7/quantum_HEOM/issues).  
 ``chmod +x run_tests.sh && ./run_tests.sh``
 
 ### Units
@@ -97,14 +97,23 @@ Lindblad models:
 
 * Local dephasing and global thermalising: [S. B. Worster, C. Stross, F. M. W. C. Vaughan, N. Linden and F. R. Manby, *Journal of Physical Chemistry Letters*, 2019, **10**, 7383–7390](http://arxiv.org/abs/1908.08373)
 
-* Global thermalising: [M. Ostilli and C. Presilla, *Physical Review A*, 2017, **95**, 1–9](https://journals.aps.org/pra/abstract/10.1103/PhysRevA.95.062112) (global thermalising)
+* Global thermalising: [M. Ostilli and C. Presilla, *Physical Review A*, 2017, **95**, 1–9](https://journals.aps.org/pra/abstract/10.1103/PhysRevA.95.062112)
 
 * Local thermalising: [M. Mohseni, P. Rebentrost, S. Lloyd and A. Aspuru-Guzik, *The Journal of Chemical Physics*, 2008, **129**, 174106](https://aip.scitation.org/doi/full/10.1063/1.3002335)
 
 HEOM:
 
 * Original HEOM paper: [Y. Tanimura and R. Kubo, *Journal of the Physical Society of Japan*, 1989, **58**, 101–114](https://www.jstage.jst.go.jp/article/jpsj1946/58/1/58_1_101/_article/-char/ja/)
-* QuTiP software with built-in HEOM solver: [J. Johansson, P. Nation and F. Nori, *Computer Physics Communications*, 2013, **184**,1234–1240](https://www.sciencedirect.com/science/article/pii/S0010465512003955)
+* QuTiP software with built-in HEOM solver: [J. Johansson, P. Nation and F. Nori, *Computer Physics Communications*, 2013, **184**, 1234–1240](https://www.sciencedirect.com/science/article/pii/S0010465512003955)
+
+Spectral Density:
+
+* Renger and Marcus parametrised spectral density: [T. Renger and R. A. Marcus, *Journal of Chemical Physics*, 2002, **116**, 9997–10019](https://aip.scitation.org/doi/abs/10.1063/1.1470200?casa_token=nW56Fs4FopUAAAAA:ew8Nw8GFojKRfpDxvySiu1ZiwwmG1Rth2giYfJgi04HDObgc9YcTAcfSpNnkvcvc9YHLN-sNwm6d)
+
+Other:
+
+* Trace distance: [H.-P. Breuer, E.-M. Laine and J. Piilo, *Physical Review Letters*, 2009, **103**, 210401](https://journals.aps.org/prl/abstract/10.1103/PhysRevLett.103.210401)
+
 
 ## Troubleshooting
 
