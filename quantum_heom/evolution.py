@@ -312,7 +312,7 @@ def time_evo_heom(dens_mat: np.ndarray, timesteps: int, time_interval: float,
         evaluation of the system dynamics.
     cutoff_freq : float
         The cutoff frequency used in calculating the spectral
-        density, in units of ps^-1.
+        density, in units of rad ps^-1.
     matsubara_coeffs : np.ndarray
         The matsubara coefficients c_k used in calculating the
         spectral density for the HEOM approach. Must be in
@@ -321,7 +321,8 @@ def time_evo_heom(dens_mat: np.ndarray, timesteps: int, time_interval: float,
         HEOMSolver automatically generates them.
     matsubara_freqs: np.ndarray
         The matsubara frequencies v_k used in calculating the
-        spectral density for the HEOM approach, in units of ps^-1.
+        spectral density for the HEOM approach, in units of rad
+        ps^-1.
         Must be in order (smallest -> largest), where the nth
         frequency corresponds to the nth matsubara term. If None;
         QuTiP's HEOMSolver automatically generates them.
@@ -361,19 +362,17 @@ def time_evo_heom(dens_mat: np.ndarray, timesteps: int, time_interval: float,
     assert (isinstance(cutoff_freq, float) and cutoff_freq > 0.), (
         'Must provide the cutoff_freq as a positive float.')
     if matsubara_coeffs is not None:
-        check = [(i >= 0. and isinstance(i, (float, complex)))
-                 for i in matsubara_coeffs]
+        check = [isinstance(i, (float, complex)) for i in matsubara_coeffs]
         assert (isinstance(matsubara_coeffs, np.ndarray)
                 and check.count(True) == len(check)), (
                     'matsubara_coeffs must be passed as a np.ndarray with all'
                     ' elements as positive floats.')
     if matsubara_freqs is not None:
-        check = [(i >= 0. and isinstance(i, (float, complex)))
-                 for i in matsubara_freqs]
+        check = [isinstance(i, (float, complex)) for i in matsubara_freqs]
         assert (isinstance(matsubara_freqs, np.ndarray)
                 and check.count(True) == len(check)), (
                     'matsubara_freqs must be passed as a np.ndarray with all'
-                    ' elements as positive floats.')
+                    ' elements as floats.')
 
     # Build HEOM Solver
     hsolver = HSolverDL(Qobj(hamiltonian),   # rad ps^-1
@@ -385,8 +384,8 @@ def time_evo_heom(dens_mat: np.ndarray, timesteps: int, time_interval: float,
                         cutoff_freq,   # ps^-1
                         planck=1.0,
                         boltzmann=1.0,
-                        renorm=False,
-                        stats=True)
+                        renorm=True,
+                        stats=False)
     # Set the matsubara coeffs and freqs to those passed (if actually passed)
     if matsubara_coeffs is not None:
         hsolver.exp_coeff = matsubara_coeffs
@@ -395,11 +394,15 @@ def time_evo_heom(dens_mat: np.ndarray, timesteps: int, time_interval: float,
     # Run the simulation over the time interval.
     times = np.array(range(timesteps + 1)) * time_interval  # ps
     result = hsolver.run(Qobj(dens_mat), times)
-    # Convert temperature back to quantum_HEOM units; rad ps^-1 --> Kelvin
-    temperature = temperature * 1e12 * constants.hbar / constants.k
-    evolution = np.empty(len(result.states), dtype=np.ndarray)
+    # CONVERT BACK TO QUANTUM_HEOM UNITS
+    conv_kelvin_to_rad_per_ps = constants.k / (constants.hbar * 1e12)
+    temperature = temperature / conv_kelvin_to_rad_per_ps  # Kelvin
+    hamiltonian = hamiltonian  # rad ps^-1
+    # RETRIEVE THERMAL EQUILIBRIUM STATE
     # equilibrium_state() method requires Hamiltonian in rad ps^-1 and T in K
     eq_state = equilibrium_state('HEOM', dims, hamiltonian, temperature)
+    # PROCESS TIME EVOLUTION DATA
+    evolution = np.empty(len(result.states), dtype=np.ndarray)
     for i in range(0, len(result.states)):
         dens_matrix = np.array(result.states[i]).T
         dens_matrix = util.renormalise_matrix(dens_matrix)
@@ -407,7 +410,7 @@ def time_evo_heom(dens_mat: np.ndarray, timesteps: int, time_interval: float,
                                  dens_matrix,
                                  util.trace_matrix_squared(dens_matrix),
                                  util.trace_distance(dens_matrix, eq_state)])
-    return (evolution, np.array(hsolver.exp_coeff), np.array(hsolver.exp_freq))
+    return evolution, np.array(hsolver.exp_coeff), np.array(hsolver.exp_freq)
 
 def process_evo_data(time_evolution: np.array, elements: [list, None],
                      trace_measure: list):
