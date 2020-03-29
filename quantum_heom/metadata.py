@@ -6,6 +6,7 @@ import numpy as np
 from scipy import integrate
 
 from quantum_heom import utilities as util
+from quantum_heom.lindbladian import LINDBLAD_MODELS
 
 
 def integrate_trace_distance(systems, reference) -> list:
@@ -83,8 +84,35 @@ def calc_equilibration_time(system) -> float:
     """
 
     evo = system.time_evolution
-    for step in evo:
-        if step[3] < 0.0001:
-            return step[0]
-    raise ValueError("QuantumSystem hasn't equilibrated within timescale of"
-                     " of evolution. Increase the number of timesteps.")
+    tolerance = 0.01
+    if system.dynamics_model in LINDBLAD_MODELS:
+        for step in evo:
+            if step[3] < tolerance:
+                return step[0]
+        raise ValueError("QuantumSystem hasn't equilibrated within timescale of"
+                         " of evolution. Increase the number of timesteps.")
+    if system.dynamics_model == 'HEOM':
+        prev_dist = evo[0][3]
+        for idx, step in enumerate(evo):
+            if idx == 0:
+                continue
+            curr_dist = step[3]
+            difference = abs(curr_dist - prev_dist)
+            if difference < tolerance:
+                try:
+                    # Check to see if trace distance has flattened out
+                    five_ahead = abs(evo[idx + 5][3] - prev_dist) < tolerance
+                    ten_ahead = abs(evo[idx + 10][3] - prev_dist) < tolerance
+                    fifteen_ahead = abs(evo[idx + 15][3] - prev_dist) < tolerance
+                    fifty_ahead = abs(evo[idx + 50][3] - prev_dist) < tolerance
+                except IndexError:
+                    raise ValueError("QuantumSystem hasn't equilibrated within"
+                                     " timescale of of evolution. Increase the"
+                                     " number of timesteps.")
+                if five_ahead and ten_ahead and fifteen_ahead and fifty_ahead:
+                    return evo[idx - 1][0]
+            prev_dist = curr_dist
+        raise ValueError("QuantumSystem hasn't equilibrated within timescale of"
+                         " of evolution. Increase the number of timesteps.")
+
+    raise ValueError('Invalid dynamics model.')
