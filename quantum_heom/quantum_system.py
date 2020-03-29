@@ -1,18 +1,16 @@
 """Module for setting up a quantum system. Contains
 the QuantumSystem class."""
 
-from scipy import constants, linalg
+from scipy import constants
 import numpy as np
 
 from quantum_heom import evolution as evo
 from quantum_heom import hamiltonian as ham
 from quantum_heom import heom
 from quantum_heom import lindbladian as lind
-from quantum_heom import utilities as util
 
 from quantum_heom.bath import SPECTRAL_DENSITIES
-from quantum_heom.evolution import (TEMP_INDEP_MODELS,
-                                    TEMP_DEP_MODELS,
+from quantum_heom.evolution import (TEMP_DEP_MODELS,
                                     DYNAMICS_MODELS)
 from quantum_heom.hamiltonian import INTERACTION_MODELS
 from quantum_heom.lindbladian import LINDBLAD_MODELS
@@ -586,6 +584,7 @@ class QuantumSystem:
                                          self.hamiltonian,  # rad ps^-1
                                          self.temperature  # Kelvin
                                         )
+
         # HEOM DYNAMICS
         if self.dynamics_model == 'HEOM':
 
@@ -595,8 +594,8 @@ class QuantumSystem:
             # hamiltonian:     rad ps^-1        rad ps^-1   -
             # time:                   fs        ps          * 1e-3
             # temperature:            K         rad ps^-1   * k / (hbar * 1e12)
-            # coup_strength:   rad ps^-1        ps^-1       / 2pi
-            # cutoff_freq:     rad ps^-1        ps^-1       / 2pi
+            # coup_strength:   rad ps^-1        rad ps^-1   / 2pi
+            # cutoff_freq:     rad ps^-1        rad ps^-1   / 2pi
             # planck:                           = 1.0
             # boltzmann:                        = 1.0
             # matsu coeffs:    unitless         unitless    -
@@ -749,12 +748,11 @@ class QuantumSystem:
                                  ' the number of matsubara terms')
             if isinstance(coeffs, list):
                 coeffs = np.array(coeffs)
-            check = [(i >= 0. and isinstance(i, (float, complex)))
-                     for i in coeffs]
+            check = [isinstance(i, (float, complex)) for i in coeffs]
             assert (isinstance(coeffs, np.ndarray)
                     and check.count(True) == len(check)), (
                         'matsubara_coeffs must be passed as a np.ndarray'
-                        ' with all elements as positive floats.')
+                        ' with all elements as floats.')
             self._matsubara_coeffs = coeffs
         except TypeError:
             self._matsubara_coeffs = None
@@ -792,12 +790,11 @@ class QuantumSystem:
                                  ' the number of matsubara terms')
             if isinstance(freqs, list):
                 freqs = np.array(freqs)
-            check = [(i >= 0. and isinstance(i, (float, complex)))
-                     for i in freqs]
+            check = [isinstance(i, (float, complex)) for i in freqs]
             assert (isinstance(freqs, np.ndarray)
                     and check.count(True) == len(check)), (
                         'matsubara_freqs must be passed as a np.ndarray'
-                        ' with all elements as positive floats.')
+                        ' with all elements as floats.')
             self._matsubara_freqs = freqs
         except TypeError:
             self._matsubara_freqs = None
