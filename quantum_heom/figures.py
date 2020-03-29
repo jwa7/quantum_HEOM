@@ -9,10 +9,14 @@ Functions:
     fit_exponential_to_trace_distance
         Fits an exponential curve to the trace distance of a
         QuantumSystem object.
-    plot_comparative_trace_distance
+    comparative_trace_distance
         Plots the trace distance of one or more QuantumSystem
         objects with respect to a reference QuantumSystem
         object.
+    integrate_distance_fxn_variable
+        Plots the integrated (or mean) trace distance of a or
+        a list of QuantumSystem objects in with respect to a
+        reference state as a function of an input variable.
     """
 
 import os
@@ -833,19 +837,24 @@ def plot_comparison_publication(systems, save: bool = False):
 
     # Set up axes, plot matrix data
     figsize = (20, 10)
+    # figsize = (20, 20)
     fig, axes = plt.subplots(3, len(systems), sharex=True, sharey='row',
                              figsize=figsize)
     # wspace=0.075, hspace=0.125 for side-by-side with Zhu's HEOM
-    fig.subplots_adjust(wspace=0.15, hspace=0.2)
+    # wspace is horizontal spacing, hspace is vertical
+    fig.subplots_adjust(wspace=0.075, hspace=0.125)  # all models plot
+    # fig.subplots_adjust(wspace=0.03, hspace=0.04)  # local vs HEOM cryogenic
 
     # Define some settings
     font = {'family': 'sans-serif', 'weight': 'demi', 'size': 22}
     # font = {'family': 'calibri', 'weight': 'bold', 'size': 12}
     axes_label_size = 30
     axisfontsize = 5
-    line_thickness = 3
-    line_width = 2
-    tick_length = 8
+    line_thickness = 3    # all model plot
+    # line_thickness = 6    # cryogenic plot
+    line_width = 2        # all model plot
+    # line_width = 6        # cryogenic plot
+    tick_length = 10
     plt.rcParams['figure.dpi'] = 250
 
     for column, system in enumerate(systems):
@@ -877,9 +886,9 @@ def plot_comparison_publication(systems, save: bool = False):
     for i, j in product(range(3), range(len(systems))):
         idx = (i) if len(systems) == 1 else (i, j)
         # axes[idx].set_aspect(1250)
-        axes[idx].set_xlim(0, 2500)
-        axes[idx].xaxis.set_major_locator(MultipleLocator(500))
-        axes[idx].xaxis.set_minor_locator(MultipleLocator(250))
+        axes[idx].set_xlim(min(times[0]), max(times[0]))
+        axes[idx].xaxis.set_minor_locator(MultipleLocator(250))  # all models
+        # axes[idx].xaxis.set_minor_locator(MultipleLocator(100))  # cryogenic plot
         if i == 2:
             axes[idx].yaxis.set_major_locator(MultipleLocator(0.25))
             axes[idx].yaxis.set_minor_locator(MultipleLocator(0.125))
@@ -908,7 +917,8 @@ def plot_comparison_publication(systems, save: bool = False):
         if i == 2:
             axes[idx].set_xlabel('Time / fs', fontdict=font,
                                  fontsize=axes_label_size)
-            axes[idx].set_ylim(bottom=0., top=0.5)
+            axes[idx].set_ylim(bottom=0., top=0.5)    # all model plot
+            # axes[idx].set_ylim(bottom=0., top=1.0)  # cryogenic plot
         if i == 1 and j == 0:
             axes[idx].set_ylabel('Population of Each Site', fontdict=font,
                                  fontsize=axes_label_size, labelpad=15)
