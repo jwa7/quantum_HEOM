@@ -2,7 +2,7 @@
 
 from itertools import permutations, product
 
-from scipy import linalg
+from scipy import linalg, constants
 import numpy as np
 
 
@@ -78,10 +78,13 @@ def renormalise_matrix(matrix: np.ndarray) -> np.ndarray:
         The renormalised matrix, with trace=1.
     """
 
+    trace = np.trace(matrix)
     assert isinstance(matrix, np.ndarray), 'Must pass as numpy ndarray'
-    assert np.trace(matrix) != 0., 'Input matrix cannot have trace zero.'
+    assert trace != 0., 'Input matrix cannot have trace zero.'
+    assert matrix.shape[0] == matrix.shape[1]
 
-    return matrix / np.trace(matrix)
+    matrix /= trace
+    return matrix
 
 def commutator(A: np.ndarray, B: np.ndarray, anti: bool = False) -> complex:
 
@@ -395,3 +398,59 @@ def convert_args_to_latex(file: str) -> list:
                 line = line.replace('_', '\_')
                 args.append(line)
     return args
+
+def unit_conversion(value: float, unit_from: str, unit_to: str) -> float:
+
+    """
+    Provides conversion factors between units. Currently
+    implemented:
+
+        cm^-1  <---> rad ps^-1
+        cm^-1  <---> fs
+        K      <---> rad ps^-1
+
+
+    Parameters
+    ----------
+    value : float
+        The value to convert between units.
+    from : str
+        The string representation of the unit being converted.
+    to : str
+        The string representation of the unit being converted to.
+
+    Returns
+    -------
+    float
+        The unit conversion factor.
+    """
+
+    assert isinstance(value, (int, float)), 'Value passed must be a float'
+    assert isinstance(unit_from, str), 'unit_from must be passed as a string'
+    assert isinstance(unit_to, str), 'unit_to must be passed as a string'
+
+    per_cm_to_rad_per_ps = constants.c * 100 * 1e-12 * 2 * np.pi  # cm rad ps^-1
+    per_cm_to_fs = constants.c * 100 * 1e-15                      # cm fs^-1
+    kelvin_to_rad_per_ps = constants.k * 1e-12 / constants.hbar   # K^-1 rad ps^-1
+
+    if unit_from == 'cm^-1' and unit_to == 'rad ps^-1':
+        return value * per_cm_to_rad_per_ps
+    if unit_from == 'rad ps^-1' and unit_to == 'cm^-1':
+        return value / per_cm_to_rad_per_ps
+
+    if unit_from == 'Kelvin' and unit_to == 'rad ps^-1':
+        return value * kelvin_to_rad_per_ps
+    if unit_from == 'rad ps^-1' and unit_to == 'Kelvin':
+        return value / kelvin_to_rad_per_ps
+
+    if unit_from == 'cm^-1' and unit_to == 'fs':
+        return (value * constants.c * 100 * 1e-15) ** -1
+    if unit_from == 'fs' and unit_to == 'cm^-1':
+        return (value * 1e-15 * constants.c * 100) ** -1
+
+    if unit_from == 'fs' and unit_to == 'rad ps^-1':
+        return 2 * np.pi * ((value * 1e-3) ** -1)
+    if unit_from == 'rad ps^-1' and unit_to == 'fs':
+        return 1e3 * ((value / (2 * np.pi)) ** -1)
+
+    raise NotImplementedError('Other unit conversions not yet implemented.')
