@@ -31,10 +31,16 @@ def initial_density_matrix(dims: int, init_site_pop: list) -> np.ndarray:
         system.
     init_site_pop : list of int
         The sites in which to place initial population. For
-        example, to place equal population in sites 1 and 6 (in a
-        7-site system), the user should pass [1, 6]. To place twice
-        as much initial population in 3 as in 4 pass [3, 3, 4].
-        Default value is [1], which populates only site 1.
+        example, to place population in a superposition of sites 1
+        and 6 (in a 7-site system), the user should pass [1, 6].
+        To place twice as much initial population in 3 as in 4 pass
+        [3, 3, 4]. Default value is [1], which populates only site 1.
+        Example: user passes for a N=3 site system [1, 3].
+        Superposition state given by (1 / sqrt(2)) (|1> + |3>).
+        Density matrix given by outer product of this state:
+        rho (0) = (1/2) (|1><1| + |1><6| + |6><1| + |6><6|)
+        Note that there will be coherences present in the inital
+        state.
 
     Returns
     -------
@@ -50,11 +56,15 @@ def initial_density_matrix(dims: int, init_site_pop: list) -> np.ndarray:
         if site < 1 or site > dims:
             raise ValueError('Invalid site number.')
 
-    rho_0 = np.zeros((dims, dims), dtype=complex)
-    pop_share = 1. / len(init_site_pop)
+    num_states = len(init_site_pop)
+    normalisation = 1. / np.sqrt(num_states)
+    # Construct the base states
+    state = np.zeros(dims)
     for site in init_site_pop:
-        rho_0[site - 1][site - 1] += pop_share
-    return rho_0
+        state[site - 1] += 1
+    state *= normalisation
+
+    return np.outer(state, state)
 
 def equilibrium_state(dynamics_model: str, dims: int, hamiltonian: np.ndarray,
                       temperature: float) -> np.ndarray:
