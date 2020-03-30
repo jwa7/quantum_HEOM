@@ -408,6 +408,8 @@ def unit_conversion(value: float, unit_from: str, unit_to: str) -> float:
         cm^-1  <---> rad ps^-1
         cm^-1  <---> fs
         K      <---> rad ps^-1
+        fs     <---> rad ps^-1
+        fs rad^-1 <---> rad ps^-1
 
 
     Parameters
@@ -453,4 +455,8 @@ def unit_conversion(value: float, unit_from: str, unit_to: str) -> float:
     if unit_from == 'rad ps^-1' and unit_to == 'fs':
         return 1e3 * ((value / (2 * np.pi)) ** -1)
 
+    if unit_from == 'fs rad^-1' and unit_to == 'rad ps^-1':
+        return 1.0e3 / value
+    if unit_from == 'rad ps^-1' and unit_to == 'fs rad^-1':
+        return 1.0e3 / value
     raise NotImplementedError('Other unit conversions not yet implemented.')
