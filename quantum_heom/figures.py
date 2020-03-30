@@ -160,9 +160,9 @@ def plot_dynamics(systems, elements: [list, str] = None,
         axes = _plot_data(axes, processed, sys, multiple, elements,
                           coherences, asymptote, view_3d)
         axes = _format_axes(axes, elements, trace_measure, times, view_3d)
-        if (sys.interaction_model == 'FMO'
-                and np.all([i in sys.init_site_pop for i in [1, 6]])):
-            axes.set_ylim(bottom=0., top=0.5)
+        # if (sys.interaction_model == 'FMO'
+        #         and np.all([i in sys.init_site_pop for i in [1, 6]])):
+        #     axes.set_ylim(bottom=0., top=0.5)
     # ----------------------------------------------------------------------
     # SAVE PLOT
     # ----------------------------------------------------------------------
@@ -806,7 +806,7 @@ def integrate_distance_fxn_variable(systems, reference, var_name,
                               plot_args=plot_args)
     plt.show()
 
-def plot_comparison_publication(systems, save: bool = False):
+def plot_comparison_publication(systems, rows: str, save: bool = False):
 
     """
     Given a pre-initialised QuantumSystem object, plots a vertical
@@ -821,11 +821,22 @@ def plot_comparison_publication(systems, save: bool = False):
     system : QuantumSystem
         The QuantumSystem object for which the dynamics at
         different initial excitations will be plotted.
+    rows : str
+        The variable to change per row of the figure produced. If
+        rows='initial excitation', each row corresponds to a
+        different initial excitation; site 1 (top row), site 6
+        (middle) and sites 1 and 6 (bottom). If rows='phonon
+        relaxation', each row corresponds to a different
+        phonon relaxation rate. 50 fs (top), 100 fs (middle), 166
+        fs (bottom).
     save : bool
         If True, saves a .pdf figure in the quantum_HEOM/doc/figures
         relative directory of this package, as a .pdf file with a
         descriptive filename.
     """
+
+    assert rows in ['initial excitation', 'phonon relaxation'], (
+        'Must choose from "initial excitation" or "phonon relaxation"')
 
     if not isinstance(systems, list):
         systems = [systems]
@@ -836,8 +847,9 @@ def plot_comparison_publication(systems, save: bool = False):
                (137/250, 140/250, 50/250), (49/250, 46/250, 131/250)]
 
     # Set up axes, plot matrix data
-    figsize = (20, 10)
-    # figsize = (20, 20)
+    # figsize = (20, 10)  # all models
+    figsize = (20, 20)  # cryogenic
+    # figsize = (10, 15)  # phonon relaxation
     fig, axes = plt.subplots(3, len(systems), sharex=True, sharey='row',
                              figsize=figsize)
     # wspace=0.075, hspace=0.125 for side-by-side with Zhu's HEOM
@@ -850,10 +862,12 @@ def plot_comparison_publication(systems, save: bool = False):
     # font = {'family': 'calibri', 'weight': 'bold', 'size': 12}
     axes_label_size = 30
     axisfontsize = 5
-    line_thickness = 3    # all model plot
-    # line_thickness = 6    # cryogenic plot
-    line_width = 2        # all model plot
-    # line_width = 6        # cryogenic plot
+    # line_thickness = 3    # all model plot
+    line_thickness = 6    # cryogenic plot
+    # line_thickness = 4    # phonon relax plot
+    # line_width = 2        # all model plot
+    line_width = 6        # cryogenic plot
+    # line_width = 3        # phonon relax plot
     tick_length = 10
     plt.rcParams['figure.dpi'] = 250
 
@@ -865,8 +879,17 @@ def plot_comparison_publication(systems, save: bool = False):
         # excitations on site 1, site 6, and site 1 + 6.
         times = []
         matrix_data = []
-        for init_excitation in [[1], [6], [1, 6]]:
-            system.init_site_pop = init_excitation
+        for idx in range(3):
+            if rows == 'initial excitation':
+                initial_excitations = [[1], [6], [1, 6]]
+                system.init_site_pop = initial_excitations[idx]
+            elif rows == 'phonon relaxation':
+                rates = [50, 100, 166]
+                system.cutoff_freq = util.unit_conversion(rates[idx],
+                                                          'fs rad^-1',
+                                                          'rad ps^-1')
+            else:
+                raise ValueError('Invalid variable to plot on the rows.')
             evol = system.time_evolution
             elements = util.elements_from_str(7, 'diagonals')
             tmp = evo.process_evo_data(evol, elements, [None])
@@ -886,9 +909,9 @@ def plot_comparison_publication(systems, save: bool = False):
     for i, j in product(range(3), range(len(systems))):
         idx = (i) if len(systems) == 1 else (i, j)
         # axes[idx].set_aspect(1250)
-        axes[idx].set_xlim(min(times[0]), max(times[0]))
-        axes[idx].xaxis.set_minor_locator(MultipleLocator(250))  # all models
-        # axes[idx].xaxis.set_minor_locator(MultipleLocator(100))  # cryogenic plot
+        max_time = max(times[0])
+        axes[idx].set_xlim(min(times[0]), max_time)
+        axes[idx].xaxis.set_minor_locator(MultipleLocator(max_time / 10))
         if i == 2:
             axes[idx].yaxis.set_major_locator(MultipleLocator(0.25))
             axes[idx].yaxis.set_minor_locator(MultipleLocator(0.125))
@@ -914,17 +937,19 @@ def plot_comparison_publication(systems, save: bool = False):
         #     axes[idx].legend(loc='upper right', fontsize='large')
         if i in (0, 1):
             axes[idx].set_ylim(bottom=0., top=1.)
+            if rows == 'phonon relaxation':
+                axes[idx].set_ylim(bottom=0., top=0.5)
         if i == 2:
             axes[idx].set_xlabel('Time / fs', fontdict=font,
                                  fontsize=axes_label_size)
-            axes[idx].set_ylim(bottom=0., top=0.5)    # all model plot
-            # axes[idx].set_ylim(bottom=0., top=1.0)  # cryogenic plot
+            # axes[idx].set_ylim(bottom=0., top=0.5)    # all model/phonon plot
+            axes[idx].set_ylim(bottom=0., top=1.0)  # cryogenic plot
         if i == 1 and j == 0:
             axes[idx].set_ylabel('Population of Each Site', fontdict=font,
                                  fontsize=axes_label_size, labelpad=15)
     # Save figure
     if save:
-        plot_args = {'save': save}
+        plot_args = {'rows': rows, 'save': save}
         plot_type = 'publication'
         assert plot_type in PLOT_TYPES
         _save_figure_and_args(systems, plot_type=plot_type, plot_args=plot_args)
