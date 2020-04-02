@@ -47,7 +47,7 @@ LEGEND_LABELS = {'local dephasing lindblad': 'Loc. Deph.',
                  'debye': 'Debye',
                 }
 PLOT_TYPES = ['dynamics', 'spectral_density', 'compare_tr_dist',
-              'fit_expo_tr_dist', 'integ_tr_dist_fxn_var', 'publication']
+              'fit_expo_tr_dist', 'integ_tr_dist_fxn_var', 'publication', 'ipr']
 
 def plot_dynamics(systems, elements: [list, str] = None,
                   coherences: str = 'imag', trace_measure: list = None,
@@ -153,16 +153,17 @@ def plot_dynamics(systems, elements: [list, str] = None,
         figsize = (ratio * scaling, scaling)
         _, axes = plt.subplots(figsize=figsize)
     # Process and plot
-    for sys in systems:
+    tmp = multiple and asymptote
+    asymptote = False if tmp else asymptote
+    for idx, sys in enumerate(systems):
         time_evo = sys.time_evolution
         processed = evo.process_evo_data(time_evo, elements, trace_measure)
         times = processed[0]
+        if tmp and idx == len(systems) - 1:
+            asymptote = True
         axes = _plot_data(axes, processed, sys, multiple, elements,
                           coherences, asymptote, view_3d)
         axes = _format_axes(axes, elements, trace_measure, times, view_3d)
-        # if (sys.interaction_model == 'FMO'
-        #         and np.all([i in sys.init_site_pop for i in [1, 6]])):
-        #     axes.set_ylim(bottom=0., top=0.5)
     # ----------------------------------------------------------------------
     # SAVE PLOT
     # ----------------------------------------------------------------------
@@ -327,7 +328,7 @@ def _plot_data(ax, processed, qsys, multiple: bool, elements: list,
     # -------------------------------------------------------------------
     if squared is not None:
         args = ((zeros, squared) if view_3d else (squared,))
-        label = '$tr(\\rho^2)$'
+        label = 'tr($\\rho^2$)'
         if multiple:
             label += ' (' + LEGEND_LABELS[qsys.dynamics_model] + ')'
             colour = None
@@ -427,11 +428,14 @@ def _format_axes(ax, elements: [list, None], trace_measure: list,
                 ax.set_ylabel('Trace Measure', size=axes_label_size,
                               labelpad=pad)
             elif 'squared' in trace_measure:
-                ax.set_ylabel('$tr(\\rho^2)$', size=axes_label_size,
+                ax.set_ylabel('tr($\\rho(t)^2$)', size=axes_label_size,
                               labelpad=pad)
             elif 'distance' in trace_measure:
                 ax.set_ylabel('Trace Distance', size=axes_label_size,
                               labelpad=pad)
+            elif 'IPR' in trace_measure:
+                ax.set_ylabel('Inverse Participation Ratio',
+                              size=axes_label_size, labelpad=pad)
             else:
                 raise ValueError(
                     'If not plotting any density matrix elements you must pass'
@@ -443,12 +447,18 @@ def _format_axes(ax, elements: [list, None], trace_measure: list,
         # upper_bound = list(ax.get_xticks())[-1]
         # ax.xaxis.set_minor_locator(MultipleLocator(upper_bound / 20))
         ax.xaxis.set_minor_locator(MultipleLocator(100))
-        if elem_types == 'both':
-            ax.set_ylim(top=1., bottom=-0.5)
-        elif elem_types == 'diagonals' or elem_types is None:
-            ax.set_ylim(top=1., bottom=0.)
-        else:
-            ax.set_ylim(top=0.5, bottom=-0.5)
+        if elem_types is not None:
+            if elem_types == 'both':
+                ax.set_ylim(top=1., bottom=-0.5)
+            elif elem_types == 'diagonals' or elem_types is None:
+                ax.set_ylim(top=1., bottom=0.)
+            else: # off-diagonals
+                ax.set_ylim(top=0.5, bottom=-0.5)
+        else:  # trace measures only
+            if 'distance' in trace_measure:
+                ax.set_ylim(top=1., bottom=0.)
+            else:
+                ax.set_ylim(top=1.)
         # Format axes ticks
         ax.yaxis.set_major_locator(MultipleLocator(0.5))
         ax.yaxis.set_minor_locator(MultipleLocator(0.1))
@@ -698,6 +708,59 @@ def fit_exponential_to_trace_distance(system, save: bool = False) -> tuple:
     #     return a, c
     return a, b, c
 
+def plot_systems_ipr(systems, save: bool = False) -> tuple:
+
+    """
+    Fits an exponential curve "a * exp(-x / b) + c" to time-
+    evolution trace-distance (relative to the system's equilibrium
+    state) data, plotting the trace distances and the fitted curve,
+    as well as returning parameters a, b, and c.
+
+    Parameters
+    ----------
+    systems : list of QuantumSystem
+        The system (s) whose IPRs will be plotted.
+    save : bool
+        Whether or not to save the figure. Saves to the relative
+        directory quantum_HEOM/doc/figures/ with a descriptive
+        filename. Default is False.
+
+    Returns
+    -------
+    """
+
+    if not isinstance(systems, list):
+        systems = [systems]
+
+    dims = systems[0].sites
+
+    # Plot trace distances and fitted curve
+    ratio, scaling = 1.6, 5
+    figsize = (ratio * scaling, scaling)
+    _, axes = plt.subplots(figsize=figsize)
+
+    for sys in systems:
+        evol = sys.time_evolution
+        times = np.zeros(len(evol), dtype=float)
+        iprs = np.zeros(len(evol), dtype=float)
+        for idx, step in enumerate(evol):
+            times[idx] = step[0]
+            iprs[idx] = util.calc_ipr_density_matrix(step[1])
+        axes.plot(times, iprs, label=LEGEND_LABELS[sys.dynamics_model])
+
+    axes = _format_axes(axes, elements=None, trace_measure='IPR',
+                        times=times, view_3d=False)
+    axes.set_ylim(top=dims, bottom=1/dims)
+    axes.legend(loc='upper right', fontsize='large')
+    axes.yaxis.set_minor_locator(AutoLocator())
+    axes.xaxis.set_major_locator(AutoLocator())
+    if save:
+        plot_args = {'save': save}
+        plot_type = 'ipr'
+        assert plot_type in PLOT_TYPES
+        _save_figure_and_args(systems, plot_type=plot_type, plot_args=plot_args)
+    plt.show()
+
 def integrate_distance_fxn_variable(systems, reference, var_name,
                                     var_values, save):
 
@@ -847,8 +910,8 @@ def plot_comparison_publication(systems, rows: str, save: bool = False):
                (137/250, 140/250, 50/250), (49/250, 46/250, 131/250)]
 
     # Set up axes, plot matrix data
-    # figsize = (20, 10)  # all models
-    figsize = (20, 20)  # cryogenic
+    figsize = (20, 10)  # all models
+    # figsize = (20, 20)  # cryogenic
     # figsize = (10, 15)  # phonon relaxation
     fig, axes = plt.subplots(3, len(systems), sharex=True, sharey='row',
                              figsize=figsize)
@@ -862,11 +925,11 @@ def plot_comparison_publication(systems, rows: str, save: bool = False):
     # font = {'family': 'calibri', 'weight': 'bold', 'size': 12}
     axes_label_size = 30
     axisfontsize = 5
-    # line_thickness = 3    # all model plot
-    line_thickness = 6    # cryogenic plot
+    line_thickness = 3    # all model plot
+    # line_thickness = 6    # cryogenic plot
     # line_thickness = 4    # phonon relax plot
-    # line_width = 2        # all model plot
-    line_width = 6        # cryogenic plot
+    line_width = 3       # all model plot
+    # line_width = 6        # cryogenic plot
     # line_width = 3        # phonon relax plot
     tick_length = 10
     plt.rcParams['figure.dpi'] = 250
@@ -942,8 +1005,8 @@ def plot_comparison_publication(systems, rows: str, save: bool = False):
         if i == 2:
             axes[idx].set_xlabel('Time / fs', fontdict=font,
                                  fontsize=axes_label_size)
-            # axes[idx].set_ylim(bottom=0., top=0.5)    # all model/phonon plot
-            axes[idx].set_ylim(bottom=0., top=1.0)  # cryogenic plot
+            axes[idx].set_ylim(bottom=0., top=0.5)    # all model/phonon plot
+            # axes[idx].set_ylim(bottom=0., top=1.0)  # cryogenic plot
         if i == 1 and j == 0:
             axes[idx].set_ylabel('Population of Each Site', fontdict=font,
                                  fontsize=axes_label_size, labelpad=15)
@@ -1083,6 +1146,9 @@ def _write_args_to_file(systems, plot_type: str, plot_args: dict,
             f.write('# Arguments for plotting panelled dynamics of systems\n')
             f.write('# with initial excitations on site 1 (top row), site 6\n')
             f.write('# (middle row), and sites 1 and 6 (bottom row).\n')
+        elif 'ipr' in filename:
+            f.write('# Arguments for plotting Inverse Participation Ratios\n')
+            f.write('# of a list of systems.\n')
         else:
             raise ValueError('Incorrectly named files')
         f.write('plot_args = ' + plot_args + '\n')
@@ -1104,6 +1170,8 @@ def _write_args_to_file(systems, plot_type: str, plot_args: dict,
             f.write('figs.integrate_distance_fxn_variable([' + sys_names[0])
         elif 'publication' in filename:
             f.write('figs.plot_comparison_publication([' + sys_names[0])
+        elif 'ipr' in filename:
+            f.write('figs.plot_systems_ipr([' + sys_names[0])
         else:
             raise ValueError('Incorrectly named files')
         if 'compare_tr_dist' in filename:
