@@ -361,15 +361,15 @@ def time_evo_heom(dens_mat: np.ndarray, timesteps: int, time_interval: float,
             and coupling_op.shape[0] == dims), (
                 'Must provide the coupling operator as a square np.ndarray'
                 ' with dimensions matching the density matrix.')
-    assert (isinstance(reorg_energy, float) and reorg_energy > 0.), (
+    assert (isinstance(reorg_energy, (int, float)) and reorg_energy >= 0.), (
         'Must provide the coupling strength of the system as a positive float.')
-    assert (isinstance(temperature, float) and temperature > 0.), (
+    assert (isinstance(temperature, (int, float)) and temperature > 0.), (
         'Must provide the temperature of the system as a positive float.')
-    assert (isinstance(bath_cutoff, int) and bath_cutoff > 0), (
+    assert (isinstance(bath_cutoff, int) and bath_cutoff >= 0), (
         'Bath cutoff must be a positive int')
-    assert (isinstance(matsubara_terms, int) and matsubara_terms > 0), (
+    assert (isinstance(matsubara_terms, int) and matsubara_terms >= 0), (
         'matsubara_terms must be a positive int')
-    assert (isinstance(cutoff_freq, float) and cutoff_freq > 0.), (
+    assert (isinstance(cutoff_freq, (int, float)) and cutoff_freq > 0.), (
         'Must provide the cutoff_freq as a positive float.')
     if matsubara_coeffs is not None:
         check = [isinstance(i, (float, complex)) for i in matsubara_coeffs]
