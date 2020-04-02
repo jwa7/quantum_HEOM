@@ -84,7 +84,7 @@ def calc_equilibration_time(system) -> float:
     """
 
     evo = system.time_evolution
-    tolerance = 0.01
+    tolerance = 0.005
     if system.dynamics_model in LINDBLAD_MODELS:
         for step in evo:
             if step[3] < tolerance:
