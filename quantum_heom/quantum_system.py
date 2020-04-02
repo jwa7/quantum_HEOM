@@ -63,7 +63,7 @@ class QuantumSystem:
             of the system is evaluated. Default value is 500.
         temperature : float
             The temperature of the thermal bath, in Kelvin. Default
-            value is 298 K.
+            value is 300 K.
         spectral_density : str
             The spectral density used to described the interaction
             of the system with the bath modes. Must be either
@@ -117,12 +117,12 @@ class QuantumSystem:
             if settings.get('alpha_beta') is not None:
                 self.alpha_beta = settings.get('alpha_beta')
             else:
-                self.alpha_beta = (0., -15.5)  # rad ps^-1
+                self.alpha_beta = (20., -15.5)  # rad ps^-1
         if self.interaction_model == 'spin-boson':
             if settings.get('epsi_delta') is not None:
                 self.epsi_delta = settings.get('epsi_delta')
             else:
-                self.epsi_delta = (0., -31.0)
+                self.epsi_delta = (20., 40.)  # rad ps^-1
         # DYNAMICS SETTINGS
         self.dynamics_model = dynamics_model
         if settings.get('time_interval'):
@@ -144,7 +144,7 @@ class QuantumSystem:
             if settings.get('temperature') is not None:
                 self.temperature = settings.get('temperature')
             else:
-                self.temperature = 298.  # Kelvin
+                self.temperature = 300.  # Kelvin
             if settings.get('cutoff_freq') is not None:
                 self.cutoff_freq = settings.get('cutoff_freq')
             else:
@@ -712,7 +712,7 @@ class QuantumSystem:
     @matsubara_terms.setter
     def matsubara_terms(self, terms: int):
 
-        if terms < 1:
+        if terms < 0:
             raise ValueError('The number of Matsubara terms must be a positive'
                              ' integer.')
         self._matsubara_terms = terms
@@ -823,7 +823,7 @@ class QuantumSystem:
     @bath_cutoff.setter
     def bath_cutoff(self, bath_cutoff: int):
 
-        if bath_cutoff < 1:
+        if bath_cutoff < 0:
             raise ValueError('The number of bath terms must be a positive'
                              ' integer.')
         self._bath_cutoff = bath_cutoff
