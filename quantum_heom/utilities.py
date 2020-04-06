@@ -405,11 +405,11 @@ def unit_conversion(value: float, unit_from: str, unit_to: str) -> float:
     Provides conversion factors between units. Currently
     implemented:
 
-        cm^-1  <---> rad ps^-1
-        cm^-1  <---> fs
-        K      <---> rad ps^-1
-        fs     <---> rad ps^-1
-        fs rad^-1 <---> rad ps^-1
+        'cm^-1'`     <---> 'rad ps^-1'
+        'cm^-1'      <---> 'fs'
+        'K'          <---> 'rad ps^-1'
+        'fs'         <---> 'rad ps^-1'
+        'fs rad^-1'  <---> 'rad ps^-1'
 
 
     Parameters
@@ -440,9 +440,9 @@ def unit_conversion(value: float, unit_from: str, unit_to: str) -> float:
     if unit_from == 'rad ps^-1' and unit_to == 'cm^-1':
         return value / per_cm_to_rad_per_ps
 
-    if unit_from == 'Kelvin' and unit_to == 'rad ps^-1':
+    if unit_from == 'K' and unit_to == 'rad ps^-1':
         return value * kelvin_to_rad_per_ps
-    if unit_from == 'rad ps^-1' and unit_to == 'Kelvin':
+    if unit_from == 'rad ps^-1' and unit_to == 'K':
         return value / kelvin_to_rad_per_ps
 
     if unit_from == 'cm^-1' and unit_to == 'fs':

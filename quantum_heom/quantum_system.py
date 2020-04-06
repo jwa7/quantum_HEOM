@@ -82,8 +82,9 @@ class QuantumSystem:
             The cutoff frequency used in calculating the spectral
             density, in rad ps^-1. Default value is 6.024 rad ps^-1.
         mastsubara_terms : int
-            The number of matubara terms to include in the HEOM
-            evaluation of the system dynamics.
+            The number of matubara terms, i.e. the number of
+            exponentials to include in evaluation of the correlation
+            function.
             Default value is 2.
         matsubara_coeffs : np.ndarray
             The matsubara coefficients c_k used in calculating the
