@@ -232,12 +232,16 @@ def _plot_data(ax, processed, qsys, multiple: bool, elements: list,
                         'thistle'],
               'ohmic': ['-', 'thistle', 'violet', 'mediumpurple',
                         'blueviolet'],
+              'renger-marcus': ['-', 'lawngreen', 'springgreen',
+                                'limegreen', 'forestgreen']
              },
              'local thermalising lindblad':
              {'debye': ['-', 'forestgreen', 'limegreen',
                         'springgreen', 'lawngreen'],
               'ohmic': ['-', 'lawngreen', 'springgreen',
                         'limegreen', 'forestgreen'],
+              'renger-marcus': ['-', 'blueviolet', 'mediumpurple', 'violet',
+                                'thistle'],
              },
              # 'HEOM': ['--', 'k', 'dimgray', 'silver', 'lightgrey'],
              'HEOM':
@@ -249,6 +253,7 @@ def _plot_data(ax, processed, qsys, multiple: bool, elements: list,
                           '12': 'orange',
                           '21': 'green',
                           '22': 'blue'}
+    style, colour = None, None
     # Unpack the processed data
     times, matrix_data, squared, distance = processed
     zeros = np.zeros(len(times), dtype=float)
@@ -275,9 +280,11 @@ def _plot_data(ax, processed, qsys, multiple: bool, elements: list,
                     if qsys.sites == 2:
                         style = '-'
                         colour = spin_boson_colours[elem]
-                    else:
-                        style = lines[qsys.dynamics_model][0]
-                        colour = lines[qsys.dynamics_model][(idx % 4) + 1]
+                    # else:
+                    #     model_line = lines[qsys.dynamics_model]
+                    #     model_line = model_line[qsys.spectral_density]
+                    #     style = model_line[0]
+                    #     colour = model_line[(idx % 4) + 1]
                 else:
                     if qsys.sites == 2:
                         label += ' (' + LEGEND_LABELS[qsys.dynamics_model] + ')'
