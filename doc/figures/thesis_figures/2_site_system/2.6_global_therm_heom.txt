@@ -1,6 +1,6 @@
 -------------------------------------------------------
 Arguments for reproducing figure in file of name:
-/Users/joe.abbott/Documents/masters/code/quantum_HEOM/doc/figures/dynamics_2_sites_spin_boson_loc_deph_spin_boson_heom_version_0.pdf
+2.6_global_therm_heom.pdf
 -------------------------------------------------------
 
 -------------------------------------------------------
@@ -17,7 +17,7 @@ from quantum_heom.quantum_system import QuantumSystem
 from quantum_heom import figures as figs
 
 # Args for initialising QuantumSystem 1
-args1 = {'sites': 2, 'init_site_pop': [1], 'interaction_model': 'spin-boson', 'epsi_delta': (20, 40), 'dynamics_model': 'local dephasing lindblad', 'time_interval': 5.0, 'timesteps': 500, 'deph_rate': 7}
+args1 = {'sites': 2, 'init_site_pop': [1], 'interaction_model': 'spin-boson', 'epsi_delta': (20, 40), 'dynamics_model': 'global thermalising lindblad', 'time_interval': 5.0, 'timesteps': 500, 'deph_rate': 7, 'temperature': 300.0, 'cutoff_freq': 20.0, 'reorg_energy': 1.0, 'spectral_density': 'debye'}
 # Args for initialising QuantumSystem 2
 args2 = {'sites': 2, 'init_site_pop': [1], 'interaction_model': 'spin-boson', 'epsi_delta': (20, 40), 'dynamics_model': 'HEOM', 'time_interval': 5.0, 'timesteps': 500, 'temperature': 300.0, 'cutoff_freq': 20.0, 'reorg_energy': 1.0, 'spectral_density': 'debye', 'matsubara_terms': 12, 'matsubara_coeffs': np.array([76.84741075-20.j, 12.81657679 +0.j, 6.37666847 +0.j, 4.24723143 +0.j, 3.18440609 +0.j, 2.54714829 +0.j, 2.12245315 +0.j, 1.81915748 +0.j, 1.59171278 +0.j, 1.41482533 +0.j, 1.27332318 +0.j, 1.15755333 +0.j]), 'matsubara_freqs': np.array([ 20. , 246.77894367, 493.55788733, 740.336831 , 987.11577466, 1233.89471833, 1480.67366199, 1727.45260566, 1974.23154932, 2221.01049299, 2467.78943665, 2714.56838032]), 'bath_cutoff': 3}
 # Arguments for plotting dynamics.
