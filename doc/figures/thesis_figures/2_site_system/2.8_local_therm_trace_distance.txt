@@ -1,0 +1,33 @@
+-------------------------------------------------------
+Arguments for reproducing figure in file of name:
+2.8_local_therm_trace_distance.pdf
+-------------------------------------------------------
+
+-------------------------------------------------------
+PYTHON-COPYABLE CODE FOR REPRODUCING FIGURE:
+-------------------------------------------------------
+import os
+import sys
+ROOT_DIR = os.getcwd()[:os.getcwd().rfind('quantum_HEOM')]+ 'quantum_HEOM'
+if ROOT_DIR not in sys.path:
+    sys.path.append(ROOT_DIR)
+
+import numpy as np
+from quantum_heom.quantum_system import QuantumSystem
+from quantum_heom import figures as figs
+
+# Args for initialising QuantumSystem 1
+args1 = {'sites': 2, 'init_site_pop': [1], 'interaction_model': 'spin-boson', 'epsi_delta': (20, 40), 'dynamics_model': 'local thermalising lindblad', 'time_interval': 5.0, 'timesteps': 500, 'deph_rate': 11, 'temperature': 300.0, 'cutoff_freq': 6.0, 'reorg_energy': 6.0, 'spectral_density': 'debye'}
+# Args for initialising QuantumSystem 2
+args2 = {'sites': 2, 'init_site_pop': [2], 'interaction_model': 'spin-boson', 'epsi_delta': (20, 40), 'dynamics_model': 'local thermalising lindblad', 'time_interval': 5.0, 'timesteps': 500, 'deph_rate': 11, 'temperature': 300.0, 'cutoff_freq': 6.0, 'reorg_energy': 6.0, 'spectral_density': 'debye'}
+# Arguments for plotting comparative trace distances.
+plot_args = {}
+
+# Use the arguments in the following way:
+q1 = QuantumSystem(**args1)
+q2 = QuantumSystem(**args2)
+
+# 2nd arg in below function call is the reference system
+figs.comparative_trace_distance([q1], q2, **plot_args)
+
+-------------------------------------------------------

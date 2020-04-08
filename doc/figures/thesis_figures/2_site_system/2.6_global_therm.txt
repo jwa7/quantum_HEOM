@@ -1,0 +1,29 @@
+-------------------------------------------------------
+Arguments for reproducing figure in file of name:
+2.6_global_therm.pdf
+-------------------------------------------------------
+
+-------------------------------------------------------
+PYTHON-COPYABLE CODE FOR REPRODUCING FIGURE:
+-------------------------------------------------------
+import os
+import sys
+ROOT_DIR = os.getcwd()[:os.getcwd().rfind('quantum_HEOM')]+ 'quantum_HEOM'
+if ROOT_DIR not in sys.path:
+    sys.path.append(ROOT_DIR)
+
+import numpy as np
+from quantum_heom.quantum_system import QuantumSystem
+from quantum_heom import figures as figs
+
+# Args for initialising QuantumSystem 1
+args1 = {'sites': 2, 'init_site_pop': [1], 'interaction_model': 'spin-boson', 'epsi_delta': (20, 40), 'dynamics_model': 'global thermalising lindblad', 'time_interval': 5.0, 'timesteps': 500, 'deph_rate': 7, 'temperature': 300.0, 'cutoff_freq': 20.0, 'reorg_energy': 1.0, 'spectral_density': 'debye'}
+# Arguments for plotting dynamics.
+plot_args = {'elements': ['11', '12', '21', '22'], 'coherences': ['imag'], 'trace_measure': [None], 'asymptote': False, 'view_3d': False, 'save': True}
+
+# Use the arguments in the following way:
+q1 = QuantumSystem(**args1)
+
+figs.plot_dynamics([q1], **plot_args)
+
+-------------------------------------------------------
