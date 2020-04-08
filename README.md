@@ -47,7 +47,7 @@ Copy the following ``commands`` into your computer's terminal application (or eq
 ``conda activate qheom``
 
 2. Install the environment as a ipython kernel. This allows jupyter notebooks to be executed from within the virtual environment:   
-``ipython kernel install --user --name=qheom``  
+``ipython kernel install --name=qheom``  
 
 2. Run all unit tests. All of these should pass if the package is working as it should. If something is wrong, please raise an issue [here](https://github.com/jwa7/quantum_HEOM/issues).  
 ``chmod +x run_tests.sh && ./run_tests.sh``
