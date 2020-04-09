@@ -8,9 +8,9 @@
 
 ### Summary
 
-With high control over input parameters and interactable in notebooks *via* black-boxed code written in Python, *quantum_HEOM* allows the bath-influnced excitonic energy transfer dynamics of specific systems to be plotted. Three different forms of the Lindblad quantum master equation are implemented, and QuTiP's HEOM solver class is interfaced to allow for easy benchmarking with uniform inputs and outputs.
+With high control over input parameters and interactable in notebooks *via* 'black-boxed' code written in Python, *quantum_HEOM* allows the bath-influnced excitonic energy transfer dynamics of specific systems (namely a model spin-boson dimer and the 7-site FMO complex) to be plotted. Three different forms of the Lindblad quantum master equation are implemented, while simulation of HEOM dynamics is performed by interfacing with [QuTiP](https://github.com/qutip)'s HEOM solver class.
 
-This package was written as part of a final year MSci project, accompanying the author's Master's thesis entitled *"Quantum Dynamics of Bath Influenced Excitonic Energy Transfer in Photosynthetic Protein-Pigment Complexes"*, which can be found [here](https://github.com/jwa7/quantum_HEOM/tree/master/doc). Users can easily reproduce figures from this thesis, as well as define their own parameters and plot the dynamics. After completing the installation instructions below, the short tutorials can be followed to best show the functionality of the package.
+This package was written as part of a final year MSci project, accompanying the author's Master's thesis entitled *"Quantum Dynamics of Bath Influenced Excitonic Energy Transfer in Photosynthetic Protein-Pigment Complexes"*, which can be found [here](https://github.com/jwa7/quantum_HEOM/tree/master/doc). Users can easily reproduce figures from this thesis, as well as define their own parameters and plot the dynamics. After completing the installation instructions below, the short [tutorials](https://github.com/jwa7/quantum_HEOM/tree/master/doc/tutorials) can be followed to best show the functionality of the package.
 
 
 ### Scientific Background
@@ -124,9 +124,11 @@ Other:
 
 ### *ModuleNotFoundError*
 
-**Problem**: ``ModuleNotFoundError: No module named 'quantum_heom'``
+**Problem**:  
 
-**Solution**:
+``ModuleNotFoundError: No module named 'quantum_heom'``
+
+**Solution**:  
 
 Whether working in an ipython kernel or a jupyter notebook, ensure you are working from a directory within the *quantum_HEOM* top directory, and run the following codeblock:
 
@@ -146,13 +148,15 @@ or to import the figures module:
 
 ``from quantum_heom import figures as figs``
 
-### Configuring the virtual environment kernel in jupyter notebook
+### *Configuring the virtual environment kernel in a jupyter notebook*
 
-**Problem**: the option for the ``qheom`` virtual environment cannot be found in the toolbar of the jupyter notebook at 'Kernel' > 'Change Kernel' > 'qheom'. 
+**Problem**:  
 
-**Solution**:  
+The option for the ``qheom`` virtual environment cannot be found in the toolbar of the jupyter notebook at 'Kernel' > 'Change Kernel' > 'qheom'. 
+
+**Solution**:    
 
 1. In your computer's terminal application, ensure you are in the ``qheom`` virtual environment using ``source activate qheom`` or ``conda activate qheom``  
 
 2. Execute the following command:  
-``ipython kernel install --user --name=qheom``
+``ipython kernel install --name=qheom``
