@@ -83,7 +83,7 @@ def renormalise_matrix(matrix: np.ndarray) -> np.ndarray:
     assert trace != 0., 'Input matrix cannot have trace zero.'
     assert matrix.shape[0] == matrix.shape[1]
 
-    matrix /= trace
+    matrix = matrix / trace
     return matrix
 
 def commutator(A: np.ndarray, B: np.ndarray, anti: bool = False) -> complex:

@@ -96,7 +96,7 @@ class QuantumSystem:
             The matsubara frequencies v_k used in calculating the
             spectral density for the HEOM approach, in units of rad
             ps^-1. Must be in order (smallest -> largest), where
-            the nth frequency corresponds to the nth matsubara term.
+            the kth frequency corresponds to the kth matsubara term.
             Default is None; QuTiP's HEOMSolver automatically
             generates them.
         bath_cutoff : int
