@@ -500,25 +500,22 @@ def plot_spectral_density(systems: list = None, models: list = None,
 
     if not isinstance(systems, list):
         systems = [systems]
-    assert all([system.cutoff_freq == systems[0].cutoff_freq
-                for system in systems]), ('All systems must have same cutoff')
 
     # PLOTTING
     # Set up axes
     ratio, scaling = 1.6, 5
     figsize = (ratio * scaling, scaling)
     _, axes = plt.subplots(figsize=figsize)
-    # Plot systems if list of QuantumSystems is passed.
-    # if systems is not None:
-    #     if not isinstance(systems, list):
-    #         systems = [systems]
+    max_cutoff = systems[0].cutoff_freq
+    for sys in systems:
+        max_cutoff = max(max_cutoff, sys.cutoff_freq)
+    frequencies = np.arange(0., max_cutoff * 10., max_cutoff / 100.)
     for sys in systems:
         if sys.dynamics_model == 'local dephasing lindblad':
             raise ValueError(
                 'No spectral density used for local dephasing model;'
                 ' not a thermalising model.')
         cutoff = sys.cutoff_freq
-        frequencies = np.arange(0., cutoff * 10., cutoff / 100.)
         specs = []
         for freq in frequencies:
             if sys.spectral_density == 'debye':
