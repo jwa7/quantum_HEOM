@@ -24,6 +24,9 @@ This motivates the use of a quantum master equation, such as the Lindblad equati
 
 
 ## Getting Started
+
+**NOTE**: These set-up instructions have only been tested on macOS and may not work on Windows. 
+
 ### Pre-requisites
 
 * Python version 3.7.x ([download](https://www.python.org/downloads/))
