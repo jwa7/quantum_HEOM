@@ -10,7 +10,7 @@
 
 With high control over input parameters and interactable in notebooks *via* 'black-boxed' code written in Python, *quantum_HEOM* allows the bath-influnced excitonic energy transfer dynamics of specific systems (namely a model spin-boson dimer and the 7-site FMO complex) to be plotted. Three different forms of the Lindblad quantum master equation are implemented, while simulation of HEOM dynamics is performed by interfacing with [QuTiP](https://github.com/qutip)'s HEOM solver class.
 
-This package was written as part of a final year MSci project, accompanying the author's Master's thesis entitled *"Quantum Dynamics of Bath Influenced Excitonic Energy Transfer in Photosynthetic Protein-Pigment Complexes"*. Users can easily reproduce figures from this thesis, as well as define their own parameters and plot the dynamics. After completing the installation instructions below, the short [tutorials](https://github.com/jwa7/quantum_HEOM/tree/master/doc/tutorials) can be followed to best show the functionality of the package.
+This package was written as part of a final year MSci project, accompanying the author's Master's thesis entitled [*"Quantum Dynamics of Bath Influenced Excitonic Energy Transfer in Photosynthetic Protein-Pigment Complexes"*](https://github.com/jwa7/quantum_HEOM/blob/master/doc/jwa_final_thesis.pdf). Users can easily reproduce figures from this thesis, as well as define their own parameters and plot the dynamics. After completing the installation instructions below, the short [tutorials](https://github.com/jwa7/quantum_HEOM/tree/master/doc/tutorials) can be followed to best show the functionality of the package.
 
 
 ### Scientific Background
