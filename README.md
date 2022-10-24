@@ -1,47 +1,21 @@
-[![DOI](https://zenodo.org/badge/222657390.svg)](https://zenodo.org/badge/latestdoi/222657390) [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.7229807.svg)](https://doi.org/10.5281/zenodo.7229807)
-
-
-
 # *quantum_HEOM*
 
-#### Author: Joseph W. Abbott 
-(Currently: PhD Student, Lab COSMO, EPFL)
-
-
-## What's New - 2022
-
-* **25 October 2022**: Users can now define their own custom Hamiltonian. Tests and tutorials have been updated accordingly.
-
-* **11 April 2022**: *quantum_HEOM* has featured in a 2022 Nature Communications paper by A. Ullah and P. Dral, being used to generate training data for their 'AI-QD' trajectory learning approach to predicting energy transfer dynamics using convolutional neural networks.
-
-	> *Predicting the future of excitation energy transfer in light-harvesting complex with artificial intelligence-based quantum dynamics*, A. Ullah, P.O. Dral, *Nat Commun*, **13**, 1930, (2022). DOI:[10.1038/s41467-022-29621-w](https://doi.org/10.1038/s41467-022-29621-w)
-	
-
-## Citing This Work
-
-The author's master's thesis can be (preferentially) cited as:
-
-> *Quantum Dynamics of Bath Influenced Excitonic Energy Transfer in Photosynthetic Pigment-Protein Complexes*, J.W. Abbott, University of Bristol, 2020. DOI: [10.5281/zenodo.7229807](https://doi.org/10.5281/zenodo.7229807)
-
-and/or this Python package as:
-
-> *quantum_HEOM (github.com/jwa7/quantum_HEOM)* , J.W. Abbott, 2022, DOI: [10.5281/zenodo.7230160](https://doi.org/10.5281/zenodo.7230160)
-
-
-
+#### Author: Joseph W. Abbott *
+ 
+\* The Manby Group, Centre for Computational Chemistry, University of Bristol.
 
 ## Introduction
 
 ### Summary
 
-With high control over input parameters and interactable in notebooks, *quantum_HEOM* is a package written in Python that allows the bath-influenced excitonic energy transfer (EET) dynamics of open quantum systems to be plotted. Users can simulate EET for in-built model systems such as a 2-site spin boson system or the 7-site FMO complex, or define their own system by specification of a custom Hamiltonian. For describing the dynamics, three different forms of the Lindblad quantum master equation are implemented, while simulation of dynamics using the Hierarchical Equations of Motion (HEOM) approach is performed by interfacing with [QuTiP](https://github.com/qutip)'s HEOM solver class.
+With high control over input parameters and interactable in notebooks *via* 'black-boxed' code written in Python, *quantum_HEOM* allows the bath-influnced excitonic energy transfer dynamics of specific systems (namely a model spin-boson dimer and the 7-site FMO complex) to be plotted. Three different forms of the Lindblad quantum master equation are implemented, while simulation of HEOM dynamics is performed by interfacing with [QuTiP](https://github.com/qutip)'s HEOM solver class.
 
-This package was initially produced as part of the author's final year MSci project at the University of Bristol in 2020 accompanying the thesis entitled [*"Quantum Dynamics of Bath Influenced Excitonic Energy Transfer in Photosynthetic Pigment-Protein Complexes"*](https://doi.org/10.5281/zenodo.7229807). Users can easily reproduce figures from this thesis, as well as define their own parameters and plot the dynamics. After completing the installation instructions below, the short [tutorials](https://github.com/jwa7/quantum_HEOM/tree/master/doc/tutorials) can be followed to best show the functionality of the package.
+This package was written as part of a final year MSci project, accompanying the author's Master's thesis entitled [*"Quantum Dynamics of Bath Influenced Excitonic Energy Transfer in Photosynthetic Protein-Pigment Complexes"*](https://github.com/jwa7/quantum_HEOM/blob/master/doc/jwa_final_thesis.pdf). Users can easily reproduce figures from this thesis, as well as define their own parameters and plot the dynamics. After completing the installation instructions below, the short [tutorials](https://github.com/jwa7/quantum_HEOM/tree/master/doc/tutorials) can be followed to best show the functionality of the package.
 
 
 ### Scientific Background
 
-All life on Earth relies on the ability of photosynthetic organisms to efficiently harvest and trap energy from sunlight. Acting as a molecular wire, a pigment-protein complex known as the *Fenna-Matthews-Olson* (FMO) complex found in green sulfur bacteria mediates the transfer of photo-excitation energy between the photosynthetic antennae complex, where energy is harvested, and the reaction centre, where it is trapped. 
+All life on Earth relies on the ability of photosynthetic organisms to efficiently harvest and trap energy from sunlight. Acting as a molecular wire, a protein-pigment complex known as the *Fenna-Matthews-Olson* (FMO) complex found in green sulfur bacteria mediates the transfer of photo-excitation energy between the photosynthetic antennae complex, where energy is harvested, and the reaction centre, where it is trapped. 
 
 
 The fine balance between intra-system and system-bath couplings present in the FMO complex allows it to perform unidirectional quantum coherence excitonic energy transfer (EET) with an almost unit quantum yield. Using coherent theories, quantum dynamical treatment of the bath-influenced EET process can simulate, *in silico*, coherence effects that have been observed experimentally. The celebrated hierarchical equations of motion (HEOM) approach, based on a path integral formalism, accurately describes EET dynamics and successfully accounts for non-equilibrium and non-Markovian effects. Though exact, with very few assumptions made about the dynamics or state of the system, HEOM is computationally very expensive for large systems. 
