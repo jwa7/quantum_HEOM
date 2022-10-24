@@ -1,0 +1,22 @@
+cff-version: 0.0.1
+message: "If you use this software, please cite it as below."
+authors:
+- family-names: "Abbott"
+  given-names: "Joseph W."
+  orcid: "https://orcid.org/0000-0002-0502-6790"
+title: "quantum_HEOM"
+version: 1.0.0
+doi: 10.5281/zenodo.7230160
+date-released: 2022-10-10
+url: "https://github.com/jwa7/quantum_HEOM"
+preferred-citation:
+  type: misc
+  authors:
+  - family-names: "Abbott"
+    given-names: "Joseph W."
+    orcid: "https://orcid.org/0000-0002-0502-6790"
+  doi: "10.5281/zenodo.7229807"
+  journal: "Zenodo"
+  month: 4
+  title: "Quantum Dynamics of Bath Influenced Excitonic Energy Transfer in Photosynthetic Pigment-Protein Complexes"
+  year: 2019
