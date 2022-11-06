@@ -1,6 +1,8 @@
 """Module for setting up a quantum system. Contains
 the QuantumSystem class."""
 
+import os
+
 from scipy import constants
 import numpy as np
 
@@ -28,8 +30,8 @@ class QuantumSystem:
     interaction_model : str (required)
         How to model the interactions between sites. Must be
         one of ['nearest neighbour linear',
-        'nearest neighbour cyclic', 'FMO', 'spin-boson']. FMO is
-        only valid for 7-site systems and spin-boson only for 2.
+        'nearest neighbour cyclic', 'FMO', 'spin-boson', 'custom']. 
+        FMO is only valid for 7-site systems and spin-boson only for 2.
     dynamics_model : str (required)
         The model used to describe the system dynamics. Must
         be one of ['local dephasing lindblad', 'local thermalising
@@ -42,6 +44,13 @@ class QuantumSystem:
             place twice as much initial population in 3 as in 4,
             pass [3, 3, 4]. Default value is [1], which populates
             only site 1.
+        custom_hamiltonian : np.ndarray or str
+            A square matrix indicating a custom Hamiltonian that the
+            user wishes to use instead of those in-built. The dimensions
+            of this matrix must match the number of sites set by the user.
+            Either a 2D np.ndarray can be passed, or a str indicating the
+            path of a file containing the written Hamiltonian. In the case
+            of the latter, the Hamiltonian must be able to be loaded
         alpha_beta : tuple of float
             The values of alpha and beta (respectively) to use
             in Hamiltonian construction. Alpha sets the value of
@@ -114,6 +123,17 @@ class QuantumSystem:
             self._init_site_pop = [1]  # initial excitation on site 1
         # INTERACTIONS SETTINGS
         self.interaction_model = interaction_model
+        if self.interaction_model == 'custom':
+            if settings.get('custom_hamiltonian') is not None:
+                self.hamiltonian = settings.get('custom_hamiltonian')
+            else:
+                raise ValueError('If using a custom interaction model, '
+                    + 'a Hamiltonian must be user-defined.')
+        else:
+            # If using in-built interaction_model a Hamiltonian shouldn't be passed
+            assert settings.get('custom_hamiltonian') is None, (
+                'A custom hamiltonian should not be passed if using an'
+                + ' in-built interaction_model!')
         if self.interaction_model.startswith('nearest'):
             if settings.get('alpha_beta') is not None:
                 self.alpha_beta = settings.get('alpha_beta')
@@ -332,8 +352,31 @@ class QuantumSystem:
             number of sites. In units of rad ps^-1.
         """
 
+        if self.interaction_model == 'custom':
+            return self._hamiltonian
+        # If using a non-custom interaction_model, return an
+        # in-built Hamiltonian
         return ham.system_hamiltonian(self.sites, self.interaction_model,
                                       self.alpha_beta, self.epsi_delta)
+
+    @hamiltonian.setter
+    def hamiltonian(self, custom_hamiltonian):
+
+        assert self.interaction_model == 'custom', (
+            "Can only use a custom Hamiltonian if the interaction_model \
+            property is set to 'custom'.")
+        if isinstance(custom_hamiltonian, str):
+            assert os.path.exists(custom_hamiltonian), (
+                'Cannot find specified custom Hamiltonian. Check file path.')
+            custom_hamiltonian = np.loadtxt(custom_hamiltonian)
+        assert isinstance(custom_hamiltonian, np.ndarray), (
+            'Custom Hamiltonian must be passed as a numpy array.')
+        assert custom_hamiltonian.shape[0] == custom_hamiltonian.shape[1], (
+            'Custom Hamiltonian must be square.')
+        assert self.sites == custom_hamiltonian.shape[0], (
+            'The dimensions of the custom Hamiltonian must match the'
+            + ' number of sites set.')
+        self._hamiltonian = custom_hamiltonian
 
     @property
     def hamiltonian_superop(self) -> np.ndarray:
