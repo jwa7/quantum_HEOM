@@ -6,7 +6,7 @@ import numpy as np
 from quantum_heom import utilities as util
 
 INTERACTION_MODELS = ['nearest neighbour cyclic', 'nearest neighbour linear',
-                      'FMO', 'spin-boson']
+                      'FMO', 'spin-boson', 'custom']
 
 
 def system_hamiltonian(dims: int, interaction_model: str,
